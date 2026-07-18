@@ -2,9 +2,19 @@ name: update
 
 # Keeps Formula/*.rb in sync with each product's latest signed release, the same
 # pull model as Glyndor/apt: no product pushes here. This reads their public
-# releases, verifies the signed SHA256SUMS against the org release key, and opens
-# an auto-merging PR when a formula changes — so a new macOS build reaches
+# releases, verifies the signed SHA256SUMS against the org release key, validates
+# the re-rendered formulae, and commits them straight to `main` — GitHub-signed
+# via the createCommitOnBranch mutation — so a new macOS build reaches
 # `brew upgrade` within a day without any product holding a credential here.
+#
+# Why a direct commit and not a pull request: the organisation forbids GitHub
+# Actions from creating or approving PRs (a locked, org-wide setting), so the
+# apt-style "open an auto-merging PR" path is unavailable. Unlike Glyndor/apt —
+# whose automation never writes git, it publishes to R2 — a tap's git content
+# *is* the published artifact, so the update must land as a commit. It lands on
+# `main` directly, validated in this job *before* it lands (there is no PR gate
+# standing between the commit and `brew install`), and signed by GitHub so
+# `main`'s require-signed-commits rule accepts it without a signing key here.
 on:
   schedule:
     # Daily, staggered after apt's 06:00 publish so the two don't contend.
@@ -19,18 +29,18 @@ on:
 permissions:
   contents: read
 
-# Never run two updates at once — they would race on the branch and the PR.
+# Never run two updates at once — they would race on main's HEAD (the second
+# would fail its expectedHeadOid check and drop the update to the next run).
 concurrency:
   group: update-formulae
   cancel-in-progress: false
 
 jobs:
   update:
-    name: Render and open PR
+    name: Render, validate, and commit
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -53,24 +63,35 @@ jobs:
             echo "changed=1" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Open an auto-merging, signed pull request
+      - name: Validate the re-rendered formulae
+        if: steps.render.outputs.changed == '1'
+        run: |
+          set -euo pipefail
+          # The same gate as ci.yml, run BEFORE the commit lands. A malformed
+          # render must never reach `main`: here the commit is the published
+          # artifact, with no PR review between it and `brew install`. `brew
+          # style` (rubocop) catches formatting and deprecated-API issues; a
+          # macOS-runner `brew audit` is tracked separately (issue #1).
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew style Formula/*.rb
+
+      - name: Commit the update to main (GitHub-signed)
         if: steps.render.outputs.changed == '1'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
-          branch="chore/update-formulae-${RUN_ID}"
+          # Commit the re-rendered formulae onto `main` with the GraphQL
+          # createCommitOnBranch mutation. That commit is signed by GitHub
+          # (Verified) — the require-signed-commits rule on `main` rejects the
+          # unsigned commit a plain `git commit`/`git push` would make, and this
+          # needs no signing key (unlike `git commit -S`). expectedHeadOid pins
+          # the parent to the HEAD we rendered from, so if main moved since
+          # checkout the mutation fails cleanly instead of clobbering — the next
+          # scheduled run re-renders from the new HEAD. Modified files go in
+          # fileChanges.additions (base64), removed ones in deletions.
           head="$(git rev-parse HEAD)"
-
-          # Create the PR branch at the current HEAD, then commit the re-rendered
-          # formulae with the GraphQL createCommitOnBranch mutation. That commit is
-          # signed by GitHub (verified) — the require-signed-commits rule on `main`
-          # rejects the unsigned commit a plain `git commit`/`git push` would make,
-          # and this needs no signing key (unlike `git commit -S`). Modified files
-          # go in fileChanges.additions (base64), removed ones in deletions.
-          gh api "repos/${REPO}/git/refs" -f ref="refs/heads/${branch}" -f sha="${head}" >/dev/null
           adds="$(git diff --name-only --diff-filter=ACMR -- Formula | while read -r f; do
             jq -cn --arg path "$f" --arg contents "$(base64 -w0 "$f")" '{path:$path, contents:$contents}'
           done | jq -cs '.')"
@@ -78,19 +99,10 @@ jobs:
             jq -cn --arg path "$f" '{path:$path}'
           done | jq -cs '.')"
           jq -n \
-            --arg repo "$REPO" --arg branch "$branch" --arg head "$head" \
+            --arg repo "$REPO" --arg branch "main" --arg head "$head" \
             --arg msg "chore: update formulae from the latest signed releases" \
             --argjson adds "$adds" --argjson dels "$dels" \
             '{query:"mutation($repo:String!,$branch:String!,$head:GitObjectID!,$msg:String!,$changes:FileChanges!){createCommitOnBranch(input:{branch:{repositoryNameWithOwner:$repo,branchName:$branch},expectedHeadOid:$head,message:{headline:$msg},fileChanges:$changes}){commit{oid}}}",
               variables:{repo:$repo,branch:$branch,head:$head,msg:$msg,changes:{additions:$adds,deletions:$dels}}}' \
             | gh api graphql --input - >/dev/null
-
-          # Auto-merge: the PR runs formula validation (ci.yml) and lands on green,
-          # so the update is validated but hands-off, mirroring apt's auto-publish.
-          gh pr create \
-            --base main \
-            --head "$branch" \
-            --title "chore: update formulae from the latest signed releases" \
-            --body "Automated re-render of Formula/*.rb from the products' latest signed releases (SHA256SUMS verified against the org release key)." \
-            --label "type:chore"
-          gh pr merge "$branch" --auto --squash --delete-branch
+          echo "Committed the formula update to main."

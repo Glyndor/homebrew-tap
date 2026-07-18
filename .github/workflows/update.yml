@@ -53,19 +53,38 @@ jobs:
             echo "changed=1" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Open an auto-merging pull request
+      - name: Open an auto-merging, signed pull request
         if: steps.render.outputs.changed == '1'
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
-          branch="chore/update-formulae-${{ github.run_id }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$branch"
-          git add Formula
-          git commit -s -m "chore: update formulae from the latest signed releases"
-          git push origin "$branch"
+          branch="chore/update-formulae-${RUN_ID}"
+          head="$(git rev-parse HEAD)"
+
+          # Create the PR branch at the current HEAD, then commit the re-rendered
+          # formulae with the GraphQL createCommitOnBranch mutation. That commit is
+          # signed by GitHub (verified) — the require-signed-commits rule on `main`
+          # rejects the unsigned commit a plain `git commit`/`git push` would make,
+          # and this needs no signing key (unlike `git commit -S`). Modified files
+          # go in fileChanges.additions (base64), removed ones in deletions.
+          gh api "repos/${REPO}/git/refs" -f ref="refs/heads/${branch}" -f sha="${head}" >/dev/null
+          adds="$(git diff --name-only --diff-filter=ACMR -- Formula | while read -r f; do
+            jq -cn --arg path "$f" --arg contents "$(base64 -w0 "$f")" '{path:$path, contents:$contents}'
+          done | jq -cs '.')"
+          dels="$(git diff --name-only --diff-filter=D -- Formula | while read -r f; do
+            jq -cn --arg path "$f" '{path:$path}'
+          done | jq -cs '.')"
+          jq -n \
+            --arg repo "$REPO" --arg branch "$branch" --arg head "$head" \
+            --arg msg "chore: update formulae from the latest signed releases" \
+            --argjson adds "$adds" --argjson dels "$dels" \
+            '{query:"mutation($repo:String!,$branch:String!,$head:GitObjectID!,$msg:String!,$changes:FileChanges!){createCommitOnBranch(input:{branch:{repositoryNameWithOwner:$repo,branchName:$branch},expectedHeadOid:$head,message:{headline:$msg},fileChanges:$changes}){commit{oid}}}",
+              variables:{repo:$repo,branch:$branch,head:$head,msg:$msg,changes:{additions:$adds,deletions:$dels}}}' \
+            | gh api graphql --input - >/dev/null
+
           # Auto-merge: the PR runs formula validation (ci.yml) and lands on green,
           # so the update is validated but hands-off, mirroring apt's auto-publish.
           gh pr create \

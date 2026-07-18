@@ -1,0 +1,77 @@
+name: update
+
+# Keeps Formula/*.rb in sync with each product's latest signed release, the same
+# pull model as Glyndor/apt: no product pushes here. This reads their public
+# releases, verifies the signed SHA256SUMS against the org release key, and opens
+# an auto-merging PR when a formula changes — so a new macOS build reaches
+# `brew upgrade` within a day without any product holding a credential here.
+on:
+  schedule:
+    # Daily, staggered after apt's 06:00 publish so the two don't contend.
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+  # Optional instant trigger: a product's release workflow may
+  # POST /repos/Glyndor/homebrew-tap/dispatches with event_type "release".
+  # Nothing is wired to it today; the daily schedule is the baseline.
+  repository_dispatch:
+    types: [release]
+
+permissions:
+  contents: read
+
+# Never run two updates at once — they would race on the branch and the PR.
+concurrency:
+  group: update-formulae
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Render and open PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install the signature verifier
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-cryptography
+
+      - name: Render formulae from the latest signed releases
+        id: render
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ./scripts/render-formulae.sh
+          if git diff --quiet -- Formula; then
+            echo "changed=0" >> "$GITHUB_OUTPUT"
+            echo "No formula changed."
+          else
+            echo "changed=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open an auto-merging pull request
+        if: steps.render.outputs.changed == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch="chore/update-formulae-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add Formula
+          git commit -s -m "chore: update formulae from the latest signed releases"
+          git push origin "$branch"
+          # Auto-merge: the PR runs formula validation (ci.yml) and lands on green,
+          # so the update is validated but hands-off, mirroring apt's auto-publish.
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "chore: update formulae from the latest signed releases" \
+            --body "Automated re-render of Formula/*.rb from the products' latest signed releases (SHA256SUMS verified against the org release key)." \
+            --label "type:chore"
+          gh pr merge "$branch" --auto --squash --delete-branch

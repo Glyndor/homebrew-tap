@@ -1,0 +1,30 @@
+name: CI
+
+# Validates every formula on each PR and push to main, so a malformed or
+# non-conforming formula fails review instead of a `brew install`. Uses the
+# Homebrew that GitHub's runner images ship preinstalled, so no third-party
+# setup action is needed (org actions allowlist: GitHub- and Glyndor-owned only).
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  formulae:
+    name: brew style + audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Validate formulae with the preinstalled Homebrew
+        run: |
+          set -euo pipefail
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          # `brew style` enforces the formula style guide (rubocop under the hood);
+          # `brew audit --strict` catches missing/incorrect fields. Both read the
+          # files directly, so the tap need not be tapped first.
+          brew style Formula/*.rb
+          brew audit --strict --formula Formula/*.rb

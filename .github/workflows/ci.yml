@@ -23,8 +23,13 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-          # `brew style` enforces the formula style guide (rubocop under the hood);
-          # `brew audit --strict` catches missing/incorrect fields. Both read the
-          # files directly, so the tap need not be tapped first.
+          # `brew style` accepts file paths and enforces the formula style guide
+          # (rubocop under the hood).
           brew style Formula/*.rb
-          brew audit --strict --formula Formula/*.rb
+          # `brew audit` no longer accepts file paths — it audits formulae by tap.
+          # Link the checkout in as the `glyndor/tap` tap so audit can see the
+          # formulae by name, then run the strict field/consistency checks.
+          tap_dir="$(brew --repository)/Library/Taps/glyndor/homebrew-tap"
+          mkdir -p "$(dirname "$tap_dir")"
+          ln -sfn "$GITHUB_WORKSPACE" "$tap_dir"
+          brew audit --strict --tap=glyndor/tap

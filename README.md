@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/banner.png" alt="Glyndor" width="820">
+</p>
+
 # Glyndor Homebrew tap
 
 Homebrew formulae for Glyndor's macOS binaries. The macOS counterpart to the

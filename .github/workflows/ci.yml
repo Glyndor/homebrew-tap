@@ -24,10 +24,39 @@ jobs:
           set -euo pipefail
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
           # `brew style` (rubocop under the hood) accepts file paths and catches
-          # formatting and deprecated-API issues — a sufficient gate for these
-          # generated formulae. `brew audit --strict` is deliberately not run
-          # here: it must load the formula's active spec, but the macOS binaries
-          # live inside an `on_macos` block that a Linux runner never evaluates,
-          # so audit reports "requires at least a URL". Auditing needs a macOS
-          # runner and is tracked as a follow-up.
+          # formatting and deprecated-API issues. It runs on Linux because it
+          # parses the formula rather than resolving it, so it needs no macOS
+          # runner and keeps the fast feedback on every push. The deeper
+          # `brew audit --strict` cannot run here — it resolves the active spec,
+          # and the binaries live in an `on_macos` block a Linux runner never
+          # evaluates — so it runs in the `brew audit` job below instead.
           brew style Formula/*.rb
+
+  audit:
+    name: brew audit
+    runs-on: macos-latest
+    env:
+      # Keep the run deterministic and offline: no auto-update mid-job, and no
+      # analytics ping (the org ships and runs nothing that phones home).
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Audit formulae as an installed tap
+        run: |
+          set -euo pipefail
+          # `brew audit --tap` only accepts a tap Homebrew knows about, and a tap
+          # is just a checkout in the right place under Library/Taps. Linking the
+          # workspace in is what makes the PR's own formulae the ones audited —
+          # `brew tap glyndor/tap` would fetch the published main branch instead
+          # and pass while the change under review is broken.
+          tap_dir="$(brew --repository)/Library/Taps/glyndor/homebrew-tap"
+          mkdir -p "$(dirname "$tap_dir")"
+          ln -s "$GITHUB_WORKSPACE" "$tap_dir"
+          # No `--online`: the URL and homepage reachability checks would make
+          # this gate depend on the network and on GitHub's release endpoints,
+          # and a formula must not go red because a host blipped. The signed
+          # SHA256SUMS the generator verifies is what proves the assets, not a
+          # HEAD request from CI.
+          brew audit --strict --tap=glyndor/tap

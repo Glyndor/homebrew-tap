@@ -54,9 +54,26 @@ jobs:
           tap_dir="$(brew --repository)/Library/Taps/glyndor/homebrew-tap"
           mkdir -p "$(dirname "$tap_dir")"
           ln -s "$GITHUB_WORKSPACE" "$tap_dir"
+
+          # Name every formula explicitly instead of passing `--tap`. Selecting
+          # by tap means a link that silently resolved to nothing audits an
+          # empty set and still exits 0 — a green gate that checked no formula,
+          # the same failure as a required check no job emits. Named formulae
+          # make that case fail loudly with "No available formula".
+          shopt -s nullglob
+          names=()
+          for formula in Formula/*.rb; do
+            names+=("glyndor/tap/$(basename "$formula" .rb)")
+          done
+          if [ ${#names[@]} -eq 0 ]; then
+            echo "::error::no formulae found under Formula/ — the tap is empty or the checkout is wrong"
+            exit 1
+          fi
+          echo "auditing: ${names[*]}"
+
           # No `--online`: the URL and homepage reachability checks would make
           # this gate depend on the network and on GitHub's release endpoints,
           # and a formula must not go red because a host blipped. The signed
           # SHA256SUMS the generator verifies is what proves the assets, not a
           # HEAD request from CI.
-          brew audit --strict --tap=glyndor/tap
+          brew audit --strict "${names[@]}"

@@ -20,6 +20,8 @@ jobs:
   # shellcheck, both from the reusable.
   shell:
     uses: Glyndor/.github/.github/workflows/shell-ci.yml@7099f8a9c8be91fa1732fe2402268b338771233f # v1.10.1
+    with:
+      test-command: ./tests/render-formulae.test.sh
 
   products:
     name: products match the generator

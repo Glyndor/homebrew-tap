@@ -21,6 +21,7 @@ jobs:
 
       - name: The README table and Formula/ must match PRODUCTS
         run: |
+          # shellcheck disable=SC2016 # the awk and sed programs below are single-quoted on purpose: the $ anchors and backticks in them belong to awk, sed and Markdown, not to the shell
           set -euo pipefail
           # scripts/render-formulae.sh's PRODUCTS table is the only place a
           # product is declared. Two things restate it and cannot be generated
@@ -41,7 +42,7 @@ jobs:
                        | sed -n 's/^| `\([^`]*\)`.*/\1/p' | sort -u)"
 
           rendered="$(find Formula -maxdepth 1 -name '*.rb' -printf '%f\n' \
-                     | sed 's/\.rb$//' | sort -u)"
+                     | while read -r f; do echo "${f%.rb}"; done | sort -u)"
 
           status=0
           if [ "$declared" != "$documented" ]; then

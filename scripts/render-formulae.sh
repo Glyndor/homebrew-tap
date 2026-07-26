@@ -10,10 +10,14 @@
 # Run by .github/workflows/update.yml on a schedule and on demand.
 set -euo pipefail
 
-# The org's Ed25519 release-signing public key (raw, unpadded base64) — the same
-# key podup/helmly/unitpm embed; its private half signs SHA256SUMS in every
-# release. Verifying against it is what makes the rendered checksum trustworthy
-# rather than whatever an attacker-influenced release asset happens to contain.
+# The org's Ed25519 release-signing public key, raw and unpadded base64.
+# Verifying against it is what makes the rendered checksum trustworthy rather
+# than whatever an attacker-influenced release asset happens to contain.
+#
+# Rotating the org release key means editing this constant here AND in
+# Glyndor/scoop-bucket's render-manifests.sh, on top of the products that embed
+# it in their own verifiers. A stale value fails closed: every render aborts on
+# a signature that no longer matches.
 RELEASE_PUBKEY_B64="HFv7vg5FCY7YyKUDbJhaQSfB9SboJGSblJtFbLmLHzM"
 
 # Products to publish, one per line: repo|formula|Class|description|arm64|x86_64

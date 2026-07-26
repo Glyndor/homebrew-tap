@@ -67,11 +67,15 @@ jobs:
         if: steps.render.outputs.changed == '1'
         run: |
           set -euo pipefail
-          # The same gate as ci.yml, run BEFORE the commit lands. A malformed
-          # render must never reach `main`: here the commit is the published
-          # artifact, with no PR review between it and `brew install`. `brew
-          # style` (rubocop) catches formatting and deprecated-API issues; a
-          # macOS-runner `brew audit` is tracked separately (issue #1).
+          # Run BEFORE the commit lands. A malformed render must never reach
+          # `main`: here the commit is the published artifact, with no PR review
+          # between it and `brew install`. `brew style` (rubocop) catches
+          # formatting and deprecated-API issues.
+          #
+          # This is half of ci.yml's gate, not all of it. `brew audit --strict`
+          # resolves the active spec, which a Linux runner leaves unevaluated
+          # inside the formula's `on_macos` block, so it needs a macOS runner
+          # and runs in ci.yml on the resulting push rather than here.
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
           brew style Formula/*.rb
 

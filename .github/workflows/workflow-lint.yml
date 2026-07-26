@@ -1,9 +1,9 @@
 name: Workflow lint
 
-# Lints this repository's own workflow YAML (publish.yml carries the most
-# per-repo logic in the org) with the shared actionlint reusable, so a broken
-# expression or a shellcheck-visible bug in a run: block fails the PR instead
-# of the next scheduled publish.
+# Lints this repository's own workflow YAML (update.yml carries the per-repo
+# logic here) with the shared actionlint reusable, so a broken expression or a
+# shellcheck-visible bug in a run: block fails the PR instead of the next
+# scheduled update.
 
 on:
   pull_request:

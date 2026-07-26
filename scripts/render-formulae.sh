@@ -24,6 +24,26 @@ set -euo pipefail
 # a signature that no longer matches.
 RELEASE_PUBKEY_B64="HFv7vg5FCY7YyKUDbJhaQSfB9SboJGSblJtFbLmLHzM"
 
+# The only way to override it is --pubkey, which tests/render-formulae.test.sh
+# uses to sign a synthetic release with an ephemeral key. A run with no
+# arguments trusts the constant above and nothing else — there is deliberately
+# no environment variable that could swap the trust anchor from outside. This is
+# the shape Glyndor/apt's verify-debs.sh already uses, where the key is an
+# argument for the same reason.
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--pubkey)
+			[ $# -ge 2 ] || { echo "--pubkey needs a value" >&2; exit 2; }
+			RELEASE_PUBKEY_B64="$2"
+			shift 2
+			;;
+		*)
+			echo "unknown argument: $1" >&2
+			exit 2
+			;;
+	esac
+done
+
 # Products to publish, one per line:
 #   repo|formula|Class|SPDX licence|description|arm64|x86_64|version check
 #

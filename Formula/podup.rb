@@ -30,6 +30,8 @@ class Podup < Formula
   end
 
   test do
+    # The argument comes from the generator's table: brew audit --strict
+    # requires a test block, and not every product answers --version.
     system "#{bin}/podup", "--version"
   end
 end

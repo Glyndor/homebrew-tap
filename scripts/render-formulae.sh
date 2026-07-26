@@ -24,16 +24,26 @@ set -euo pipefail
 # a signature that no longer matches.
 RELEASE_PUBKEY_B64="HFv7vg5FCY7YyKUDbJhaQSfB9SboJGSblJtFbLmLHzM"
 
-# Products to publish, one per line: repo|formula|Class|description|arm64|x86_64
-# `arm64`/`x86_64` are the macOS release asset names. Add a product here once it
-# ships macOS binaries with a signed SHA256SUMS. Keep it in step with the apt
-# repo's PRODUCTS list where a product ships on both.
+# Products to publish, one per line:
+#   repo|formula|Class|SPDX licence|description|arm64|x86_64|version check
+#
+# `arm64`/`x86_64` are the macOS release asset names, and `version check` is the
+# argument the formula's test block passes to the installed binary. Add a
+# product here once it ships macOS binaries with a signed SHA256SUMS. Keep it in
+# step with the apt repo's PRODUCTS list where a product ships on both.
+#
+# The licence and the version check used to be written into the template for
+# every product. Both happened to be right for podup and neither was checkable:
+# `brew audit --strict` only reads what the formula declares, so a formula
+# claiming MIT for a product that is not MIT passes, and Homebrew shows that
+# claim to the user. The org's Apache-2.0 to MIT migration is not finished, so
+# that case is reachable rather than hypothetical.
 #
 # This table is the only place a product is declared. The formula it renders,
 # the formulae pruned below, and the README's "Available formulae" table (which
 # ci.yml checks against this list) all follow from it.
 PRODUCTS=(
-	"Glyndor/podup|podup|Podup|Docker-compose translator and runner for rootless Podman|podup-darwin-arm64|podup-darwin-x86_64"
+	"Glyndor/podup|podup|Podup|MIT|Docker-compose translator and runner for rootless Podman|podup-darwin-arm64|podup-darwin-x86_64|--version"
 )
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -71,9 +81,17 @@ hash_of() { # $1=asset
 # unchecked failure would carry on and render a formula from a half-read state.
 render_product() { # $1=table entry
 	local entry="$1"
-	local repo formula cls desc arm intel tag version arm_sha intel_sha base
+	local repo formula cls licence desc arm intel version_check
+	local tag version arm_sha intel_sha base
 
-	IFS='|' read -r repo formula cls desc arm intel <<<"$entry"
+	IFS='|' read -r repo formula cls licence desc arm intel version_check <<<"$entry"
+
+	for field in repo formula cls licence desc arm intel version_check; do
+		[ -n "${!field}" ] || {
+			echo "::error::the PRODUCTS entry \"$entry\" has no $field"
+			return 1
+		}
+	done
 
 	tag="$(gh release view --repo "$repo" --json tagName --jq .tagName)" || {
 		echo "::error::$repo: could not read the latest release"
@@ -107,7 +125,7 @@ class $cls < Formula
   desc "$desc"
   homepage "https://github.com/$repo"
   version "$version"
-  license "MIT"
+  license "$licence"
 
   on_macos do
     on_arm do
@@ -130,7 +148,9 @@ class $cls < Formula
   end
 
   test do
-    system "#{bin}/$formula", "--version"
+    # The argument comes from the generator's table: brew audit --strict
+    # requires a test block, and not every product answers --version.
+    system "#{bin}/$formula", "$version_check"
   end
 end
 RB

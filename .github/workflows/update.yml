@@ -90,7 +90,23 @@ jobs:
           # inside the formula's `on_macos` block, so it needs a macOS runner
           # and runs in ci.yml on the resulting push rather than here.
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-          brew style Formula/*.rb
+
+          # Refuse to commit an empty tap. Without this the run still failed,
+          # but only because an unmatched Formula/*.rb stays literal and
+          # `brew style` errors on the missing path — a guard nobody wrote and
+          # nothing states. Adding `shopt -s nullglob` to this step, or a
+          # `brew style` that treats an empty list as fine, would silently turn
+          # it off, and this commit lands on `main` with no pull request between
+          # it and `brew install`. Glyndor/scoop-bucket checks this explicitly;
+          # match it.
+          shopt -s nullglob
+          formulae=(Formula/*.rb)
+          if [ ${#formulae[@]} -eq 0 ]; then
+            echo "::error::no formulae found under Formula/ — refusing to commit an empty tap"
+            exit 1
+          fi
+
+          brew style "${formulae[@]}"
 
       - name: Commit the update to main (GitHub-signed)
         if: steps.render.outputs.changed == '1'

@@ -21,8 +21,12 @@ class Podup < Formula
   end
 
   def install
-    # A bare-binary download stages under its asset name; rename it to the tool.
-    bin.install Dir["podup-darwin-*"].first => "podup"
+    # A bare-binary download stages under its release-asset name. Take that name
+    # from the generator's table, which is the same source the urls above come
+    # from, rather than globbing for one: a product whose assets are not named
+    # "<tool>-darwin-<arch>" would match nothing and install an empty formula.
+    asset = Hardware::CPU.arm? ? "podup-darwin-arm64" : "podup-darwin-x86_64"
+    bin.install asset => "podup"
   end
 
   test do

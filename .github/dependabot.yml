@@ -4,9 +4,30 @@ updates:
   # Keep the SHA-pinned actions in the workflows current. This repo has no
   # language package manifest (Ruby formulae + POSIX shell), so GitHub Actions
   # is the only ecosystem to track.
+  #
+  # A valid file is not proof this runs. Version updates are registered from
+  # the config on the default branch, and that registration can be lost: this
+  # repository went silent after 24 July 2026 with the file below unchanged and
+  # perfectly valid, and never proposed the .github v1.10.1 bump. Insights ->
+  # Dependabot is the only place that shows it; the settings page cannot tell
+  # the two states apart. Re-registering needs a commit that CHANGES this file
+  # on the default branch, so if it happens again, editing these comments is a
+  # legitimate fix.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
     labels: ["type:deps", "type:ci"]
     open-pull-requests-limit: 10
+    # Five action references across five workflows, all pinned by SHA. Without
+    # grouping, one upstream release day means five near-identical pull
+    # requests and five full CI runs, one of them on a macOS runner.
+    groups:
+      actions:
+        patterns: ["*"]
+    # Dependabot infers a prefix from the commit history when this is absent,
+    # and here it inferred "build(deps): Bump ..." -- a capitalised verb and a
+    # type the label taxonomy does not use. Set it so the generated title is
+    # predictable and matches the apt repo's.
+    commit-message:
+      prefix: chore

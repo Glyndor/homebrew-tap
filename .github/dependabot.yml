@@ -13,6 +13,13 @@ updates:
   # the two states apart. Re-registering needs a commit that CHANGES this file
   # on the default branch, so if it happens again, editing these comments is a
   # legitimate fix.
+  # nosemgrep: dependabot-missing-cooldown -- deliberately no cooldown. The rule
+  # assumes an open package ecosystem and a moving tag; here every action is
+  # SHA-pinned and GitHub- or Glyndor-owned, no automation auto-merges anything
+  # (measured across the org: no workflow arms auto-merge or even references
+  # Dependabot), and the owner reviews every bump before it lands. Holding a
+  # security bump back for a week costs more than it buys. Removed on purpose in
+  # Glyndor/apt#67 -- do not "fix" this by adding a cooldown block.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

@@ -21,7 +21,6 @@ jobs:
 
       - name: The README table and Formula/ must match PRODUCTS
         run: |
-          # shellcheck disable=SC2016 # the awk and sed programs below are single-quoted on purpose: the $ anchors and backticks in them belong to awk, sed and Markdown, not to the shell
           set -euo pipefail
           # scripts/render-formulae.sh's PRODUCTS table is the only place a
           # product is declared. Two things restate it and cannot be generated
@@ -35,11 +34,15 @@ jobs:
                      | sed -n 's/^[^"]*"[^|]*|\([^|]*\)|.*/\1/p' | sort -u)"
           [ -n "$declared" ] || { echo "::error::could not read PRODUCTS out of scripts/render-formulae.sh"; exit 1; }
 
+          # Backticks and "$" never appear inside the single quotes below. They
+          # would be awk's and Markdown's, but SC2016 reads them as shell
+          # expansions and actionlint runs shellcheck over this block; a
+          # file-level disable directive is not honoured there.
           documented="$(awk '/^\| Formula \| Product \|/ { inside = 1; next }
-                             inside && /^\|---/          { next }
-                             inside && /^\|/             { print; next }
-                             inside                      { exit }' README.md \
-                       | sed -n 's/^| `\([^`]*\)`.*/\1/p' | sort -u)"
+                             inside && /^\|---/ { next }
+                             inside && /^\|/    { print; next }
+                             inside              { exit }' README.md \
+                       | cut -d'|' -f2 | tr -cd '[:alnum:]._\n-' | awk 'NF' | sort -u)"
 
           rendered="$(find Formula -maxdepth 1 -name '*.rb' -printf '%f\n' \
                      | while read -r f; do echo "${f%.rb}"; done | sort -u)"

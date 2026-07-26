@@ -13,6 +13,50 @@ permissions:
   contents: read
 
 jobs:
+  products:
+    name: products match the generator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: The README table and Formula/ must match PRODUCTS
+        run: |
+          set -euo pipefail
+          # scripts/render-formulae.sh's PRODUCTS table is the only place a
+          # product is declared. Two things restate it and cannot be generated
+          # from it: the README's "Available formulae" table, and the set of
+          # files under Formula/. With one product the drift is invisible; with
+          # the full roster it is certain, and it is the same rot as the CI
+          # comments corrected in #11.
+          declared="$(awk '/^PRODUCTS=\(/ { inside = 1; next }
+                           inside && /^\)/  { exit }
+                           inside           { print }' scripts/render-formulae.sh \
+                     | sed -n 's/^[^"]*"[^|]*|\([^|]*\)|.*/\1/p' | sort -u)"
+          [ -n "$declared" ] || { echo "::error::could not read PRODUCTS out of scripts/render-formulae.sh"; exit 1; }
+
+          documented="$(awk '/^\| Formula \| Product \|/ { inside = 1; next }
+                             inside && /^\|---/          { next }
+                             inside && /^\|/             { print; next }
+                             inside                      { exit }' README.md \
+                       | sed -n 's/^| `\([^`]*\)`.*/\1/p' | sort -u)"
+
+          rendered="$(find Formula -maxdepth 1 -name '*.rb' -printf '%f\n' \
+                     | sed 's/\.rb$//' | sort -u)"
+
+          status=0
+          if [ "$declared" != "$documented" ]; then
+            echo "::error file=README.md::the README's Available formulae table disagrees with PRODUCTS"
+            diff <(echo "$declared") <(echo "$documented") | sed 's/^/  /' || true
+            status=1
+          fi
+          if [ "$declared" != "$rendered" ]; then
+            echo "::error::Formula/ disagrees with PRODUCTS — re-run scripts/render-formulae.sh"
+            diff <(echo "$declared") <(echo "$rendered") | sed 's/^/  /' || true
+            status=1
+          fi
+          [ "$status" -eq 0 ] && echo "ok  $(echo "$declared" | tr '\n' ' ')"
+          exit "$status"
+
   formulae:
     name: brew style
     runs-on: ubuntu-latest

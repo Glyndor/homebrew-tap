@@ -8,6 +8,10 @@
 # is served by the apt repo (apt.glyndor.net).
 #
 # Run by .github/workflows/update.yml on a schedule and on demand.
+#
+# Exit codes: 0 every product rendered; 3 at least one product was skipped and
+# the rest rendered (update.yml commits those, then fails the job); anything
+# else is a failure before any product was reached.
 set -euo pipefail
 
 # The org's Ed25519 release-signing public key, raw and unpadded base64.
@@ -24,6 +28,10 @@ RELEASE_PUBKEY_B64="HFv7vg5FCY7YyKUDbJhaQSfB9SboJGSblJtFbLmLHzM"
 # `arm64`/`x86_64` are the macOS release asset names. Add a product here once it
 # ships macOS binaries with a signed SHA256SUMS. Keep it in step with the apt
 # repo's PRODUCTS list where a product ships on both.
+#
+# This table is the only place a product is declared. The formula it renders,
+# the formulae pruned below, and the README's "Available formulae" table (which
+# ci.yml checks against this list) all follow from it.
 PRODUCTS=(
 	"Glyndor/podup|podup|Podup|Docker-compose translator and runner for rootless Podman|podup-darwin-arm64|podup-darwin-x86_64"
 )
@@ -36,7 +44,8 @@ trap 'rm -rf "$work"' EXIT
 verify_sha256sums() { # $1=repo $2=tag
 	rm -f "$work/SHA256SUMS" "$work/SHA256SUMS.sig"
 	gh release download "$2" --repo "$1" \
-		--pattern SHA256SUMS --pattern SHA256SUMS.sig --dir "$work" --clobber
+		--pattern SHA256SUMS --pattern SHA256SUMS.sig --dir "$work" --clobber \
+		|| return 1
 	python3 - "$work/SHA256SUMS" "$work/SHA256SUMS.sig" "$RELEASE_PUBKEY_B64" <<'PY'
 import base64, sys
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
@@ -53,16 +62,39 @@ hash_of() { # $1=asset
 		"$work/SHA256SUMS"
 }
 
-mkdir -p "$root/Formula"
+# Render one product's formula. Returns non-zero without touching any file when
+# the release cannot be read, its SHA256SUMS does not verify, or an asset the
+# table names is missing.
+#
+# Every step is checked explicitly rather than left to `set -e`: this runs as an
+# `if !` condition below, which disables errexit for the whole function, so an
+# unchecked failure would carry on and render a formula from a half-read state.
+render_product() { # $1=table entry
+	local entry="$1"
+	local repo formula cls desc arm intel tag version arm_sha intel_sha base
 
-for entry in "${PRODUCTS[@]}"; do
 	IFS='|' read -r repo formula cls desc arm intel <<<"$entry"
 
-	tag="$(gh release view --repo "$repo" --json tagName --jq .tagName)"
+	tag="$(gh release view --repo "$repo" --json tagName --jq .tagName)" || {
+		echo "::error::$repo: could not read the latest release"
+		return 1
+	}
 	version="${tag#v}"
-	verify_sha256sums "$repo" "$tag"
-	arm_sha="$(hash_of "$arm")"
-	intel_sha="$(hash_of "$intel")"
+
+	verify_sha256sums "$repo" "$tag" || {
+		echo "::error::$repo $tag: SHA256SUMS is missing or does not verify against the org release key"
+		return 1
+	}
+
+	arm_sha="$(hash_of "$arm")" || {
+		echo "::error::$repo $tag: the verified SHA256SUMS does not list $arm"
+		return 1
+	}
+	intel_sha="$(hash_of "$intel")" || {
+		echo "::error::$repo $tag: the verified SHA256SUMS does not list $intel"
+		return 1
+	}
+
 	base="https://github.com/$repo/releases/download/$tag"
 
 	cat >"$root/Formula/$formula.rb" <<RB
@@ -89,8 +121,12 @@ class $cls < Formula
   end
 
   def install
-    # A bare-binary download stages under its asset name; rename it to the tool.
-    bin.install Dir["$formula-darwin-*"].first => "$formula"
+    # A bare-binary download stages under its release-asset name. Take that name
+    # from the generator's table, which is the same source the urls above come
+    # from, rather than globbing for one: a product whose assets are not named
+    # "<tool>-darwin-<arch>" would match nothing and install an empty formula.
+    asset = Hardware::CPU.arm? ? "$arm" : "$intel"
+    bin.install asset => "$formula"
   end
 
   test do
@@ -100,4 +136,43 @@ end
 RB
 
 	echo "rendered Formula/$formula.rb -> $version"
+}
+
+mkdir -p "$root/Formula"
+
+declared=()
+skipped=()
+
+for entry in "${PRODUCTS[@]}"; do
+	IFS='|' read -r _ formula _ <<<"$entry"
+	declared+=("$formula")
+
+	# Render each product on its own. Before this, one product's broken release
+	# aborted the whole script under `set -e`, so a missing macOS binary — or a
+	# signature that stopped verifying — held back every other product's update
+	# too. A failure now leaves that product's existing formula exactly as it is,
+	# which still points at its last verified release.
+	if ! render_product "$entry"; then
+		skipped+=("$formula")
+	fi
 done
+
+# Drop formulae for products that are no longer in the table. Keyed on the table
+# and not on what rendered this run: a product skipped above must keep the
+# formula it already has, or one bad release would uninstall it from the tap.
+shopt -s nullglob
+for existing in "$root"/Formula/*.rb; do
+	name="$(basename "$existing" .rb)"
+	found=""
+	for formula in "${declared[@]}"; do
+		[ "$formula" = "$name" ] && found=1 && break
+	done
+	[ -n "$found" ] && continue
+	rm -f "$existing"
+	echo "removed Formula/$name.rb (no longer in PRODUCTS)"
+done
+
+if [ ${#skipped[@]} -gt 0 ]; then
+	echo "::error::skipped ${#skipped[@]} of ${#declared[@]} product(s): ${skipped[*]}"
+	exit 3
+fi

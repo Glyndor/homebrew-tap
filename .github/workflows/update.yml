@@ -55,7 +55,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          ./scripts/render-formulae.sh
+          # Exit 3 means the generator skipped at least one product and rendered
+          # the rest: its release was unreadable, its SHA256SUMS did not verify,
+          # or an asset the table names was missing. Carry on and commit what did
+          # render — holding a good update back because an unrelated product's
+          # release is broken is exactly what this replaced — then fail the job in
+          # the last step so the skip is loud. Any other non-zero is a failure
+          # before any product was reached, and stops the run here.
+          rc=0
+          ./scripts/render-formulae.sh || rc=$?
+          case "$rc" in
+            0) echo "partial=0" >> "$GITHUB_OUTPUT" ;;
+            3) echo "partial=1" >> "$GITHUB_OUTPUT" ;;
+            *) exit "$rc" ;;
+          esac
           if git diff --quiet -- Formula; then
             echo "changed=0" >> "$GITHUB_OUTPUT"
             echo "No formula changed."
@@ -110,3 +123,13 @@ jobs:
               variables:{repo:$repo,branch:$branch,head:$head,msg:$msg,changes:{additions:$adds,deletions:$dels}}}' \
             | gh api graphql --input - >/dev/null
           echo "Committed the formula update to main."
+
+      - name: Fail if any product was skipped
+        if: steps.render.outputs.partial == '1'
+        run: |
+          # Last, on purpose: the products that did render are already committed
+          # by now, so a broken release in one product costs that product's
+          # update and nothing else. This step is what keeps the skip from being
+          # silent — the render step's annotations name which products and why.
+          echo "::error::the render skipped at least one product; see the annotations on the render step"
+          exit 1

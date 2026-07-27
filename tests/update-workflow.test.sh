@@ -152,13 +152,20 @@ check "an emptied Formula/ fails validation" "1" "$rc"
 check "and the error says why" "1" \
 	"$(grep -c 'refusing to commit an empty tap' "$WORK/out")"
 
-# The mirror image: with a formula present the guard passes and the step goes on
-# to brew, which is absent here — so 127 proves the guard did NOT fire.
+# The mirror image: with a formula present the guard must NOT fire, and the step
+# must go on to brew.
+#
+# What happens once it gets there is deliberately not asserted. The exit code
+# past the guard depends on whether brew is installed -- 127 where it is absent,
+# 1 where it rejects a stub formula -- so pinning it would test the machine
+# rather than the workflow. This assertion WAS written as `127`: it passed
+# locally and failed on the runner, where brew exists.
 sandbox "$WORK/g" 0 no
 rc=0; run_step "$VALIDATE" "$WORK/g" || rc=$?
-check "a populated Formula/ passes the guard and reaches brew" "127" "$rc"
-check "and the empty-tap error is not raised" "0" \
+check "a populated Formula/ does not trip the empty-tap guard" "0" \
 	"$(grep -c 'refusing to commit an empty tap' "$WORK/out")"
+check "and the step got past the guard to brew" "yes" \
+	"$(grep -qiE 'brew|linuxbrew' "$WORK/out" && echo yes || echo no)"
 
 # --- the wiring, asserted by reading the workflow ---------------------------
 # These conditions are evaluated by the Actions engine, so they can be read but

@@ -47,6 +47,10 @@ done
 # Products to publish, one per line:
 #   repo|formula|Class|SPDX licence|description|arm64|x86_64|version check
 #
+# An asset field of "-" means the product publishes nothing for that
+# architecture and the formula omits it; at least one must be a real name. An
+# EMPTY field stays an error, because that is what a dropped column looks like.
+#
 # `arm64`/`x86_64` are the macOS release asset names, and `version check` is the
 # argument the formula's test block passes to the installed binary. Add a
 # product here once it ships macOS binaries with a signed SHA256SUMS. Keep it in
@@ -129,7 +133,7 @@ hash_of() { # $1=asset
 render_product() { # $1=table entry
 	local entry="$1"
 	local repo formula cls licence desc arm intel version_check
-	local tag version arm_sha intel_sha base
+	local tag version arm_sha intel_sha base arch_blocks install_body
 
 	IFS='|' read -r repo formula cls licence desc arm intel version_check <<<"$entry"
 
@@ -151,16 +155,62 @@ render_product() { # $1=table entry
 		return 1
 	}
 
-	arm_sha="$(hash_of "$arm")" || {
-		echo "::error::$repo $tag: the verified SHA256SUMS does not list $arm"
-		return 1
-	}
-	intel_sha="$(hash_of "$intel")" || {
-		echo "::error::$repo $tag: the verified SHA256SUMS does not list $intel"
+	# "-" means the product publishes nothing for that architecture, so the
+	# formula omits it. An EMPTY field is still rejected above: an empty field
+	# between two pipes is what a dropped column looks like, and confusing "not
+	# published" with "I mistyped the row" would silently ship half a formula.
+	[ "$arm" != "-" ] || [ "$intel" != "-" ] || {
+		echo "::error::the PRODUCTS entry \"$entry\" publishes neither architecture"
 		return 1
 	}
 
+	if [ "$arm" != "-" ]; then
+		arm_sha="$(hash_of "$arm")" || {
+			echo "::error::$repo $tag: the verified SHA256SUMS does not list $arm"
+			return 1
+		}
+	fi
+	if [ "$intel" != "-" ]; then
+		intel_sha="$(hash_of "$intel")" || {
+			echo "::error::$repo $tag: the verified SHA256SUMS does not list $intel"
+			return 1
+		}
+	fi
+
 	base="https://github.com/$repo/releases/download/$tag"
+
+	# Build only the blocks the product actually ships. A single-architecture
+	# formula installs its one asset directly; there is nothing to pick between.
+	arch_blocks=""
+	if [ "$arm" != "-" ]; then
+		arch_blocks="    on_arm do
+      url \"$base/$arm\"
+      sha256 \"$arm_sha\"
+    end"
+	fi
+	if [ "$intel" != "-" ]; then
+		[ -n "$arch_blocks" ] && arch_blocks="$arch_blocks
+"
+		arch_blocks="$arch_blocks    on_intel do
+      url \"$base/$intel\"
+      sha256 \"$intel_sha\"
+    end"
+	fi
+
+	if [ "$arm" != "-" ] && [ "$intel" != "-" ]; then
+		install_body="    # A bare-binary download stages under its release-asset name. Take that name
+    # from the generator's table, which is the same source the urls above come
+    # from, rather than globbing for one: a product whose assets are not named
+    # \"<tool>-darwin-<arch>\" would match nothing and install an empty formula.
+    asset = Hardware::CPU.arm? ? \"$arm\" : \"$intel\"
+    bin.install asset => \"$formula\""
+	elif [ "$arm" != "-" ]; then
+		install_body="    # Only an arm64 build is published, so there is nothing to pick between.
+    bin.install \"$arm\" => \"$formula\""
+	else
+		install_body="    # Only an x86_64 build is published, so there is nothing to pick between.
+    bin.install \"$intel\" => \"$formula\""
+	fi
 
 	cat >"$root/Formula/$formula.rb" <<RB
 # typed: false
@@ -175,23 +225,11 @@ class $cls < Formula
   license "$licence"
 
   on_macos do
-    on_arm do
-      url "$base/$arm"
-      sha256 "$arm_sha"
-    end
-    on_intel do
-      url "$base/$intel"
-      sha256 "$intel_sha"
-    end
+$arch_blocks
   end
 
   def install
-    # A bare-binary download stages under its release-asset name. Take that name
-    # from the generator's table, which is the same source the urls above come
-    # from, rather than globbing for one: a product whose assets are not named
-    # "<tool>-darwin-<arch>" would match nothing and install an empty formula.
-    asset = Hardware::CPU.arm? ? "$arm" : "$intel"
-    bin.install asset => "$formula"
+$install_body
   end
 
   test do

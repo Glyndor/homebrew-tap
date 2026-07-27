@@ -326,6 +326,78 @@ contains "each gets its own licence" "$WORK/r12/Formula/other.rb" 'license "Apac
 contains "and its own version check" "$WORK/r12/Formula/other.rb" 'system "#{bin}/other", "-V"'
 contains "the first is untouched by the second" "$WORK/r12/Formula/podup.rb" 'license "MIT"'
 
+# --- a product that ships one architecture ----------------------------------
+# klyradb publishes a single Windows build and a single macOS one; before this,
+# a row had to name both assets, so such a product could not be carried at all.
+
+publish Glyndor/single v2.0.0 single-darwin-x86_64
+new_root "$WORK/r13"
+generator_with "$WORK/r13/scripts/render-formulae.sh" \
+	"Glyndor/single|single|Single|MIT|intel only|-|single-darwin-x86_64|--version"
+rc=0; run "$WORK/r13/scripts/render-formulae.sh" "$WORK/r13" || rc=$?
+check "an intel-only product renders, exit 0" "0" "$rc"
+S="$WORK/r13/Formula/single.rb"
+contains "the intel block is present" "$S" 'url "https://github.com/Glyndor/single/releases/download/v2.0.0/single-darwin-x86_64"'
+check "and no arm block is emitted" "0" "$(grep -c 'on_arm' "$S")"
+contains "install takes the one asset directly" "$S" 'bin.install "single-darwin-x86_64" => "single"'
+check "with no Hardware::CPU branch" "0" "$(grep -c 'Hardware::CPU' "$S")"
+
+publish Glyndor/single v2.0.0 single-darwin-arm64
+new_root "$WORK/r14"
+generator_with "$WORK/r14/scripts/render-formulae.sh" \
+	"Glyndor/single|single|Single|MIT|arm only|single-darwin-arm64|-|--version"
+rc=0; run "$WORK/r14/scripts/render-formulae.sh" "$WORK/r14" || rc=$?
+check "an arm-only product renders, exit 0" "0" "$rc"
+S="$WORK/r14/Formula/single.rb"
+check "and no intel block is emitted" "0" "$(grep -c 'on_intel' "$S")"
+contains "install takes the one asset directly" "$S" 'bin.install "single-darwin-arm64" => "single"'
+
+# "-" must not become a way to publish nothing at all.
+new_root "$WORK/r15"
+generator_with "$WORK/r15/scripts/render-formulae.sh" \
+	"Glyndor/single|single|Single|MIT|neither|-|-|--version"
+rc=0; run "$WORK/r15/scripts/render-formulae.sh" "$WORK/r15" || rc=$?
+check "a row publishing neither architecture is rejected" "3" "$rc"
+contains "and says so" "$WORK/out" "publishes neither architecture"
+
+# An empty field is a dropped column, not a declaration.
+new_root "$WORK/r16"
+generator_with "$WORK/r16/scripts/render-formulae.sh" \
+	"Glyndor/single|single|Single|MIT|empty arm||single-darwin-x86_64|--version"
+rc=0; run "$WORK/r16/scripts/render-formulae.sh" "$WORK/r16" || rc=$?
+check "an EMPTY field is still an error, not a declaration" "3" "$rc"
+contains "and names the field" "$WORK/out" "has no arm"
+
+# A declared architecture that does not arrive stays a hard error.
+publish Glyndor/single v2.0.0 single-darwin-x86_64
+new_root "$WORK/r17"
+generator_with "$WORK/r17/scripts/render-formulae.sh" \
+	"Glyndor/single|single|Single|MIT|arm declared|single-darwin-arm64|single-darwin-x86_64|--version"
+rc=0; run "$WORK/r17/scripts/render-formulae.sh" "$WORK/r17" || rc=$?
+check "a DECLARED architecture that is missing still fails" "3" "$rc"
+
+# The single-architecture shape is one CI's `brew style` never sees: that job
+# runs over Formula/ in the repository, which carries only the two-architecture
+# podup. Validate it here when a validator exists, and say so when none does —
+# skipping silently would leave the new shape unchecked everywhere.
+if command -v brew >/dev/null 2>&1; then
+	rc=0
+	brew style "$WORK/r13/Formula/single.rb" >"$WORK/style" 2>&1 || rc=$?
+	check "brew style accepts an intel-only formula" "0" "$rc"
+	rc=0
+	brew style "$WORK/r14/Formula/single.rb" >>"$WORK/style" 2>&1 || rc=$?
+	check "brew style accepts an arm-only formula" "0" "$rc"
+elif command -v ruby >/dev/null 2>&1; then
+	rc=0; ruby -c "$WORK/r13/Formula/single.rb" >/dev/null 2>&1 || rc=$?
+	check "the intel-only formula is syntactically valid Ruby" "0" "$rc"
+	rc=0; ruby -c "$WORK/r14/Formula/single.rb" >/dev/null 2>&1 || rc=$?
+	check "the arm-only formula is syntactically valid Ruby" "0" "$rc"
+	echo "note  brew is absent, so only Ruby syntax was checked"
+else
+	echo "note  neither brew nor ruby is present; the single-architecture formulae"
+	echo "note  were generated but NOT validated in this run"
+fi
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]

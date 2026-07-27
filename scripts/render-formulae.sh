@@ -86,10 +86,37 @@ print("SHA256SUMS signature verified")
 PY
 }
 
-# Print the verified SHA-256 of an asset, or fail if it is absent from the manifest.
+# Print the verified SHA-256 of an asset. Fails unless the manifest lists it
+# exactly once with a well-formed digest.
+#
+# The signature proves the manifest is the one the product published; it says
+# nothing about it being well-formed. Before this, a duplicated entry printed
+# BOTH hashes into one field and the run exited 0 -- a fail-open on
+# signature-verified input, and in the Scoop bucket's case one that passed
+# ci.yml's validation and would have been committed to main. Glyndor/apt's
+# publish.yml states the assumption this rests on: the release assets are
+# attacker-influenced, because whoever can publish a release controls them.
 hash_of() { # $1=asset
-	awk -v a="$1" '$2 == a { print $1; found = 1 } END { if (!found) exit 1 }' \
-		"$work/SHA256SUMS"
+	local matches count digest
+	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
+	[ -n "$matches" ] || return 1
+	count="$(printf '%s\n' "$matches" | wc -l)"
+	[ "$count" -eq 1 ] || {
+		echo "::error::the verified SHA256SUMS lists $1 $count times; it must list it exactly once" >&2
+		return 1
+	}
+	digest="$matches"
+	case "$digest" in
+		*[!0-9a-fA-F]* | "")
+			echo "::error::the checksum the verified SHA256SUMS gives for $1 is not hexadecimal" >&2
+			return 1
+			;;
+	esac
+	[ "${#digest}" -eq 64 ] || {
+		echo "::error::the checksum the verified SHA256SUMS gives for $1 is ${#digest} characters, not 64" >&2
+		return 1
+	}
+	printf '%s\n' "$digest"
 }
 
 # Render one product's formula. Returns non-zero without touching any file when

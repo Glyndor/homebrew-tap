@@ -89,8 +89,6 @@ jobs:
           # resolves the active spec, which a Linux runner leaves unevaluated
           # inside the formula's `on_macos` block, so it needs a macOS runner
           # and runs in ci.yml on the resulting push rather than here.
-          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-
           # Refuse to commit an empty tap. Without this the run still failed,
           # but only because an unmatched Formula/*.rb stays literal and
           # `brew style` errors on the missing path — a guard nobody wrote and
@@ -106,6 +104,10 @@ jobs:
             exit 1
           fi
 
+          # Set brew up only once the inputs are known good: checking them needs
+          # no brew, and failing before installing a toolchain is both faster and
+          # the only way this guard can be exercised outside a runner.
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
           brew style "${formulae[@]}"
 
       - name: Commit the update to main (GitHub-signed)

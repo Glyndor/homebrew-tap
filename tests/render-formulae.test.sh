@@ -130,6 +130,19 @@ open(sys.argv[3], "wb").write(key.sign(open(sys.argv[2], "rb").read()))
 PY
 }
 
+# Re-sign a hand-built SHA256SUMS so the generator still sees a valid signature.
+# The point of these cases is malformed CONTENT behind a good signature.
+resign() { # $1=sums file $2=repo
+	local base="$RELEASES/${2//\//__}"
+	cp "$1" "$base/SHA256SUMS"
+	python3 - "$WORK/signing.key" "$base/SHA256SUMS" "$base/SHA256SUMS.sig" <<'SIGN'
+import sys
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+key = Ed25519PrivateKey.from_private_bytes(open(sys.argv[1], "rb").read())
+open(sys.argv[3], "wb").write(key.sign(open(sys.argv[2], "rb").read()))
+SIGN
+}
+
 # A copy of the generator whose PRODUCTS table is replaced wholesale. Replacing
 # the block rather than editing fields keeps these tests working when the table
 # gains a column — it gained two while the generator was being rewritten.
@@ -258,6 +271,60 @@ check "an unknown argument is a usage error" "2" "$rc"
 rc=0
 ( cd "$WORK/r1" && RELEASE_PUBKEY_B64="$PUBKEY" "$WORK/r1/scripts/render-formulae.sh" ) >/dev/null 2>&1 || rc=$?
 check "the environment cannot swap the trust anchor" "3" "$rc"
+
+# --- a signed manifest can still be malformed --------------------------------
+
+# A duplicated entry used to render BOTH hashes into one field and exit 0.
+publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-arm64 podup-darwin-x86_64
+new_root "$WORK/r9"
+generator_with "$WORK/r9/scripts/render-formulae.sh" "$PODUP"
+rc=0; run "$WORK/r9/scripts/render-formulae.sh" "$WORK/r9" || rc=$?
+check "an asset listed twice is rejected" "3" "$rc"
+contains "and the error says how many times" "$WORK/out" "lists podup-darwin-arm64 2 times"
+check "and no formula is written" "0" "$(find "$WORK/r9/Formula" -name '*.rb' | wc -l)"
+
+publish Glyndor/podup v9.9.9 podup-darwin-x86_64
+{
+	printf 'nothexadecimal!!nothexadecimal!!nothexadecimal!!nothexadecimal!!  podup-darwin-arm64\n'
+	cat "$RELEASES/Glyndor__podup/SHA256SUMS"
+} > "$WORK/tmpsums"
+resign "$WORK/tmpsums" Glyndor/podup
+new_root "$WORK/r10"
+generator_with "$WORK/r10/scripts/render-formulae.sh" "$PODUP"
+rc=0; run "$WORK/r10/scripts/render-formulae.sh" "$WORK/r10" || rc=$?
+check "a non-hexadecimal checksum is rejected" "3" "$rc"
+contains "and the error says why" "$WORK/out" "is not hexadecimal"
+
+publish Glyndor/podup v9.9.9 podup-darwin-x86_64
+{
+	printf 'abcdef  podup-darwin-arm64\n'
+	cat "$RELEASES/Glyndor__podup/SHA256SUMS"
+} > "$WORK/tmpsums"
+resign "$WORK/tmpsums" Glyndor/podup
+new_root "$WORK/r11"
+generator_with "$WORK/r11/scripts/render-formulae.sh" "$PODUP"
+rc=0; run "$WORK/r11/scripts/render-formulae.sh" "$WORK/r11" || rc=$?
+check "a short digest is rejected" "3" "$rc"
+contains "and the error gives the length" "$WORK/out" "is 6 characters, not 64"
+
+# --- two healthy products together -------------------------------------------
+# The plain multi-product case: the suite otherwise only ever pairs a good
+# product with a broken one, and this is the shape the second real product takes.
+
+publish Glyndor/podup v1.2.3 podup-darwin-arm64 podup-darwin-x86_64
+publish Glyndor/other v4.5.6 other-darwin-arm64 other-darwin-x86_64
+new_root "$WORK/r12"
+generator_with "$WORK/r12/scripts/render-formulae.sh" \
+	"Glyndor/podup|podup|Podup|MIT|first|podup-darwin-arm64|podup-darwin-x86_64|--version" \
+	"Glyndor/other|other|Other|Apache-2.0|second|other-darwin-arm64|other-darwin-x86_64|-V"
+rc=0; run "$WORK/r12/scripts/render-formulae.sh" "$WORK/r12" || rc=$?
+check "two healthy products both render, exit 0" "0" "$rc"
+check "both formulae exist" "2" "$(find "$WORK/r12/Formula" -name '*.rb' | wc -l)"
+contains "each gets its own version" "$WORK/r12/Formula/podup.rb" 'version "1.2.3"'
+contains "including the second" "$WORK/r12/Formula/other.rb" 'version "4.5.6"'
+contains "each gets its own licence" "$WORK/r12/Formula/other.rb" 'license "Apache-2.0"'
+contains "and its own version check" "$WORK/r12/Formula/other.rb" 'system "#{bin}/other", "-V"'
+contains "the first is untouched by the second" "$WORK/r12/Formula/podup.rb" 'license "MIT"'
 
 echo
 echo "$pass passed, $fail failed"

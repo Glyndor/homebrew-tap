@@ -21,7 +21,7 @@ Upgrades come with `brew upgrade` once a new release is published (see below).
 
 | Formula | Product |
 |---|---|
-| `podup` | docker-compose translator and runner for rootless Podman |
+| `podup` | Docker-compose translator and runner for rootless Podman |
 
 ## How it stays current
 

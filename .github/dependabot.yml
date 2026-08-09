@@ -13,6 +13,10 @@ updates:
   # the two states apart. Re-registering needs a commit that CHANGES this file
   # on the default branch, so if it happens again, editing these comments is a
   # legitimate fix.
+  # Re-registration touch 2026-08-09: applying the procedure above after
+  # Dependabot stopped again between the v1.10.1 → v1.12.0 and v1.12.0 →
+  # v1.13.0 bumps. No change to the rules below; the next silence needs the
+  # same touch.
   # nosemgrep: dependabot-missing-cooldown -- deliberately no cooldown. The rule
   # assumes an open package ecosystem and a moving tag; here every action is
   # SHA-pinned and GitHub- or Glyndor-owned, no automation auto-merges anything

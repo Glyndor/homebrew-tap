@@ -19,7 +19,7 @@ jobs:
   # reaches users with no pull request in between. `bash -n` plus a pinned
   # shellcheck, both from the reusable.
   shell:
-    uses: Glyndor/.github/.github/workflows/shell-ci.yml@e61aaf0e920345b3dbb82cacd3bd36a499951a92 # v1.13.0
+    uses: Glyndor/.github/.github/workflows/shell-ci.yml@d2e4c3db2ae66befaae8399ba4cdf0074511c2c2 # v1.13.2
     with:
       test-command: ./tests/render-formulae.test.sh && ./tests/update-workflow.test.sh
 

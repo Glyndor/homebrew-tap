@@ -134,19 +134,20 @@ jobs:
           dels="$(git diff --name-only --diff-filter=D -- Formula | while read -r f; do
             jq -cn --arg path "$f" '{path:$path}'
           done | jq -cs '.')"
-          jq -n \
+          gh_api_query=$(jq -n \
             --arg repo "$REPO" --arg branch "main" --arg head "$head" \
             --arg msg "chore: update formulae from the latest signed releases" \
             --argjson adds "$adds" --argjson dels "$dels" \
             '{query:"mutation($repo:String!,$branch:String!,$head:GitObjectID!,$msg:String!,$changes:FileChanges!){createCommitOnBranch(input:{branch:{repositoryNameWithOwner:$repo,branchName:$branch},expectedHeadOid:$head,message:{headline:$msg},fileChanges:$changes}){commit{oid}}}",
               variables:{repo:$repo,branch:$branch,head:$head,msg:$msg,changes:{additions:$adds,deletions:$dels}}}' \
-            # `gh api` is banned for the maintainer's own credentials on
-            # this machine (org account suspended over raw API traffic before).
-            # This call uses GITHUB_TOKEN, which is a job-scoped actor on
-            # its own rate limit — the documented exception, not the banned
-            # call. See schedule-freshness.yml in Glyndor/.github for the
-            # same shape with the same justification.
-            | gh api graphql --input - >/dev/null
+          )
+          # `gh api` is banned for the maintainer's own credentials on
+          # this machine (org account suspended over raw API traffic before).
+          # This call uses GITHUB_TOKEN, which is a job-scoped actor on
+          # its own rate limit — the documented exception, not the banned
+          # call. See schedule-freshness.yml in Glyndor/.github for the
+          # same shape with the same justification.
+          echo "$gh_api_query" | gh api graphql --input - >/dev/null
           echo "Committed the formula update to main."
 
       - name: Fail if any product was skipped

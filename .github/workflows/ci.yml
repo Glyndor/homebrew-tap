@@ -86,6 +86,14 @@ jobs:
   formulae:
     name: brew style
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # Mirror the audit job: keep the run deterministic and offline. Without
+      # these, `brew style` will phone home for taps and analytics on Linux
+      # runners, and a hanging auto-update can burn the whole 45-minute default
+      # job budget. The timeout above bounds the worst case.
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

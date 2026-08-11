@@ -3,6 +3,8 @@
 Homebrew formulae for Glyndor's macOS binaries. The macOS counterpart to the
 signed apt repository at [apt.glyndor.net](https://apt.glyndor.net) (Linux).
 
+[![Release v1.13.2](https://github.com/Glyndor/.github/releases/tag/v1.13.2)](https://github.com/Glyndor/.github/releases)
+
 [![update](https://github.com/Glyndor/homebrew-tap/actions/workflows/update.yml/badge.svg)](https://github.com/Glyndor/homebrew-tap/actions/workflows/update.yml)
 
 ## Install

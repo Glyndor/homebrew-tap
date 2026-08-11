@@ -13,6 +13,17 @@ permissions:
   contents: read
 
 jobs:
+  # Fail a pull request whose diff against main is empty. Eight no-op PRs
+  # landed here before this gate existed: the work was already in main via
+  # squash-merge, the branch was recreated as -v2, and the second merge
+  # landed as a commit with zero files changed. Pinned to the SHA that is
+  # the v1.14.0 tag so this is the consumer that proves the reusable; once
+  # the emitted name has stayed stable across a few weeks of green here and
+  # in the other consumers, I will promote this from advisory to required
+  # in the ruleset.
+  empty-diff:
+    uses: Glyndor/.github/.github/workflows/empty-diff.yml@7eb2c699bed5e49b7974ff9b0e613712d5da88cb # v1.14.0
+
   # Lint scripts/ the same way Glyndor/apt does. The generator verifies a
   # release signature and writes the file users install from, and the update
   # workflow commits its output straight to main, so a bug in render-formulae.sh

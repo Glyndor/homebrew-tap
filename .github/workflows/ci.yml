@@ -22,6 +22,7 @@ jobs:
   # in the other consumers, I will promote this from advisory to required
   # in the ruleset.
   empty-diff:
+    if: github.event_name == 'pull_request'
     uses: Glyndor/.github/.github/workflows/empty-diff.yml@7eb2c699bed5e49b7974ff9b0e613712d5da88cb # v1.14.0
 
   # Lint scripts/ the same way Glyndor/apt does. The generator verifies a

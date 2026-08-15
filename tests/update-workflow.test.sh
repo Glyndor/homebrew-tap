@@ -223,6 +223,10 @@ check "and the payload uses createCommitOnBranch" "yes" \
 	"$(grep -q 'createCommitOnBranch' "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
 check "and pins expectedHeadOid" "yes" \
 	"$(grep -q 'expectedHeadOid' "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
+# $branch is literal on purpose: jq does not expand inside the GraphQL
+# query string, so the captured payload contains the literal text
+# `branchName:$branch`. Single quotes preserve it for grep -F.
+# shellcheck disable=SC2016
 check "and references branch main in the GraphQL argument" "yes" \
 	"$(branch_re='branchName:$branch'; grep -qF "$branch_re" "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
 

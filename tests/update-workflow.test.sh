@@ -99,13 +99,17 @@ output() { # $1=key
 
 RENDER="$WORK/render.sh"
 VALIDATE="$WORK/validate.sh"
+COMMIT="$WORK/commit.sh"
 step_script "Render formulae" > "$RENDER"
 step_script "Validate the re-rendered formulae" > "$VALIDATE"
+step_script "Commit the update to main" > "$COMMIT"
 
 check "the render step was extracted from the workflow" "1" \
 	"$(grep -c 'render-formulae.sh' "$RENDER")"
 check "the validate step was extracted from the workflow" "1" \
 	"$(grep -c 'refusing to commit an empty tap' "$VALIDATE")"
+check "the commit step was extracted from the workflow" "2" \
+	"$(grep -c 'createCommitOnBranch' "$COMMIT")"
 
 # --- exit code becomes `partial` -------------------------------------------
 
@@ -166,6 +170,61 @@ check "a populated Formula/ does not trip the empty-tap guard" "0" \
 	"$(grep -c 'refusing to commit an empty tap' "$WORK/out")"
 check "and the step got past the guard to brew" "yes" \
 	"$(grep -qiE 'brew|linuxbrew' "$WORK/out" && echo yes || echo no)"
+
+# --- the commit step uses createCommitOnBranch, not git push -----------------
+# The workflow commits straight to main, with no PR review between the commit
+# and `brew install`. The only thing between a refactor that swaps the GraphQL
+# mutation for a plain `git push` and an unsigned commit hitting main is this
+# test: a plain `git push` would push the re-rendered formulae, but main's
+# `require-signed-commits` rule rejects the unsigned commit in CI, and the
+# bot does not recover until the next manual run. Audit Hallazgo 4.
+#
+# Strategy: stub `gh` on PATH so the step's `gh api graphql --input -` call
+# captures its stdin instead of hitting the network; assert on the captured
+# payload's shape. If someone replaces the call with `git push`, the stub is
+# never invoked and the assertions go red.
+
+# Stub `gh`: log args + stdin, exit 0. The step passes the GraphQL query on
+# stdin (`--input -`); the path `STUB_DIR` carries the location back to the
+# caller. `STUB_DIR` is set per-invocation so the stub does not depend on a
+# shared file path.
+stub_gh() { # $1=dir
+	local dir="$1"
+	mkdir -p "$dir"
+	cat > "$dir/gh" <<'GHSTUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" > "$STUB_DIR/.args"
+cat > "$STUB_DIR/.stdin"
+exit 0
+GHSTUB
+	chmod +x "$dir/gh"
+}
+
+stub_gh "$WORK/gh"
+sandbox "$WORK/h" 0 yes	# the generator changes the formula so commit is non-empty
+
+# The commit step's body uses REPO and GH_TOKEN; REPO is the GitHub slug, GH_TOKEN
+# is the job-scoped GITHUB_TOKEN. We pass dummies and the stub on PATH. The `||
+# true` swallows the subshell's exit code: a mutated step that calls `git push`
+# fails here for lack of a remote, and we want to assert on what the step did
+# try to do, not on its success. The assertions below distinguish the two.
+( cd "$WORK/h" && \
+	PATH="$WORK/gh:$PATH" \
+	STUB_DIR="$WORK/gh" \
+	REPO="Glyndor/homebrew-tap" \
+	GH_TOKEN="dummy" \
+	bash "$COMMIT" ) > "$WORK/out" 2>&1 || true
+
+check "the commit step invokes gh (not git push)" "yes" \
+	"$(test -s "$WORK/gh/.args" && echo yes || echo no)"
+check "and the invocation is 'gh api graphql'" "yes" \
+	"$(grep -q 'api graphql' "$WORK/gh/.args" 2>/dev/null && echo yes || echo no)"
+check "and the payload uses createCommitOnBranch" "yes" \
+	"$(grep -q 'createCommitOnBranch' "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
+check "and pins expectedHeadOid" "yes" \
+	"$(grep -q 'expectedHeadOid' "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
+check "and references branch main in the GraphQL argument" "yes" \
+	"$(grep -q 'branchName:\$branch' "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
 
 # --- the wiring, asserted by reading the workflow ---------------------------
 # These conditions are evaluated by the Actions engine, so they can be read but

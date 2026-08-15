@@ -224,7 +224,7 @@ check "and the payload uses createCommitOnBranch" "yes" \
 check "and pins expectedHeadOid" "yes" \
 	"$(grep -q 'expectedHeadOid' "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
 check "and references branch main in the GraphQL argument" "yes" \
-	"$(grep -q 'branchName:\$branch' "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
+	"$(branch_re='branchName:$branch'; grep -qF "$branch_re" "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
 
 # --- the wiring, asserted by reading the workflow ---------------------------
 # These conditions are evaluated by the Actions engine, so they can be read but

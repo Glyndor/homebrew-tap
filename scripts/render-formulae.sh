@@ -24,6 +24,18 @@ set -euo pipefail
 # a signature that no longer matches.
 RELEASE_PUBKEY_B64="HFv7vg5FCY7YyKUDbJhaQSfB9SboJGSblJtFbLmLHzM"
 
+# Second slot, empty until a rotation is in flight. The org rotation is
+# make-before-break: phase one publishes a release still signed with the old
+# key that carries both, consumers pick the new one up, and only then does
+# phase two sign with the new key. A renderer with a single slot cannot take
+# part in that -- it would verify fine through phase one and start failing the
+# moment phase two lands. And because this channel is pull-based, that failure
+# is invisible: the render aborts, no formula is updated, and the tap simply
+# stops moving on the last version it could verify. install.sh and install.ps1
+# have carried two slots for exactly this reason; this brings the tap level
+# with them.
+RELEASE_PUBKEY2_B64=""
+
 # The only way to override it is --pubkey, which tests/render-formulae.test.sh
 # uses to sign a synthetic release with an ephemeral key. A run with no
 # arguments trusts the constant above and nothing else — there is deliberately
@@ -35,6 +47,11 @@ while [ $# -gt 0 ]; do
 		--pubkey)
 			[ $# -ge 2 ] || { echo "--pubkey needs a value" >&2; exit 2; }
 			RELEASE_PUBKEY_B64="$2"
+			shift 2
+			;;
+		--pubkey2)
+			[ $# -ge 2 ] || { echo "--pubkey2 needs a value" >&2; exit 2; }
+			RELEASE_PUBKEY2_B64="$2"
 			shift 2
 			;;
 		*)
@@ -80,13 +97,29 @@ verify_sha256sums() { # $1=repo $2=tag
 	gh release download "$2" --repo "$1" \
 		--pattern SHA256SUMS --pattern SHA256SUMS.sig --dir "$work" --clobber \
 		|| return 1
-	python3 - "$work/SHA256SUMS" "$work/SHA256SUMS.sig" "$RELEASE_PUBKEY_B64" <<'PY'
+	python3 - "$work/SHA256SUMS" "$work/SHA256SUMS.sig" \
+		"$RELEASE_PUBKEY_B64" "$RELEASE_PUBKEY2_B64" <<'PY'
 import base64, sys
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
 msg = open(sys.argv[1], "rb").read()
 sig = open(sys.argv[2], "rb").read()
-Ed25519PublicKey.from_public_bytes(base64.b64decode(sys.argv[3] + "==")).verify(sig, msg)
-print("SHA256SUMS signature verified")
+
+# Any configured key may be the one that signed this release; an empty slot is
+# not a key. Still fails closed -- exhausting the slots is an error, not a
+# fallthrough, so a stale pair aborts the render exactly as a single stale key
+# did before.
+keys = [k for k in sys.argv[3:] if k]
+if not keys:
+    sys.exit("no release key configured")
+for key in keys:
+    try:
+        Ed25519PublicKey.from_public_bytes(base64.b64decode(key + "==")).verify(sig, msg)
+    except Exception:
+        continue
+    print("SHA256SUMS signature verified")
+    sys.exit(0)
+sys.exit("SHA256SUMS does not verify against any configured release key")
 PY
 }
 

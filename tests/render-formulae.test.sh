@@ -272,6 +272,39 @@ rc=0
 ( cd "$WORK/r1" && RELEASE_PUBKEY_B64="$PUBKEY" "$WORK/r1/scripts/render-formulae.sh" ) >/dev/null 2>&1 || rc=$?
 check "the environment cannot swap the trust anchor" "3" "$rc"
 
+# --- two key slots, so a rotation can be made-before-break ------------------
+#
+# The org rotation signs with the old key while both are published, and only
+# then switches. A renderer with one slot verifies fine through that first
+# phase and starts failing when the second lands -- silently, because the
+# channel is pull-based and a failed render just stops updating the tap.
+
+rc=0
+( cd "$WORK/r1" && "$WORK/r1/scripts/render-formulae.sh" --pubkey2 ) >/dev/null 2>&1 || rc=$?
+check "--pubkey2 without a value is a usage error" "2" "$rc"
+
+# The real release is signed with $PUBKEY. Put it in the SECOND slot behind a
+# wrong-but-well-formed first key: the render must still succeed, which is the
+# whole point of the second slot.
+OTHER="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+rc=0
+( cd "$WORK/r1" && "$WORK/r1/scripts/render-formulae.sh" \
+	--pubkey "$OTHER" --pubkey2 "$PUBKEY" ) >/dev/null 2>&1 || rc=$?
+check "a release signed by the second key still verifies" "0" "$rc"
+
+# And the reverse: the first slot alone is enough, an empty second changes
+# nothing.
+rc=0
+( cd "$WORK/r1" && "$WORK/r1/scripts/render-formulae.sh" --pubkey "$PUBKEY" ) >/dev/null 2>&1 || rc=$?
+check "the first key alone still verifies" "0" "$rc"
+
+# Exhausting both slots is an error, not a fallthrough. This is the property
+# that must survive: two wrong keys fail exactly as one wrong key did.
+rc=0
+( cd "$WORK/r1" && "$WORK/r1/scripts/render-formulae.sh" \
+	--pubkey "$OTHER" --pubkey2 "$OTHER" ) >/dev/null 2>&1 || rc=$?
+check "two wrong keys still fail closed" "3" "$rc"
+
 # --- a signed manifest can still be malformed --------------------------------
 
 # A duplicated entry used to render BOTH hashes into one field and exit 0.

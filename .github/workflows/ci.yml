@@ -163,3 +163,18 @@ jobs:
           # SHA256SUMS the generator verifies is what proves the assets, not a
           # HEAD request from CI.
           brew audit --strict "${names[@]}"
+
+  # A cron that stops firing emits nothing, and "no alert" is indistinguishable
+  # from "all clear". Every scheduled workflow in this org went dark on
+  # 2026-06-29 and four repos stayed dark for another four weeks, all reporting
+  # `active` throughout. This turns the absence of a scheduled run into a red
+  # check on ordinary work.
+
+  freshness-update:
+    permissions:
+      contents: read
+      actions: read
+    uses: Glyndor/.github/.github/workflows/schedule-freshness.yml@118244b8d758bdec6d2c5115d815dbc2e5c4f4e9 # v1.16.0
+    with:
+      workflow: update.yml
+      max-age-days: 3

@@ -23,7 +23,7 @@ jobs:
   # in the ruleset.
   empty-diff:
     if: github.event_name == 'pull_request'
-    uses: Glyndor/.github/.github/workflows/empty-diff.yml@c958978687af37dc2d826a967d9c549589afb39f # v1.14.1
+    uses: Glyndor/.github/.github/workflows/empty-diff.yml@118244b8d758bdec6d2c5115d815dbc2e5c4f4e9 # v1.16.0
 
   # Lint scripts/ the same way Glyndor/apt does. The generator verifies a
   # release signature and writes the file users install from, and the update
@@ -31,7 +31,7 @@ jobs:
   # reaches users with no pull request in between. `bash -n` plus a pinned
   # shellcheck, both from the reusable.
   shell:
-    uses: Glyndor/.github/.github/workflows/shell-ci.yml@3a46ffe91ecadcce7f14c99ea8b23ead4274f325 # v1.13.2
+    uses: Glyndor/.github/.github/workflows/shell-ci.yml@118244b8d758bdec6d2c5115d815dbc2e5c4f4e9 # v1.16.0
     with:
       test-command: ./tests/render-formulae.test.sh && ./tests/update-workflow.test.sh
 
@@ -111,10 +111,10 @@ jobs:
           brew style Formula/*.rb
 
   pin-policy:
-    uses: Glyndor/.github/.github/workflows/pin-policy-reusable.yml@8517d94fde00466f59b95c5d1bd838e2ad24a8bf # v1.15.2
+    uses: Glyndor/.github/.github/workflows/pin-policy-reusable.yml@118244b8d758bdec6d2c5115d815dbc2e5c4f4e9 # v1.16.0
 
   dependabot-freshness:
-    uses: Glyndor/.github/.github/workflows/dependabot-freshness.yml@8517d94fde00466f59b95c5d1bd838e2ad24a8bf # v1.15.2
+    uses: Glyndor/.github/.github/workflows/dependabot-freshness.yml@118244b8d758bdec6d2c5115d815dbc2e5c4f4e9 # v1.16.0
     with:
       max-age-days: 15
 

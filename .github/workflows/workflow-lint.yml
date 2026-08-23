@@ -15,4 +15,4 @@ permissions:
 
 jobs:
   workflow-lint:
-    uses: Glyndor/.github/.github/workflows/workflow-lint.yml@e61aaf0e920345b3dbb82cacd3bd36a499951a92 # v1.13.0
+    uses: Glyndor/.github/.github/workflows/workflow-lint.yml@d4bbc5b6ec0c351ca4cb17d948ceaad818da4078 # v1.18.1

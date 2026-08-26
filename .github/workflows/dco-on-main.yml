@@ -1,0 +1,54 @@
+name: DCO on main
+
+# Detection, not prevention, and the difference is the whole point of this file.
+#
+# This repository's ruleset omits required status checks so that update.yml can
+# commit straight to `main` -- a required check rejects a push whose commits no
+# check has run on yet. Dropping them took the DCO gate with it, so a human pull
+# request can merge without a `Signed-off-by:` trailer and nothing says a word.
+# Four already have.
+#
+# Nothing here stops that. By the time this runs the commit is on `main` and
+# `main` is what `brew install` reads. What it buys is that the fifth one is
+# visible within a minute instead of surviving until somebody audits the log by
+# hand -- the same trade apt's publish.yml makes for its read-back check: "a red
+# run and a forward fix is the archive's policy everywhere else".
+#
+# Commits authored by github-actions[bot] are exempt, and that is not a loophole.
+# DCO is a person's attestation about their right to submit code. A bot
+# regenerating a formula from an already-verified release is not contributing in
+# that sense, and emitting a trailer on its behalf would manufacture an
+# attestation nobody made -- which is worse than its absence, and was rejected
+# when it was proposed. Exempting the bot scopes the rule to who it applies to;
+# it does not fake compliance.
+#
+# Prevention needs one of three things, none of them local to this repository:
+# the org-wide lock on Actions opening pull requests lifted, a GitHub App
+# identity for the bot (apps CAN be bypass actors, github-actions[bot] cannot),
+# or the bot pushing to a side ref where checks run before `main` fast-forwards.
+# See this repository's open issue.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  dco-on-main:
+    name: every human commit on main is signed off
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check the pushed commits
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          set -euo pipefail
+          ./scripts/check-dco-on-main.sh "$BEFORE" "$AFTER"

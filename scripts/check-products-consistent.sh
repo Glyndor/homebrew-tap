@@ -41,6 +41,16 @@ documented="$(awk '/^\| Formula \| Product \|/ { inside = 1; next }
                    inside              { exit }' "$root/README.md" \
              | cut -d'|' -f2 | tr -cd '[:alnum:]._\n-' | awk 'NF' | sort -u)"
 
+# An empty list here means the table header was not found, not that the table
+# is empty -- renaming that heading turns this into a diff of every product
+# against nothing, which reads as total drift and sends the reader looking for
+# something that is not wrong. I walked into exactly that porting this check to
+# the scoop bucket, where the header is spelled differently.
+[ -n "$documented" ] || {
+	echo "::error file=README.md::could not find the Available formulae table in README.md" >&2
+	exit 1
+}
+
 rendered="$(find "$root/Formula" -maxdepth 1 -name '*.rb' -printf '%f\n' \
            | while read -r f; do echo "${f%.rb}"; done | sort -u)"
 

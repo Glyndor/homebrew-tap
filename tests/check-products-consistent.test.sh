@@ -86,6 +86,18 @@ rc=0; run "$T" || rc=$?
 check "an unreadable PRODUCTS table fails rather than agreeing with nothing" "1" "$rc"
 check "and says it could not read PRODUCTS" "1" "$(said 'could not read PRODUCTS')"
 
+# --- the README table header was renamed ------------------------------------
+#
+# An empty `documented` means the header was not found, not that the table is
+# empty. Without this the check diffs every product against nothing, which
+# reads as total drift rather than as a missing table.
+T="$(mktap notable alpha)"
+sed -i 's/^| Formula | Product |/| Package | Product |/' "$T/README.md"
+rc=0; run "$T" || rc=$?
+check "a renamed README table header fails" "1" "$rc"
+check "and says the table could not be found, not that it disagrees" "1" \
+	"$(said 'could not find the Available formulae table')"
+
 # --- the collation case -----------------------------------------------------
 #
 # Both names are legal formula names and they differ only by a hyphen. Under a

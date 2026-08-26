@@ -23,7 +23,7 @@ jobs:
   # in the ruleset.
   empty-diff:
     if: github.event_name == 'pull_request'
-    uses: Glyndor/.github/.github/workflows/empty-diff.yml@8ae47ccd49ffdbf59d1acf7e6f9c18165bfba959 # v1.19.0
+    uses: ./.github/workflows/reusable-empty-diff.yml
 
   # Lint scripts/ the same way Glyndor/apt does. The generator verifies a
   # release signature and writes the file users install from, and the update
@@ -31,9 +31,9 @@ jobs:
   # reaches users with no pull request in between. `bash -n` plus a pinned
   # shellcheck, both from the reusable.
   shell:
-    uses: Glyndor/.github/.github/workflows/shell-ci.yml@8ae47ccd49ffdbf59d1acf7e6f9c18165bfba959 # v1.19.0
+    uses: ./.github/workflows/reusable-shell-ci.yml
     with:
-      test-command: ./tests/render-formulae.test.sh && ./tests/update-workflow.test.sh
+      test-command: ./tests/render-formulae.test.sh && ./tests/update-workflow.test.sh && ./tests/check-products-consistent.test.sh && ./tests/check-test-coverage.test.sh
 
   products:
     name: products match the generator
@@ -44,44 +44,11 @@ jobs:
       - name: The README table and Formula/ must match PRODUCTS
         run: |
           set -euo pipefail
-          # scripts/render-formulae.sh's PRODUCTS table is the only place a
-          # product is declared. Two things restate it and cannot be generated
-          # from it: the README's "Available formulae" table, and the set of
-          # files under Formula/. With one product the drift is invisible; with
-          # the full roster it is certain, and it is the same rot as the CI
-          # comments corrected in #11.
-          declared="$(awk '/^PRODUCTS=\(/ { inside = 1; next }
-                           inside && /^\)/  { exit }
-                           inside           { print }' scripts/render-formulae.sh \
-                     | sed -n 's/^[^"]*"[^|]*|\([^|]*\)|.*/\1/p' | sort -u)"
-          [ -n "$declared" ] || { echo "::error::could not read PRODUCTS out of scripts/render-formulae.sh"; exit 1; }
-
-          # Backticks and "$" never appear inside the single quotes below. They
-          # would be awk's and Markdown's, but SC2016 reads them as shell
-          # expansions and actionlint runs shellcheck over this block; a
-          # file-level disable directive is not honoured there.
-          documented="$(awk '/^\| Formula \| Product \|/ { inside = 1; next }
-                             inside && /^\|---/ { next }
-                             inside && /^\|/    { print; next }
-                             inside              { exit }' README.md \
-                       | cut -d'|' -f2 | tr -cd '[:alnum:]._\n-' | awk 'NF' | sort -u)"
-
-          rendered="$(find Formula -maxdepth 1 -name '*.rb' -printf '%f\n' \
-                     | while read -r f; do echo "${f%.rb}"; done | sort -u)"
-
-          status=0
-          if [ "$declared" != "$documented" ]; then
-            echo "::error file=README.md::the README's Available formulae table disagrees with PRODUCTS"
-            diff <(echo "$declared") <(echo "$documented") | sed 's/^/  /' || true
-            status=1
-          fi
-          if [ "$declared" != "$rendered" ]; then
-            echo "::error::Formula/ disagrees with PRODUCTS — re-run scripts/render-formulae.sh"
-            diff <(echo "$declared") <(echo "$rendered") | sed 's/^/  /' || true
-            status=1
-          fi
-          [ "$status" -eq 0 ] && echo "ok  $(echo "$declared" | tr '\n' ' ')"
-          exit "$status"
+          # The check itself lives in scripts/, not here, so that it can be
+          # tested. Inline in this file it was unreachable by anything but a
+          # real CI run, which meant it had never been watched fail.
+          # tests/check-products-consistent.test.sh covers it.
+          ./scripts/check-products-consistent.sh
 
   formulae:
     name: brew style
@@ -110,11 +77,8 @@ jobs:
           # evaluates — so it runs in the `brew audit` job below instead.
           brew style Formula/*.rb
 
-  pin-policy:
-    uses: Glyndor/.github/.github/workflows/pin-policy-reusable.yml@8ae47ccd49ffdbf59d1acf7e6f9c18165bfba959 # v1.19.0
-
   dependabot-freshness:
-    uses: Glyndor/.github/.github/workflows/dependabot-freshness.yml@8ae47ccd49ffdbf59d1acf7e6f9c18165bfba959 # v1.19.0
+    uses: ./.github/workflows/reusable-dependabot-freshness.yml
     with:
       max-age-days: 15
 
@@ -174,7 +138,7 @@ jobs:
     permissions:
       contents: read
       actions: read
-    uses: Glyndor/.github/.github/workflows/schedule-freshness.yml@8ae47ccd49ffdbf59d1acf7e6f9c18165bfba959 # v1.19.0
+    uses: ./.github/workflows/reusable-schedule-freshness.yml
     with:
       workflow: update.yml
       max-age-days: 3

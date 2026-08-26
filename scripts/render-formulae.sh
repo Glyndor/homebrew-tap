@@ -99,23 +99,48 @@ verify_sha256sums() { # $1=repo $2=tag
 		|| return 1
 	python3 - "$work/SHA256SUMS" "$work/SHA256SUMS.sig" \
 		"$RELEASE_PUBKEY_B64" "$RELEASE_PUBKEY2_B64" <<'PY'
-import base64, sys
+import base64, binascii, sys
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 msg = open(sys.argv[1], "rb").read()
 sig = open(sys.argv[2], "rb").read()
 
+
+def load(b64):
+    # Pad to a 4-character boundary rather than appending "==" blindly, and
+    # reject anything outside the base64 alphabet. Without validate=True,
+    # b64decode DISCARDS such characters: "AAAA!!!!BBBB" decodes to six bytes
+    # without complaint, so a corrupted key silently becomes a shorter one.
+    b64 += "=" * (-len(b64) % 4)
+    raw = base64.b64decode(b64, validate=True)
+    if len(raw) != 32:
+        raise ValueError(f"{len(raw)} bytes, not a 32-byte Ed25519 key")
+    return Ed25519PublicKey.from_public_bytes(raw)
+
+
 # Any configured key may be the one that signed this release; an empty slot is
 # not a key. Still fails closed -- exhausting the slots is an error, not a
 # fallthrough, so a stale pair aborts the render exactly as a single stale key
 # did before.
-keys = [k for k in sys.argv[3:] if k]
-if not keys:
+raw_keys = [k for k in sys.argv[3:] if k]
+if not raw_keys:
     sys.exit("no release key configured")
+
+# Loading is separate from verifying so that a broken trust anchor of ours is
+# not reported as a bad signature of theirs. Wrapping the verify call in
+# `except Exception` collapsed both into one message, and the operator then
+# went looking at the upstream release for a fault that was in this repository.
+# apt/scripts/verify-debs.sh already drew that line; this did not.
+try:
+    keys = [load(k) for k in raw_keys]
+except (ValueError, binascii.Error) as exc:
+    sys.exit(f"malformed release public key: {exc}")
+
 for key in keys:
     try:
-        Ed25519PublicKey.from_public_bytes(base64.b64decode(key + "==")).verify(sig, msg)
-    except Exception:
+        key.verify(sig, msg)
+    except InvalidSignature:
         continue
     print("SHA256SUMS signature verified")
     sys.exit(0)

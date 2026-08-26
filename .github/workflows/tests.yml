@@ -1,0 +1,79 @@
+name: Tests
+
+# The shell lint, this repository's own suite, and the two checks that read the
+# generated tree: that PRODUCTS/README/Formula still agree, and that the
+# formulae pass `brew style`.
+#
+# Split out of the former ci.yml, which carried the suite, pull request hygiene,
+# `brew audit` and two freshness watchers in one file. They fail for different
+# reasons and are read by different people.
+#
+# Job ids are unchanged. A required status check is named
+# `<caller job id> / <inner job name>` and the FILE is not part of that name, so
+# moving a job to another workflow leaves its check name alone. Renaming one is
+# a ruleset change, not tidying.
+#
+# The suite is listed one per line. As a single line it outgrew any terminal,
+# which is how a suite went missing from apt's without anyone noticing.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    uses: ./.github/workflows/reusable-shell-ci.yml
+    with:
+      test-command: >-
+        ./tests/render-formulae.test.sh
+        && ./tests/update-workflow.test.sh
+        && ./tests/check-products-consistent.test.sh
+        && ./tests/locale-pinned.test.sh
+        && ./tests/check-test-coverage.test.sh
+        && ./tests/ci-runs-every-test.test.sh
+
+  products:
+    name: products match the generator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: The README table and Formula/ must match PRODUCTS
+        run: |
+          set -euo pipefail
+          # The check itself lives in scripts/, not here, so that it can be
+          # tested. Inline in this file it was unreachable by anything but a
+          # real CI run, which meant it had never been watched fail.
+          # tests/check-products-consistent.test.sh covers it.
+          ./scripts/check-products-consistent.sh
+
+  formulae:
+    name: brew style
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # Mirror the audit job: keep the run deterministic and offline. Without
+      # these, `brew style` will phone home for taps and analytics on Linux
+      # runners, and a hanging auto-update can burn the whole 45-minute default
+      # job budget. The timeout above bounds the worst case.
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate formulae with the preinstalled Homebrew
+        run: |
+          set -euo pipefail
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          # `brew style` (rubocop under the hood) accepts file paths and catches
+          # formatting and deprecated-API issues. It runs on Linux because it
+          # parses the formula rather than resolving it, so it needs no macOS
+          # runner and keeps the fast feedback on every push. The deeper
+          # `brew audit --strict` cannot run here — it resolves the active spec,
+          # and the binaries live in an `on_macos` block a Linux runner never
+          # evaluates — so it runs in the `brew audit` job below instead.
+          brew style Formula/*.rb

@@ -145,7 +145,7 @@ jobs:
           # this machine (org account suspended over raw API traffic before).
           # This call uses GITHUB_TOKEN, which is a job-scoped actor on
           # its own rate limit — the documented exception, not the banned
-          # call. See schedule-freshness.yml in Glyndor/.github for the
+          # call. See .github/workflows/reusable-schedule-freshness.yml for the
           # same shape with the same justification.
           echo "$gh_api_query" | gh api graphql --input - >/dev/null
           echo "Committed the formula update to main."

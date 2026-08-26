@@ -49,6 +49,8 @@ jobs:
         env:
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.event.after }}
+          # From GitHub's event payload, not from any git config.
+          PUSHER: ${{ github.event.pusher.name }}
         run: |
           set -euo pipefail
-          ./scripts/check-dco-on-main.sh "$BEFORE" "$AFTER"
+          ./scripts/check-dco-on-main.sh "$BEFORE" "$AFTER" "$PUSHER"

@@ -33,7 +33,7 @@ jobs:
   shell:
     uses: ./.github/workflows/reusable-shell-ci.yml
     with:
-      test-command: ./tests/render-formulae.test.sh && ./tests/update-workflow.test.sh && ./tests/check-products-consistent.test.sh && ./tests/check-test-coverage.test.sh
+      test-command: ./tests/render-formulae.test.sh && ./tests/update-workflow.test.sh && ./tests/check-products-consistent.test.sh && ./tests/check-test-coverage.test.sh && ./tests/locale-pinned.test.sh
 
   products:
     name: products match the generator

@@ -305,6 +305,45 @@ rc=0
 	--pubkey "$OTHER" --pubkey2 "$OTHER" ) >/dev/null 2>&1 || rc=$?
 check "two wrong keys still fail closed" "3" "$rc"
 
+# --- a broken trust anchor is not a bad signature ---------------------------
+#
+# `except Exception: continue` around the verify call collapsed "this key did
+# not sign it" and "this key is not a key" into one message. The operator then
+# read "does not verify against any configured release key" and went looking at
+# the upstream release for a fault that was in this repository.
+#
+# The three shapes below are the ones that reach it: not base64 at all, too
+# short, and the right alphabet but the wrong length. Each must say the key is
+# malformed and say which way.
+
+for bad_case in \
+	"AAAA!!!!AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|Only base64 data is allowed|not base64" \
+	"AAAA|3 bytes|too short" \
+	"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|33 bytes|one byte too long"; do
+	bad_key="${bad_case%%|*}"; rest="${bad_case#*|}"
+	needle="${rest%%|*}"; label="${rest#*|}"
+	rc=0
+	out="$( cd "$WORK/r1" && "$WORK/r1/scripts/render-formulae.sh" \
+		--pubkey "$bad_key" 2>&1 )" || rc=$?
+	check "a key that is $label is refused" "3" "$rc"
+	check "and it is named as malformed, not as a failed signature ($label)" "1" \
+		"$(printf '%s' "$out" | grep -c 'malformed release public key')"
+	check "and the message says how it is malformed ($label)" "1" \
+		"$(printf '%s' "$out" | grep -cF "$needle")"
+done
+
+# The mirror image, so the cases above are not satisfied by a renderer that
+# calls every key malformed: a well-formed key that simply did not sign this
+# release must still be reported as a signature failure, not as a broken key.
+rc=0
+out="$( cd "$WORK/r1" && "$WORK/r1/scripts/render-formulae.sh" \
+	--pubkey "$OTHER" 2>&1 )" || rc=$?
+check "a well-formed key that did not sign it fails as a signature" "3" "$rc"
+check "and is NOT reported as malformed" "0" \
+	"$(printf '%s' "$out" | grep -c 'malformed release public key')"
+check "and says the signature did not verify" "1" \
+	"$(printf '%s' "$out" | grep -c 'does not verify against any configured release key')"
+
 # --- a signed manifest can still be malformed --------------------------------
 
 # A duplicated entry used to render BOTH hashes into one field and exit 0.

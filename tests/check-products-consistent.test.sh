@@ -61,14 +61,6 @@ T="$(mktap agree alpha beta)"
 rc=0; run "$T" || rc=$?
 check "a tap where all three agree passes" "0" "$rc"
 
-# --- the README is missing a product ----------------------------------------
-T="$(mktap noreadme alpha beta)"
-printf '| Formula | Product |\n|---|---|\n| alpha | alpha |\n' > "$T/README.md"
-rc=0; run "$T" || rc=$?
-check "a README missing a product fails" "1" "$rc"
-check "and it says which file disagrees" "1" "$(said 'README.md')"
-check "and the diff names the missing product" "1" "$(said 'beta')"
-
 # --- Formula/ is missing a file ---------------------------------------------
 T="$(mktap noformula alpha beta)"
 rm -f "$T/Formula/beta.rb"
@@ -86,17 +78,17 @@ rc=0; run "$T" || rc=$?
 check "an unreadable PRODUCTS table fails rather than agreeing with nothing" "1" "$rc"
 check "and says it could not read PRODUCTS" "1" "$(said 'could not read PRODUCTS')"
 
-# --- the README table header was renamed ------------------------------------
+# --- the README is prose, and editing it must not break anything -----------
 #
-# An empty `documented` means the header was not found, not that the table is
-# empty. Without this the check diffs every product against nothing, which
-# reads as total drift rather than as a missing table.
-T="$(mktap notable alpha)"
-sed -i 's/^| Formula | Product |/| Package | Product |/' "$T/README.md"
-rc=0; run "$T" || rc=$?
-check "a renamed README table header fails" "1" "$rc"
-check "and says the table could not be found, not that it disagrees" "1" \
-	"$(said 'could not find the Available formulae table')"
+# This check compared PRODUCTS against the README's table until 2026-08-26. It
+# made rewording documentation a CI failure, and it broke on a heading rename
+# while being ported between these two repositories -- the check was wrong and
+# the README was fine. What gets installed is decided by Formula/, which is still
+# compared; the README is documentation and can drift.
+B="$(mkbucket readme-edited alpha)" 2>/dev/null || B="$(mktap readme-edited alpha)"
+printf 'totally different prose, no table at all\n' > "$B/README.md"
+rc=0; run "$B" || rc=$?
+check "rewriting the README does not fail the check" "0" "$rc"
 
 # --- the collation case -----------------------------------------------------
 #

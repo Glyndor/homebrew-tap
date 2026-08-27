@@ -13,7 +13,10 @@ welcome; unsolicited pull requests are not accepted.
 
 It is the Homebrew tap for Glyndor's products. It carries no product source:
 `Formula/*.rb` is generated from each product's latest signed release, with the
-release signature verified before anything is written.
+release signature verified before anything is written. Edit
+`scripts/render-formulae.sh`, never the formulae themselves: the next scheduled
+run overwrites them, so a hand edit survives until the following morning and
+then disappears without a trace.
 
 **Its git content IS the published artifact.** A commit on `main` is what
 `brew install` reads. There is no build step between them and no CDN in front.

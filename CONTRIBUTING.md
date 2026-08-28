@@ -70,9 +70,18 @@ There is no `develop`. Branch from `main`, open a pull request against
 ## Tests
 
 ```sh
-for t in tests/*.test.sh; do "./$t" || echo "FAILED: $t"; done
-shellcheck scripts/*.sh tests/*.sh
+fail=0
+for t in tests/*.test.sh; do "./$t" || { echo "FAILED: $t"; fail=1; }; done
+shellcheck scripts/*.sh tests/*.sh || fail=1
+[ "$fail" -eq 0 ] && echo "all green" || echo "SOMETHING FAILED"
 ```
+
+That last line is there because the loop cannot fail on its own. Running all of
+the tests rather than halting at the first failure is the right local behaviour,
+and the cost is the exit status: `$?` comes from `echo`, so a run with four
+failures and a clean run look identical to anything reading it, a pre-push hook
+included. The workflow chains the same scripts with `&&`, which is why CI has
+never been able to miss one.
 
 **Every script in `scripts/` needs a test.**
 `scripts/check-test-coverage.sh` fails when one does not, itself included --

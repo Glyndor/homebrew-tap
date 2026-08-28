@@ -15,6 +15,12 @@ name: update
 # `main` directly, validated in this job *before* it lands (there is no PR gate
 # standing between the commit and `brew install`), and signed by GitHub so
 # `main`'s require-signed-commits rule accepts it without a signing key here.
+#
+# A schedule and a manual button, and no `pull_request` trigger, because none of
+# this is about a pull request: it reads each product's latest signed release and
+# re-renders the published artifact. That is also why validation runs inside the
+# job before the commit, no pull request review stands between that commit and
+# somebody's `brew install`.
 on:
   schedule:
     # Daily, staggered after apt's 06:00 publish so the two don't contend.

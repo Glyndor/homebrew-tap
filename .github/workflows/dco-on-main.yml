@@ -27,6 +27,11 @@ name: DCO on main
 # identity for the bot (apps CAN be bypass actors, github-actions[bot] cannot),
 # or the bot pushing to a side ref where checks run before `main` fast-forwards.
 # See this repository's open issue.
+#
+# Push to main only, which is the only place its question exists: it reports a
+# human-authored commit that arrived without a sign-off. It gates nothing. By
+# the time it speaks the commit is on the branch users install from, so what it
+# produces is a report, not a refusal.
 
 on:
   push:

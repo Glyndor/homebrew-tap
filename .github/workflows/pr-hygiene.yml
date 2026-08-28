@@ -9,6 +9,11 @@ name: PR hygiene
 # gate existed: the work was already on main via squash-merge, the branch was
 # recreated as -v2, and the second merge landed with zero files changed. CI was
 # happy with that, because a commit with no diff is valid git.
+#
+# Pull request only, and that is the scope rather than an omission: empty-diff
+# asks whether a diff against the base ref is empty, and a push to main has no
+# base ref to ask about. I would rather the trigger say that than run the job
+# everywhere and skip it afterwards with an `if:`.
 
 on:
   pull_request:

@@ -13,6 +13,12 @@ name: Freshness
 #
 # Separate from the suite on purpose. These fail because something did not
 # happen elsewhere, never because this pull request is wrong.
+#
+# So: pull request and push to main, and deliberately no `schedule` of its own.
+# A watcher that needs a cron to fire shares the failure mode it exists to
+# catch. The honest cost is that a repository which goes quiet stops checking
+# its own freshness, and that cost is real here, because update.yml commits
+# straight to `main`, so `main` moves with nobody opening a pull request.
 
 on:
   pull_request:

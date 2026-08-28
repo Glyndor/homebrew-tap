@@ -141,12 +141,12 @@ jobs:
             '{query:"mutation($repo:String!,$branch:String!,$head:GitObjectID!,$msg:String!,$changes:FileChanges!){createCommitOnBranch(input:{branch:{repositoryNameWithOwner:$repo,branchName:$branch},expectedHeadOid:$head,message:{headline:$msg},fileChanges:$changes}){commit{oid}}}",
               variables:{repo:$repo,branch:$branch,head:$head,msg:$msg,changes:{additions:$adds,deletions:$dels}}}' \
           )
-          # `gh api` is banned for the maintainer's own credentials on
-          # this machine (org account suspended over raw API traffic before).
-          # This call uses GITHUB_TOKEN, which is a job-scoped actor on
-          # its own rate limit — the documented exception, not the banned
-          # call. See .github/workflows/reusable-schedule-freshness.yml for the
-          # same shape with the same justification.
+          # This runs as GITHUB_TOKEN, a job-scoped token on its own rate limit.
+          # The GraphQL mutation is what makes the commit GitHub-signed, which
+          # is what `main`'s require-signed-commits rule accepts without any
+          # signing key being stored in this repository. Do not swap it for a
+          # plain `git push`: that commit would be unsigned and the ruleset
+          # would refuse it, which stops the channel publishing.
           echo "$gh_api_query" | gh api graphql --input - >/dev/null
           echo "Committed the formula update to main."
 

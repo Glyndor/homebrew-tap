@@ -2,6 +2,11 @@ name: DCO
 
 # Requires a Signed-off-by trailer on every commit in the pull request, via the
 # shared reusable — the same gate every product repo runs.
+#
+# Pull request only: the question is about the commits a pull request proposes,
+# and it reads that range off the pull request event itself. A branch that just
+# moved gives it nothing to answer. Commits that reach `main` without passing
+# through a pull request are dco-on-main.yml's subject, not this file's.
 
 on:
   pull_request:

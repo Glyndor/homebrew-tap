@@ -41,8 +41,19 @@ validation that runs INSIDE `update.yml` before the commit lands.
 covered by `tests/update-workflow.test.sh`, which extracts the workflow's own
 `run:` blocks and executes them as they ship rather than against a copy.
 
-One consequence is open and tracked: dropping required checks also dropped the
-DCO gate for human pull requests. See the repository's issues.
+One consequence was measured and settled rather than left open: dropping
+required checks also dropped the DCO gate for human pull requests. Three routes
+to prevention were ruled out by measurement -- the bot cannot be a bypass actor,
+no commit-message rule exists, and a required check would block the bot's push
+-- and a GitHub App was declined because it adds no capability the job lacks,
+only a persistent credential in a repository people install software from. The
+record is in `ai-context`, `context/homebrew-tap/index.md`, under "Closed
+2026-08-26: detection shipped, prevention priced and declined".
+
+Detection did ship. `dco-on-main.yml` turns an unsigned human commit from
+something nobody notices into a red run within a minute. What stays uncovered is
+a human who sees that red and merges anyway, and none of the routes above would
+have helped with that one.
 
 ## Branch flow
 

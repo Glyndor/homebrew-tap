@@ -23,8 +23,27 @@ name: update
 # somebody's `brew install`.
 on:
   schedule:
-    # Daily, staggered after apt's 06:00 publish so the two don't contend.
-    - cron: "30 6 * * *"
+    # Hourly, at :30 to stay clear of the queue that forms on the hour and to
+    # keep the historical offset from apt's 06:00 publish.
+    #
+    # Was daily. The 24-hour worst case between a product publishing and this
+    # channel serving it was the cron, not the pull model: a security fix could
+    # sit a day behind with the short path already built and unused.
+    #
+    # The push alternative was declined rather than forgotten. update.yml
+    # carries a repository_dispatch trigger a product could POST to, and
+    # Glyndor/podup declined to wire it on 2026-08-29 for a reason recorded in
+    # `context/podup`: a push model would let a compromised release workflow
+    # write into the distribution channels, and its release job already holds
+    # the Ed25519 signing key and the crates.io token, so a channel-write token
+    # would put signing, the registry and both channels behind one compromise.
+    # Pulling more often buys most of the latency back and moves no credential.
+    #
+    # Cheap, measured rather than assumed: a run takes 20 to 52 seconds and
+    # short-circuits when nothing changed, and the expensive macOS audit fires
+    # on push rather than on this schedule, so it still runs only when a render
+    # actually differs.
+    - cron: "30 * * * *"
   workflow_dispatch:
   # Optional instant trigger: a product's release workflow may
   # POST /repos/Glyndor/homebrew-tap/dispatches with event_type "release".

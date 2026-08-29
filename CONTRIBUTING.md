@@ -3,7 +3,7 @@
 This repository has its own guide because the organisation's shared one
 describes a `topic → develop → main` flow that does not exist here. Following
 it would tell you to target a branch this repository does not have, and it
-states that direct pushes to `main` are blocked with no exceptions -- which is
+states that direct pushes to `main` are blocked with no exceptions, which is
 false here, and deliberately so. See below.
 
 Contributions are invitation-only. Bug reports and ideas through issues are
@@ -33,8 +33,8 @@ required status check would reject the push, because checks have not run on a
 commit that no pull request produced.
 
 So this repository's ruleset omits require-pull-request and required checks. The
-compensating controls are `required_signatures` -- every commit on `main` is
-verified, and `createCommitOnBranch` commits are GitHub-signed -- plus the
+compensating controls are `required_signatures` (every commit on `main` is
+verified, and `createCommitOnBranch` commits are GitHub-signed) plus the
 validation that runs INSIDE `update.yml` before the commit lands.
 
 **That validation is the only gate between a bad render and `brew install`.** It is
@@ -43,9 +43,9 @@ covered by `tests/update-workflow.test.sh`, which extracts the workflow's own
 
 One consequence was measured and settled rather than left open: dropping
 required checks also dropped the DCO gate for human pull requests. Three routes
-to prevention were ruled out by measurement -- the bot cannot be a bypass actor,
-no commit-message rule exists, and a required check would block the bot's push
--- and a GitHub App was declined because it adds no capability the job lacks,
+to prevention were ruled out by measurement: the bot cannot be a bypass actor,
+no commit-message rule exists, and a required check would block the bot's push.
+A GitHub App was declined because it adds no capability the job lacks,
 only a persistent credential in a repository people install software from. The
 record is in `ai-context`, `context/homebrew-tap/index.md`, under "Closed
 2026-08-26: detection shipped, prevention priced and declined".
@@ -70,7 +70,7 @@ There is no `develop`. Branch from `main`, open a pull request against
 
 - **An issue first.** Labels are the tracking system; there is no board. Apply
   `type:`, `prio:`, `effort:`, `status:` and `area:` where they fit.
-- **Sign every commit off** -- `git commit -s`. The `dco` check runs on pull
+- **Sign every commit off.** `git commit -s`. The `dco` check runs on pull
   requests but is **not** required by the ruleset here, for the reason above, so
   it relies on you.
 - **Commits are signed**, GPG or SSH. `required_signatures` is enforced on

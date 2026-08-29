@@ -43,6 +43,7 @@ jobs:
         && ./tests/reusable-dco.test.sh
         && ./tests/check-editorconfig.test.sh
         && ./tests/check-reusable-drift.test.sh
+        && ./tests/check-render-drift.test.sh
         && ./tests/reusable-dependabot-freshness.test.sh
         && ./tests/reusable-schedule-freshness.test.sh
       # shellcheck: tests/lint-workflow-shell.test.sh plants a violation and

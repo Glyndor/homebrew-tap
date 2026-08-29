@@ -42,3 +42,11 @@ jobs:
 
       - name: Compare the reusable copies against the sibling channels
         run: ./scripts/check-reusable-drift.sh
+
+      # The render scripts are not copies of each other -- one emits Ruby, the
+      # other JSON -- but they carry the same verification logic, and that half
+      # is what decides whether a release is trusted. Kept as a separate step
+      # so a red reads as "the verification halves diverged" rather than being
+      # folded into the reusable comparison.
+      - name: Compare the shared halves of the render scripts
+        run: ./scripts/check-render-drift.sh

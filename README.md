@@ -26,8 +26,7 @@ Upgrades arrive with `brew upgrade`, like any other formula.
 | [`helmly-agent`](https://github.com/Glyndor/helmly-agent) | Hardened server agent for the Glyndor panel: signed commands over WireGuard and mTLS | not built | not built |
 
 On Linux this tap serves the same signed binaries the products publish for
-`x86_64` and `arm64`. They are glibc builds, so musl distributions such as
-Alpine are not covered by them.
+`x86_64` and `arm64`.
 
 ## What you are trusting
 

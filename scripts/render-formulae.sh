@@ -80,11 +80,19 @@ done
 # claim to the user. The org's Apache-2.0 to MIT migration is not finished, so
 # that case is reachable rather than hypothetical.
 #
-# This table is the only place a product is declared. The formula it renders,
-# the formulae pruned below, and the README's "Available formulae" table (which
-# ci.yml checks against this list) all follow from it.
+# This table is the only place a product is declared. The formula it renders and
+# the formulae pruned below follow from it.
+#
+# The README's table does NOT: scripts/check-products-consistent.sh stopped
+# comparing it on 2026-08-26, and its header records why -- the comparison was
+# two hand-maintained documents agreeing rather than a check against ground
+# truth, and it broke CI for renaming a heading. This comment said ci.yml
+# checked the README against this list, and had been false since that day.
+#
+# So the README drifts unless somebody edits it. Adding a platform here is
+# exactly when it does: the table has a per-platform column.
 PRODUCTS=(
-	"Glyndor/podup|podup|Podup|MIT|Docker-compose translator and runner for rootless Podman|podup-darwin-arm64|podup-darwin-x86_64|--version"
+	"Glyndor/podup|podup|Podup|MIT|Docker-compose translator and runner for rootless Podman|podup-darwin-arm64|podup-darwin-x86_64|podup-linux-arm64|podup-linux-x86_64|--version"
 )
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -188,6 +196,63 @@ hash_of() { # $1=asset
 	printf '%s\n' "$digest"
 }
 
+# Build one `on_macos` / `on_linux` block from a platform's pair of assets, or
+# nothing at all when the product publishes neither. The result lands in
+# $os_blocks rather than on stdout: this has to be able to FAIL, and a command
+# substitution would swallow the non-zero into an assignment that succeeds.
+#
+# It reads $repo, $tag and $base from its caller. That is bash's dynamic scope
+# working as intended and it is written down because it does not look like it:
+# these are `local` in render_product, so this function is only correct when
+# called from there.
+platform_block() { # $1=on_macos|on_linux  $2=arm asset  $3=intel asset
+	local os="$1" arm="$2" intel="$3" inner="" sha
+	os_blocks=""
+
+	[ "$arm" = "-" ] && [ "$intel" = "-" ] && return 0
+
+	if [ "$arm" != "-" ]; then
+		sha="$(hash_of "$arm")" || {
+			echo "::error::$repo $tag: the verified SHA256SUMS does not list $arm"
+			return 1
+		}
+		inner="    on_arm do
+      url \"$base/$arm\"
+      sha256 \"$sha\"
+    end"
+	fi
+	if [ "$intel" != "-" ]; then
+		sha="$(hash_of "$intel")" || {
+			echo "::error::$repo $tag: the verified SHA256SUMS does not list $intel"
+			return 1
+		}
+		[ -n "$inner" ] && inner="$inner
+"
+		inner="$inner    on_intel do
+      url \"$base/$intel\"
+      sha256 \"$sha\"
+    end"
+	fi
+
+	os_blocks="  $os do
+$inner
+  end"
+}
+
+# The Ruby expression naming this platform's asset, or empty when the platform
+# publishes none. A single architecture is a bare string: there is nothing to
+# pick between, and a ternary whose arms are the same value reads as a bug.
+asset_expr() { # $1=arm asset  $2=intel asset
+	local arm="$1" intel="$2"
+	if [ "$arm" != "-" ] && [ "$intel" != "-" ]; then
+		printf 'Hardware::CPU.arm? ? "%s" : "%s"' "$arm" "$intel"
+	elif [ "$arm" != "-" ]; then
+		printf '"%s"' "$arm"
+	elif [ "$intel" != "-" ]; then
+		printf '"%s"' "$intel"
+	fi
+}
+
 # Render one product's formula. Returns non-zero without touching any file when
 # the release cannot be read, its SHA256SUMS does not verify, or an asset the
 # table names is missing.
@@ -197,12 +262,16 @@ hash_of() { # $1=asset
 # unchecked failure would carry on and render a formula from a half-read state.
 render_product() { # $1=table entry
 	local entry="$1"
-	local repo formula cls licence desc arm intel version_check
-	local tag version arm_sha intel_sha base arch_blocks install_body
+	local repo formula cls licence desc version_check
+	local mac_arm mac_intel linux_arm linux_intel
+	local tag version base install_body
+	local mac_blocks linux_blocks os_blocks mac_expr linux_expr
 
-	IFS='|' read -r repo formula cls licence desc arm intel version_check <<<"$entry"
+	IFS='|' read -r repo formula cls licence desc \
+		mac_arm mac_intel linux_arm linux_intel version_check <<<"$entry"
 
-	for field in repo formula cls licence desc arm intel version_check; do
+	for field in repo formula cls licence desc \
+		mac_arm mac_intel linux_arm linux_intel version_check; do
 		[ -n "${!field}" ] || {
 			echo "::error::the PRODUCTS entry \"$entry\" has no $field"
 			return 1
@@ -252,61 +321,68 @@ render_product() { # $1=table entry
 		return 1
 	}
 
-	# "-" means the product publishes nothing for that architecture, so the
-	# formula omits it. An EMPTY field is still rejected above: an empty field
-	# between two pipes is what a dropped column looks like, and confusing "not
+	# "-" means the product publishes nothing for that slot, so the formula
+	# omits it. An EMPTY field is still rejected above: an empty field between
+	# two pipes is what a dropped column looks like, and confusing "not
 	# published" with "I mistyped the row" would silently ship half a formula.
-	[ "$arm" != "-" ] || [ "$intel" != "-" ] || {
-		echo "::error::the PRODUCTS entry \"$entry\" publishes neither architecture"
+	#
+	# The check is that SOMETHING is published, not that each platform is. A
+	# product may ship macOS only, Linux only, or one architecture of each, and
+	# all of those render a valid formula. What cannot render is a row naming
+	# nothing at all.
+	[ "$mac_arm" != "-" ] || [ "$mac_intel" != "-" ] \
+		|| [ "$linux_arm" != "-" ] || [ "$linux_intel" != "-" ] || {
+		echo "::error::the PRODUCTS entry \"$entry\" publishes no asset for any platform"
 		return 1
 	}
 
-	if [ "$arm" != "-" ]; then
-		arm_sha="$(hash_of "$arm")" || {
-			echo "::error::$repo $tag: the verified SHA256SUMS does not list $arm"
-			return 1
-		}
-	fi
-	if [ "$intel" != "-" ]; then
-		intel_sha="$(hash_of "$intel")" || {
-			echo "::error::$repo $tag: the verified SHA256SUMS does not list $intel"
-			return 1
-		}
-	fi
-
 	base="https://github.com/$repo/releases/download/$tag"
 
-	# Build only the blocks the product actually ships. A single-architecture
-	# formula installs its one asset directly; there is nothing to pick between.
-	arch_blocks=""
-	if [ "$arm" != "-" ]; then
-		arch_blocks="    on_arm do
-      url \"$base/$arm\"
-      sha256 \"$arm_sha\"
-    end"
-	fi
-	if [ "$intel" != "-" ]; then
-		[ -n "$arch_blocks" ] && arch_blocks="$arch_blocks
+	# Build only the blocks the product actually ships, one platform at a time.
+	# Two platforms with the same shape is what makes this a function rather
+	# than the pair of inlined branches it replaced: the second copy is where
+	# the two drift.
+	platform_block "on_macos" "$mac_arm" "$mac_intel" || return 1
+	mac_blocks="$os_blocks"
+	platform_block "on_linux" "$linux_arm" "$linux_intel" || return 1
+	linux_blocks="$os_blocks"
+
+	os_blocks="$mac_blocks"
+	if [ -n "$linux_blocks" ]; then
+		[ -n "$os_blocks" ] && os_blocks="$os_blocks
+
 "
-		arch_blocks="$arch_blocks    on_intel do
-      url \"$base/$intel\"
-      sha256 \"$intel_sha\"
-    end"
+		os_blocks="$os_blocks$linux_blocks"
 	fi
 
-	if [ "$arm" != "-" ] && [ "$intel" != "-" ]; then
-		install_body="    # A bare-binary download stages under its release-asset name. Take that name
-    # from the generator's table, which is the same source the urls above come
-    # from, rather than globbing for one: a product whose assets are not named
-    # \"<tool>-darwin-<arch>\" would match nothing and install an empty formula.
-    asset = Hardware::CPU.arm? ? \"$arm\" : \"$intel\"
+	# A bare-binary download stages under its release-asset name, so the name has
+	# to be reconstructed here. It comes from the generator's table -- the same
+	# source the urls above come from -- rather than from a glob: a product whose
+	# assets are not named "<tool>-<os>-<arch>" would match nothing and install
+	# an empty formula.
+	#
+	# The expression now picks on OS as well as architecture, and it has to:
+	# until Linux was rendered, both arms of the ternary named a darwin asset,
+	# so a Linux install would have downloaded the right binary and then looked
+	# on disk for a file called podup-darwin-*, which is not there.
+	mac_expr="$(asset_expr "$mac_arm" "$mac_intel")"
+	linux_expr="$(asset_expr "$linux_arm" "$linux_intel")"
+
+	if [ -n "$mac_expr" ] && [ -n "$linux_expr" ]; then
+		install_body="    asset = if OS.mac?
+      $mac_expr
+    else
+      $linux_expr
+    end
     bin.install asset => \"$formula\""
-	elif [ "$arm" != "-" ]; then
-		install_body="    # Only an arm64 build is published, so there is nothing to pick between.
-    bin.install \"$arm\" => \"$formula\""
+	elif [ -n "$mac_expr" ]; then
+		install_body="    # Only macOS assets are published, so there is no platform to pick between.
+    asset = $mac_expr
+    bin.install asset => \"$formula\""
 	else
-		install_body="    # Only an x86_64 build is published, so there is nothing to pick between.
-    bin.install \"$intel\" => \"$formula\""
+		install_body="    # Only Linux assets are published, so there is no platform to pick between.
+    asset = $linux_expr
+    bin.install asset => \"$formula\""
 	fi
 
 	cat >"$root/Formula/$formula.rb" <<RB
@@ -321,9 +397,7 @@ class $cls < Formula
   version "$version"
   license "$licence"
 
-  on_macos do
-$arch_blocks
-  end
+$os_blocks
 
   def install
 $install_body

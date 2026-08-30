@@ -20,12 +20,23 @@ class Podup < Formula
     end
   end
 
+  on_linux do
+    on_arm do
+      url "https://github.com/Glyndor/podup/releases/download/v5.4.0/podup-linux-arm64"
+      sha256 "dff1d6d19c8fe83069413277a63bb659e91217dae6e31eec8a40a3235a146d6f"
+    end
+    on_intel do
+      url "https://github.com/Glyndor/podup/releases/download/v5.4.0/podup-linux-x86_64"
+      sha256 "c923d3e17e3772ff102b53e870a3d1bcac053d0e1a1b7176acb7b1e6214337c1"
+    end
+  end
+
   def install
-    # A bare-binary download stages under its release-asset name. Take that name
-    # from the generator's table, which is the same source the urls above come
-    # from, rather than globbing for one: a product whose assets are not named
-    # "<tool>-darwin-<arch>" would match nothing and install an empty formula.
-    asset = Hardware::CPU.arm? ? "podup-darwin-arm64" : "podup-darwin-x86_64"
+    asset = if OS.mac?
+      Hardware::CPU.arm? ? "podup-darwin-arm64" : "podup-darwin-x86_64"
+    else
+      Hardware::CPU.arm? ? "podup-linux-arm64" : "podup-linux-x86_64"
+    end
     bin.install asset => "podup"
   end
 

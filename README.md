@@ -2,8 +2,8 @@
 
 # Glyndor Homebrew tap
 
-**Homebrew formulae for Glyndor's macOS binaries.**
-The macOS counterpart to the signed apt repository at
+**Homebrew formulae for Glyndor's signed binaries.**
+The Homebrew counterpart to the signed apt repository at
 [apt.glyndor.net](https://apt.glyndor.net).
 
 [![Audit](https://github.com/Glyndor/homebrew-tap/actions/workflows/audit.yml/badge.svg)](https://github.com/Glyndor/homebrew-tap/actions/workflows/audit.yml)
@@ -19,11 +19,15 @@ brew install glyndor/tap/podup
 
 Upgrades arrive with `brew upgrade`, like any other formula.
 
-| Package | What it is | On macOS |
-| --- | --- | --- |
-| [`podup`](https://github.com/Glyndor/podup) | Docker-compose translator and runner for rootless Podman | this tap |
-| [`epistle`](https://github.com/Glyndor/epistle) | Self-hosted headless mail server: SMTP, IMAP | not built |
-| [`helmly-agent`](https://github.com/Glyndor/helmly-agent) | Hardened server agent for the Glyndor panel: signed commands over WireGuard and mTLS | not built |
+| Package | What it is | macOS | Linux |
+| --- | --- | --- | --- |
+| [`podup`](https://github.com/Glyndor/podup) | Docker-compose translator and runner for rootless Podman | this tap | this tap |
+| [`epistle`](https://github.com/Glyndor/epistle) | Self-hosted headless mail server: SMTP, IMAP | not built | not built |
+| [`helmly-agent`](https://github.com/Glyndor/helmly-agent) | Hardened server agent for the Glyndor panel: signed commands over WireGuard and mTLS | not built | not built |
+
+On Linux this tap serves the same signed binaries the products publish for
+`x86_64` and `arm64`. They are glibc builds, so musl distributions such as
+Alpine are not covered by them.
 
 ## What you are trusting
 

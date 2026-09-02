@@ -20,6 +20,11 @@ jobs:
   audit:
     name: brew audit
     runs-on: macos-latest
+    # The variables below stop brew updating itself; this bounds what is left.
+    # Measured over the last eight runs: 25 to 96 seconds, one outlier at 246
+    # seconds. Thirty minutes is above ten times the outlier and well under the
+    # six-hour default, which on a macOS runner costs ten times a Linux minute.
+    timeout-minutes: 30
     env:
       # Keep the run deterministic and offline: no auto-update mid-job, and no
       # analytics ping (the org ships and runs nothing that phones home).

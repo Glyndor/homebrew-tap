@@ -46,11 +46,15 @@ jobs:
         && ./tests/check-render-drift.test.sh
         && ./tests/reusable-dependabot-freshness.test.sh
         && ./tests/reusable-schedule-freshness.test.sh
+        && ./tests/brew-jobs-are-bounded.test.sh
       # shellcheck: tests/lint-workflow-shell.test.sh plants a violation and
       # requires the linter to report it, so it needs the linter. The gate
       # itself runs in the shellcheck job against the pinned binary; this one
       # asserts behaviour, which does not turn on the exact version.
-      apt-packages: shellcheck
+      # python3-yaml: tests/brew-jobs-are-bounded.test.sh parses the workflows
+      # rather than grepping them, so a job's env and bound are read from the
+      # job they belong to.
+      apt-packages: shellcheck python3-yaml
 
   products:
     name: products match the generator

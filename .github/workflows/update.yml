@@ -66,6 +66,17 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # The validate step runs `brew style`, and brew updates itself before
+    # doing anything unless told not to. tests.yml already sets both variables
+    # and a bound for exactly that reason (a `brew style` hung for 45 minutes
+    # on 2026-08-11 with neither); this job ran the same tool with neither.
+    # Measured over the last eight runs, the whole job takes 15 to 24 seconds,
+    # so ten minutes is far above any honest run and far below the six-hour
+    # default a hang would otherwise burn every hour.
+    timeout-minutes: 10
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

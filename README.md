@@ -54,6 +54,9 @@ one that ships an unverified binary.
 
 ---
 
+The [threat model](docs/threat-model.md) says what this tap protects, against
+whom, and which test holds each control in place.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md). Report a problem via the
 [Security](https://github.com/Glyndor/homebrew-tap/security) tab.
 [MIT](LICENSE).

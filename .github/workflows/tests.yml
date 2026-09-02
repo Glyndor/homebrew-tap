@@ -46,6 +46,7 @@ jobs:
         && ./tests/check-render-drift.test.sh
         && ./tests/reusable-dependabot-freshness.test.sh
         && ./tests/reusable-schedule-freshness.test.sh
+        && ./tests/reusable-workflow-lint.test.sh
         && ./tests/brew-jobs-are-bounded.test.sh
       # shellcheck: tests/lint-workflow-shell.test.sh plants a violation and
       # requires the linter to report it, so it needs the linter. The gate
@@ -54,6 +55,8 @@ jobs:
       # python3-yaml: tests/brew-jobs-are-bounded.test.sh parses the workflows
       # rather than grepping them, so a job's env and bound are read from the
       # job they belong to.
+      # python3-yaml also serves tests/reusable-workflow-lint.test.sh, whose
+      # tooling-isolation step imports it exactly as the workflow-lint job does.
       apt-packages: shellcheck python3-yaml
 
   products:

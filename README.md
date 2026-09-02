@@ -40,7 +40,7 @@ is refused.
 
 ```mermaid
 flowchart LR
-  R["Product release<br/>SHA256SUMS + .sig"] -->|daily pull| V["Verify signature<br/>org Ed25519 release key"]
+  R["Product release<br/>SHA256SUMS + .sig"] -->|hourly pull| V["Verify signature<br/>org Ed25519 release key"]
   V -->|verified| G["Re-render Formula/*.rb<br/>version, URLs, checksums"]
   G --> C["Validate, then commit to main<br/>GitHub-signed"]
   C -->|brew upgrade| U["User"]

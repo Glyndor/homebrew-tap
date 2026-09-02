@@ -115,12 +115,12 @@ under `set -euo pipefail`, so almost any mistake exits non-zero.
 
 | file | what a red means |
 |---|---|
-| `tests.yml` | the suite, shellcheck, PRODUCTS/README/Formula drift, or `brew style` |
+| `tests.yml` | the suite, shellcheck, PRODUCTS/Formula drift, or `brew style` |
 | `audit.yml` | Homebrew's own rules reject the rendered formulae |
 | `pr-hygiene.yml` | the pull request itself is malformed |
 | `freshness.yml` | something scheduled stopped happening elsewhere |
 | `dco.yml`, `line-limit.yml`, `workflow-lint.yml` | one rule each |
-| `update.yml` | the daily regeneration, which commits to `main` |
+| `update.yml` | the hourly regeneration, which commits to `main` |
 
 Every reusable lives in `.github/workflows/reusable-*.yml` as a copy taken from
 a named `Glyndor/.github` tag. Nothing is pulled remotely.

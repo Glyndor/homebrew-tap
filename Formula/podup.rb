@@ -6,28 +6,28 @@
 class Podup < Formula
   desc "Docker-compose translator and runner for rootless Podman"
   homepage "https://github.com/Glyndor/podup"
-  version "5.8.0"
+  version "5.9.0"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/Glyndor/podup/releases/download/v5.8.0/podup-darwin-arm64"
-      sha256 "25dd376927ca9e81f8e767d0f765590bdd74ba254e1c283e061685a25b28ad86"
+      url "https://github.com/Glyndor/podup/releases/download/v5.9.0/podup-darwin-arm64"
+      sha256 "8a330c0d7b4258e15e50fbb824d0421307c3a0a42582a1d2d48d96123442c840"
     end
     on_intel do
-      url "https://github.com/Glyndor/podup/releases/download/v5.8.0/podup-darwin-x86_64"
-      sha256 "5709d4c7cdacb0168e9364c66d00b29b7c6e57c7798d0789be5d9b95595f1ddd"
+      url "https://github.com/Glyndor/podup/releases/download/v5.9.0/podup-darwin-x86_64"
+      sha256 "1632b5cade9f4048d85ca1ec220f4ef5a05a9567f9a9e354943b9cc2e82d97df"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/Glyndor/podup/releases/download/v5.8.0/podup-linux-arm64"
-      sha256 "fa5334e18d3353462fc439b7ba0fe861cc00ba2d3c47b369e252e40d7a0bb566"
+      url "https://github.com/Glyndor/podup/releases/download/v5.9.0/podup-linux-arm64"
+      sha256 "9614c35fb04a686dde05828108eb8a9acc7c4d55b48d03746e895f09e76b4a4e"
     end
     on_intel do
-      url "https://github.com/Glyndor/podup/releases/download/v5.8.0/podup-linux-x86_64"
-      sha256 "78d741dfbdcc3ba11acf2a227274d794f61f629b6fa9c97209ed4d1248a02962"
+      url "https://github.com/Glyndor/podup/releases/download/v5.9.0/podup-linux-x86_64"
+      sha256 "7dd75b3f55978e1a9372558c15311c335ff80bf2e9813efe5cf44a11204649e1"
     end
   end
 

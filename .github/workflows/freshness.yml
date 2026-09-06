@@ -96,6 +96,26 @@ jobs:
       workflow: freshness.yml
       max-age-days: 2
 
+  # Nothing watched drift.yml's cron, and that cron is the only thing that runs
+  # the comparison at all: the file triggers on schedule and workflow_dispatch
+  # and on nothing else, because pull_request would deadlock the three channels
+  # and push to main reads the siblings from a CDN that serves the previous
+  # file for minutes after a merge. A cron that quietly stops therefore stops
+  # the whole check, and reports nothing while doing it.
+  #
+  # Three days. The schedule asks for 09:41Z and the last five firings began
+  # between 13:00Z and 13:50Z, so a delay of three to four hours is the normal
+  # case rather than the exception, and one day would leave no margin at all
+  # over a daily cron.
+  freshness-drift:
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/reusable-schedule-freshness.yml
+    with:
+      workflow: drift.yml
+      max-age-days: 3
+
   # Watches the suite, the way reusable-schedule-freshness watches a cron:
   # fails when a run that should have been green was not. The other jobs in
   # this file fail for ABSENCE (a schedule stopped firing). Tests fails for

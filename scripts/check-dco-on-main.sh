@@ -39,10 +39,10 @@ BOT="github-actions[bot]"
 
 if [ -n "$PUSHER" ]; then
 	if [ "$PUSHER" = "$BOT" ]; then
-		echo "pushed by $BOT — its commits are exempt from DCO"
+		echo "pushed by $BOT, whose commits are exempt from DCO"
 		exempt_all=yes
 	else
-		echo "pushed by $PUSHER — every commit in this push needs a trailer"
+		echo "pushed by $PUSHER; every commit in this push needs a trailer"
 		exempt_all=no
 	fi
 else

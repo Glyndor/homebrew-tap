@@ -3,14 +3,14 @@ name: update
 # Keeps Formula/*.rb in sync with each product's latest signed release, the same
 # pull model as Glyndor/apt: no product pushes here. This reads their public
 # releases, verifies the signed SHA256SUMS against the org release key, validates
-# the re-rendered formulae, and commits them straight to `main` — GitHub-signed
-# via the createCommitOnBranch mutation — so a new macOS build reaches
+# the re-rendered formulae, and commits them straight to `main`, GitHub-signed
+# via the createCommitOnBranch mutation, so a new macOS build reaches
 # `brew upgrade` within a day without any product holding a credential here.
 #
 # Why a direct commit and not a pull request: the organisation forbids GitHub
 # Actions from creating or approving PRs (a locked, org-wide setting), so the
-# apt-style "open an auto-merging PR" path is unavailable. Unlike Glyndor/apt —
-# whose automation never writes git, it publishes to R2 — a tap's git content
+# apt-style "open an auto-merging PR" path is unavailable. Unlike Glyndor/apt,
+# whose automation never writes git but publishes to R2, a tap's git content
 # *is* the published artifact, so the update must land as a commit. It lands on
 # `main` directly, validated in this job *before* it lands (there is no PR gate
 # standing between the commit and `brew install`), and signed by GitHub so
@@ -54,7 +54,7 @@ on:
 permissions:
   contents: read
 
-# Never run two updates at once — they would race on main's HEAD (the second
+# Never run two updates at once: they would race on main's HEAD (the second
 # would fail its expectedHeadOid check and drop the update to the next run).
 concurrency:
   group: update-formulae
@@ -96,9 +96,9 @@ jobs:
           # Exit 3 means the generator skipped at least one product and rendered
           # the rest: its release was unreadable, its SHA256SUMS did not verify,
           # or an asset the table names was missing. Carry on and commit what did
-          # render — holding a good update back because an unrelated product's
-          # release is broken is exactly what this replaced — then fail the job in
-          # the last step so the skip is loud. Any other non-zero is a failure
+          # render, then fail the job in the last step so the skip is loud.
+          # Holding a good update back because an unrelated product's release is
+          # broken is exactly what this replaced. Any other non-zero is a failure
           # before any product was reached, and stops the run here.
           rc=0
           ./scripts/render-formulae.sh || rc=$?
@@ -139,7 +139,7 @@ jobs:
           shopt -s nullglob
           formulae=(Formula/*.rb)
           if [ ${#formulae[@]} -eq 0 ]; then
-            echo "::error::no formulae found under Formula/ — refusing to commit an empty tap"
+            echo "::error::no formulae found under Formula/; refusing to commit an empty tap"
             exit 1
           fi
 
@@ -158,11 +158,11 @@ jobs:
           set -euo pipefail
           # Commit the re-rendered formulae onto `main` with the GraphQL
           # createCommitOnBranch mutation. That commit is signed by GitHub
-          # (Verified) — the require-signed-commits rule on `main` rejects the
+          # (Verified), and the require-signed-commits rule on `main` rejects the
           # unsigned commit a plain `git commit`/`git push` would make, and this
           # needs no signing key (unlike `git commit -S`). expectedHeadOid pins
           # the parent to the HEAD we rendered from, so if main moved since
-          # checkout the mutation fails cleanly instead of clobbering — the next
+          # checkout the mutation fails cleanly instead of clobbering, and the next
           # scheduled run re-renders from the new HEAD. Modified files go in
           # fileChanges.additions (base64), removed ones in deletions.
           head="$(git rev-parse HEAD)"
@@ -194,6 +194,6 @@ jobs:
           # Last, on purpose: the products that did render are already committed
           # by now, so a broken release in one product costs that product's
           # update and nothing else. This step is what keeps the skip from being
-          # silent — the render step's annotations name which products and why.
+          # silent: the render step's annotations name which products and why.
           echo "::error::the render skipped at least one product; see the annotations on the render step"
           exit 1

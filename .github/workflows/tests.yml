@@ -100,7 +100,7 @@ jobs:
           # formatting and deprecated-API issues. It runs on Linux because it
           # parses the formula rather than resolving it, so it needs no macOS
           # runner and keeps the fast feedback on every push. The deeper
-          # `brew audit --strict` cannot run here — it resolves the active spec,
-          # and the binaries live in an `on_macos` block a Linux runner never
-          # evaluates — so it runs in the `brew audit` job below instead.
+          # `brew audit --strict` cannot run here, because it resolves the active
+          # spec and the binaries live in an `on_macos` block a Linux runner
+          # never evaluates, so it runs in the `brew audit` job below instead.
           brew style Formula/*.rb

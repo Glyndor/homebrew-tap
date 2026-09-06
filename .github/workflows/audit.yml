@@ -40,7 +40,7 @@ jobs:
           set -euo pipefail
           # `brew audit --tap` only accepts a tap Homebrew knows about, and a tap
           # is just a checkout in the right place under Library/Taps. Linking the
-          # workspace in is what makes the PR's own formulae the ones audited —
+          # workspace in is what makes the PR's own formulae the ones audited;
           # `brew tap glyndor/tap` would fetch the published main branch instead
           # and pass while the change under review is broken.
           tap_dir="$(brew --repository)/Library/Taps/glyndor/homebrew-tap"
@@ -49,7 +49,7 @@ jobs:
 
           # Name every formula explicitly instead of passing `--tap`. Selecting
           # by tap means a link that silently resolved to nothing audits an
-          # empty set and still exits 0 — a green gate that checked no formula,
+          # empty set and still exits 0: a green gate that checked no formula,
           # the same failure as a required check no job emits. Named formulae
           # make that case fail loudly with "No available formula".
           shopt -s nullglob
@@ -58,7 +58,7 @@ jobs:
             names+=("glyndor/tap/$(basename "$formula" .rb)")
           done
           if [ ${#names[@]} -eq 0 ]; then
-            echo "::error::no formulae found under Formula/ — the tap is empty or the checkout is wrong"
+            echo "::error::no formulae found under Formula/; the tap is empty or the checkout is wrong"
             exit 1
           fi
           echo "auditing: ${names[*]}"

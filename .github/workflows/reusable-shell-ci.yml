@@ -47,6 +47,10 @@ jobs:
   shellcheck:
     name: shellcheck
     runs-on: ubuntu-latest
+    # Measured 8 to 9 seconds today. Ten minutes is the floor this org uses
+    # for a job whose honest run is seconds: far above any real run, far
+    # below the six-hour default a hang would otherwise burn.
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
@@ -193,6 +197,10 @@ jobs:
     name: test
     if: inputs.test-command != ''
     runs-on: ubuntu-latest
+    # Worst measured run across the three channels is 83s in apt; the suite
+    # grows with the tree, so this is the one job that earns more than the
+    # floor.
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}

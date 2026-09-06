@@ -51,6 +51,7 @@ jobs:
         && ./tests/audit-runs-on-a-schedule.test.sh
         && ./tests/jobs-are-bounded.test.sh
         && ./tests/network-calls-are-bounded.test.sh
+        && ./tests/check-suite-on-main.test.sh
       # shellcheck: tests/lint-workflow-shell.test.sh plants a violation and
       # requires the linter to report it, so it needs the linter. The gate
       # itself runs in the shellcheck job against the pinned binary; this one

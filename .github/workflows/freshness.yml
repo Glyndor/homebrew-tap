@@ -14,18 +14,24 @@ name: Freshness
 # Separate from the suite on purpose. These fail because something did not
 # happen elsewhere, never because this pull request is wrong.
 #
-# So: pull request and push to main, and deliberately no `schedule` of its own.
-# A watcher that needs a cron to fire shares the failure mode it exists to
-# catch. The honest cost is that a repository which goes quiet stops checking
-# its own freshness, and that cost is real here, because update.yml commits
-# straight to `main`, so `main` moves with nobody opening a pull request.
+# So: pull request, push to main, and a `schedule` as well. A watcher that
+# fires only on a cron shares the failure mode it exists to catch, which is
+# why the first two triggers carry it; but a repository that goes quiet stops
+# checking its own freshness, and that is real here, because update.yml
+# commits straight to `main`, so `main` moves with nobody opening a pull
+# request. The cron covers exactly that stretch.
+#
+# None of these jobs may become a required check. They report on a cron that
+# stopped firing somewhere else, so a red one says nothing about the change
+# under review, and requiring it would hold every pull request hostage to an
+# outage its author cannot reach.
 
 on:
   # A watcher with no schedule only watches while somebody is already looking.
   # Until this was added, these checks fired on pull_request and push and
-  # nothing else, and apt writes nothing to its own git, so a publish that
-  # stopped would have gone unreported until a human next visited the
-  # repository. The freshness thresholds below are measured in days; a watcher
+  # nothing else, so a cron that stopped firing between two pull requests
+  # would have gone unreported until a person next visited the repository.
+  # The freshness thresholds below are measured in days; a watcher
   # that runs only when a person happens to push cannot honour a one-day one.
   #
   # Twice a day rather than daily, because the tightest threshold declared

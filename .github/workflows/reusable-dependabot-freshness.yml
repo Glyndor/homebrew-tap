@@ -80,6 +80,9 @@ jobs:
   freshness:
     name: dependabot freshness
     runs-on: ubuntu-latest
+    # Measured 5 to 29 seconds; queries the GitHub API for recent
+    # Dependabot pull requests.
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:

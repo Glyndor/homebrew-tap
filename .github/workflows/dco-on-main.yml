@@ -44,6 +44,8 @@ jobs:
   dco-on-main:
     name: every human commit on main is signed off
     runs-on: ubuntu-latest
+    # Measured 8 to 10 seconds.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

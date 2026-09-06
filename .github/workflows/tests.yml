@@ -49,13 +49,16 @@ jobs:
         && ./tests/reusable-workflow-lint.test.sh
         && ./tests/brew-jobs-are-bounded.test.sh
         && ./tests/audit-runs-on-a-schedule.test.sh
+        && ./tests/jobs-are-bounded.test.sh
+        && ./tests/network-calls-are-bounded.test.sh
       # shellcheck: tests/lint-workflow-shell.test.sh plants a violation and
       # requires the linter to report it, so it needs the linter. The gate
       # itself runs in the shellcheck job against the pinned binary; this one
       # asserts behaviour, which does not turn on the exact version.
       # python3-yaml: tests/brew-jobs-are-bounded.test.sh parses the workflows
       # rather than grepping them, so a job's env and bound are read from the
-      # job they belong to.
+      # job they belong to. tests/jobs-are-bounded.test.sh reads the same way
+      # for the timeout-minutes rule.
       # python3-yaml also serves tests/reusable-workflow-lint.test.sh, whose
       # tooling-isolation step imports it exactly as the workflow-lint job does.
       apt-packages: shellcheck python3-yaml
@@ -63,6 +66,8 @@ jobs:
   products:
     name: products match the generator
     runs-on: ubuntu-latest
+    # Measured 3 to 6 seconds.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -4,17 +4,22 @@
 #
 # The contract being tested:
 #
-#   * three named units (verify_sha256sums, py_block, hash_of) inside the
-#     local render script must stay byte-identical (after stripping comments
-#     and blanks) to the same units inside the sibling's differently-named
-#     render script;
+#   * four named units (verify_sha256sums, py_block, hash_of, release_keys)
+#     inside the local render script must stay byte-identical (after stripping
+#     comments and blanks) to the same units inside the sibling's
+#     differently-named render script;
 #   * render_product is excluded on purpose, and a change inside it must not
 #     turn the check red;
 #   * comment-only changes are tolerated (comments legitimately describe each
 #     repository);
 #   * a unit renamed on the remote side fails loudly with the unit's name;
 #   * a network failure is reported as a fetch failure, not as drift;
-#   * the script refuses to pass having compared nothing.
+#   * the script refuses to pass having compared nothing;
+#   * the two RELEASE_PUBKEY_B64 declarations on each side must agree; a
+#     rotation that lands in only one channel is reported as drift, with a
+#     message that names the keys and the rotation;
+#   * an unknown unit name passed to unit_is_complete is refused rather than
+#     silently treated as complete.
 #
 # Network is stubbed: a fake `curl` reads $CURL_STUB_FILE and prints it (or
 # fails, if $CURL_STUB_FAIL is set). Nothing here reaches GitHub.
@@ -47,6 +52,9 @@ chmod +x "$work/bin/curl"
 cat > "$work/scripts/render-formulae.sh" <<'LOCAL'
 #!/usr/bin/env bash
 set -euo pipefail
+
+RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
 verify_sha256sums() {
 	rm -f "$work/SHA256SUMS"
@@ -143,7 +151,7 @@ cp "$work/scripts/render-formulae.sh" "$work/remote.sh"
 run_with_remote "$work/remote.sh"
 exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
 expect_eq "$exit_code" "0" "exit 0 when units are identical"
-expect_contains "$combined" "compared 3 render unit" "success line names compared 3"
+expect_contains "$combined" "compared 4 render unit" "success line names compared 4"
 expect_contains "$combined" "verification logic agrees" "success line says logic agrees"
 
 echo
@@ -223,10 +231,13 @@ expect_contains "$err_body" "py_block has drifted" "names py_block"
 echo
 echo "=== a change inside render_product passes, because that unit is excluded ==="
 # render_product is the unit that legitimately differs across the two repos.
-# The check must stay green and still report 3 compared units.
+# The check must stay green and still report 4 compared units.
 cat > "$work/remote.sh" <<'REMOTE'
 #!/usr/bin/env bash
 set -euo pipefail
+
+RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
 verify_sha256sums() {
 	rm -f "$work/SHA256SUMS"
@@ -257,7 +268,7 @@ REMOTE
 run_with_remote "$work/remote.sh"
 exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
 expect_eq "$exit_code" "0" "exit 0 when only render_product differs"
-expect_contains "$combined" "compared 3 render unit" "still compares 3 units"
+expect_contains "$combined" "compared 4 render unit" "still compares 4 units"
 expect_not_contains "$err_body" "drifted" "no drift message"
 expect_not_contains "$err_body" "render_product" "the excluded unit is not named as a missing unit either"
 
@@ -268,6 +279,9 @@ cat > "$work/remote.sh" <<'REMOTE'
 #!/usr/bin/env bash
 # This entire header comment is on the remote side only.
 set -euo pipefail
+
+RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
 verify_sha256sums() {
 	# Inside the function: a remote-only comment
@@ -299,14 +313,19 @@ REMOTE
 run_with_remote "$work/remote.sh"
 exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
 expect_eq "$exit_code" "0" "exit 0 on comment-only diff"
-expect_contains "$combined" "compared 3 render unit" "still compares 3 units"
+expect_contains "$combined" "compared 4 render unit" "still compares 4 units"
 
 echo
 echo "=== a unit missing from the remote file fails and names which unit ==="
-# verify_sha256sums is gone on the remote side.
+# verify_sha256sums is gone on the remote side. release_keys and hash_of are
+# still present so the absent count is exactly one and the message names that
+# one without naming the others.
 cat > "$work/remote.sh" <<'REMOTE'
 #!/usr/bin/env bash
 set -euo pipefail
+
+RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
 hash_of() {
 	local matches
@@ -333,6 +352,111 @@ expect_contains "$err_body" "fetch failure, not drift" "uses the fetch-failure w
 expect_contains "$err_body" "could not fetch" "says the fetch failed"
 expect_not_contains "$err_body" "verification logic agrees" "does not claim agreement"
 expect_not_contains "$err_body" "has drifted" "does not conflate fetch failure with drift"
+
+echo
+echo "=== a different RELEASE_PUBKEY_B64 on the remote is drift, named as a rotation ==="
+# RELEASE_PUBKEY_B64 differs on the remote side; everything else matches.
+# The drift must be reported in release_keys, and the message must name the
+# keys and the rotation -- not just the unit -- because the reader has to act
+# on it: a rotation that landed in only one channel has to land in the other.
+cat > "$work/remote.sh" <<'REMOTE'
+#!/usr/bin/env bash
+set -euo pipefail
+
+RELEASE_PUBKEY_B64="REMOTE-only-key-cccccccccccccccccccccccccccccc"
+RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+verify_sha256sums() {
+	rm -f "$work/SHA256SUMS"
+	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
+	python3 - <<'PY'
+import sys
+def load(b64):
+	b64 = b64.strip()
+	return b64
+msg = open(sys.argv[1], "rb").read()
+print("verify", msg)
+PY
+}
+
+hash_of() {
+	local matches
+	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
+	echo "$matches"
+}
+
+render_product() {
+	echo "ruby"
+}
+REMOTE
+run_with_remote "$work/remote.sh"
+exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
+expect_eq "$exit_code" "1" "exit 1 on key-only drift"
+expect_contains "$err_body" "release_keys has drifted" "names the release_keys unit"
+expect_contains "$err_body" "RELEASE_PUBKEY_B64" "the diff itself shows RELEASE_PUBKEY_B64"
+expect_contains "$err_body" "trust different release keys" "the message explains the meaning of the mismatch"
+expect_contains "$err_body" "rotation has to land in both" "the message tells the reader what to do"
+expect_not_contains "$err_body" "verify_sha256sums has drifted" "does not falsely name the other units"
+expect_not_contains "$err_body" "py_block has drifted" "does not falsely name the other units"
+expect_not_contains "$err_body" "hash_of has drifted" "does not falsely name the other units"
+
+echo
+echo "=== a renamed key declaration on the remote is absent, not drift ==="
+# The opening marker (RELEASE_PUBKEY_B64=) is gone from the remote. The
+# extraction returns nothing, so the unit is reported as missing rather than
+# compared as drift. This is the same distinction the script already keeps
+# for the function-style units: a renamed unit is a contract break, not a
+# diff.
+cat > "$work/remote.sh" <<'REMOTE'
+#!/usr/bin/env bash
+set -euo pipefail
+
+RELEASE_PUBKEY_B64_OLD="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+verify_sha256sums() {
+	rm -f "$work/SHA256SUMS"
+	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
+	python3 - <<'PY'
+import sys
+def load(b64):
+	b64 = b64.strip()
+	return b64
+msg = open(sys.argv[1], "rb").read()
+print("verify", msg)
+PY
+}
+
+hash_of() {
+	local matches
+	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
+	echo "$matches"
+}
+
+render_product() {
+	echo "ruby"
+}
+REMOTE
+run_with_remote "$work/remote.sh"
+exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
+expect_eq "$exit_code" "1" "exit 1 when a key declaration is renamed on the remote"
+expect_contains "$err_body" "release_keys could not be found" "names release_keys as missing"
+expect_not_contains "$err_body" "release_keys has drifted" "does not call a missing unit a drift"
+expect_not_contains "$err_body" "trust different release keys" "does not invoke the rotation message either"
+
+echo
+echo "=== unit_is_complete refuses an unknown unit ==="
+# This is the piece that was silently passing. In bash, a case statement with
+# no matching branch returns success; without the default branch added to
+# unit_is_complete, any unit name not listed there would be declared complete.
+# That meant a partial extraction of an unwired unit would be accepted as a
+# whole one. Source the function in isolation and call it directly.
+if bash -c "$(sed -n '/^unit_is_complete()/,/^}/p' "$script")
+	unit_is_complete 'anything' 'totally-unknown-unit-name'"; then
+	record_fail "unit_is_complete refuses an unknown unit" " (returned 0)"
+else
+	record_pass "unit_is_complete refuses an unknown unit"
+fi
 
 echo
 echo "=== the compared count is greater than zero on success ==="

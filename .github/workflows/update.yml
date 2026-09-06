@@ -107,7 +107,16 @@ jobs:
             3) echo "partial=1" >> "$GITHUB_OUTPUT" ;;
             *) exit "$rc" ;;
           esac
-          if git diff --quiet -- Formula; then
+          # Both kinds of change count: a tracked formula modified in place, and
+          # a brand-new one git has never seen before. `git diff` only sees the
+          # first shape; without `git ls-files -o` the first formula of a newly
+          # added product lands here, never in the diff, and the channel
+          # silently stays empty for it. Merging the two outputs into one list
+          # fixes both the change gate below and, via the same fix in the
+          # commit step, the additions payload.
+          changed_paths="$(git diff --name-only --diff-filter=ACMR -- Formula
+                           git ls-files -o --exclude-standard -- Formula)"
+          if [ -z "$changed_paths" ]; then
             echo "changed=0" >> "$GITHUB_OUTPUT"
             echo "No formula changed."
           else
@@ -166,7 +175,14 @@ jobs:
           # scheduled run re-renders from the new HEAD. Modified files go in
           # fileChanges.additions (base64), removed ones in deletions.
           head="$(git rev-parse HEAD)"
-          adds="$(git diff --name-only --diff-filter=ACMR -- Formula | while read -r f; do
+          # Merge tracked modifications and untracked additions into the same
+          # additions list. Untracked files are invisible to `git diff`, which
+          # is why the first formula of a newly added product was never
+          # committed. Deletions stay separate: an untracked path can never be
+          # a deletion, so the existing `--diff-filter=D` derivation is
+          # correct as-is.
+          adds="$( { git diff --name-only --diff-filter=ACMR -- Formula
+                    git ls-files -o --exclude-standard -- Formula; } | while read -r f; do
             jq -cn --arg path "$f" --arg contents "$(base64 -w0 "$f")" '{path:$path, contents:$contents}'
           done | jq -cs '.')"
           dels="$(git diff --name-only --diff-filter=D -- Formula | while read -r f; do

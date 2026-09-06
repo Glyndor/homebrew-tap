@@ -75,6 +75,7 @@ sandbox() { # $1=path $2=generator exit code $3=writes? (yes|no|empty)
 #!/usr/bin/env bash
 case "$mode" in
 	yes)   printf 'class Podup < Formula\n  # changed\nend\n' > "$dir/Formula/podup.rb" ;;
+	new)   printf 'class Zzz < Formula\nend\n' > "$dir/Formula/zzz.rb" ;;
 	empty) rm -f "$dir"/Formula/*.rb ;;
 esac
 exit $code
@@ -229,6 +230,34 @@ check "and pins expectedHeadOid" "yes" \
 # shellcheck disable=SC2016
 check "and references branch main in the GraphQL argument" "yes" \
 	"$(branch_re='branchName:$branch'; grep -qF "$branch_re" "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
+
+# --- a brand-new (untracked) formula ----------------------------------------
+# Every case above modifies or removes a tracked file. The first formula of a
+# newly added product is untracked at this point, and the old `git diff`-only
+# checks on both the change gate and the additions list were blind to it. The
+# brief calls out that this case is the one shape the harness never produced.
+#
+# Two assertions, both keyed off the shape that went missing: the render step
+# must report `changed=1` so the validate+commit steps fire, and the captured
+# createCommitOnBranch payload must list the path under `additions`. The payload
+# is the contract; the log line is not what proves the fix.
+
+sandbox "$WORK/i" 0 new
+rc=0; run_step "$RENDER" "$WORK/i" || rc=$?
+check "an untracked formula still flips the change gate to 1" "1" "$(output changed)"
+
+# Reuse the same sandbox so the working tree is exactly the state the render
+# step produced: `Formula/podup.rb` tracked, `Formula/zzz.rb` untracked.
+stub_gh "$WORK/gh-new"
+( cd "$WORK/i" && \
+	PATH="$WORK/gh-new:$PATH" \
+	STUB_DIR="$WORK/gh-new" \
+	REPO="Glyndor/homebrew-tap" \
+	GH_TOKEN="dummy" \
+	bash "$COMMIT" ) > "$WORK/out" 2>&1 || true
+adds_paths="$(jq -r '.variables.changes.additions[].path' "$WORK/gh-new/.stdin" 2>/dev/null || true)"
+check "the commit payload's additions include the untracked path" "1" \
+	"$(printf '%s' "$adds_paths" | grep -cFx 'Formula/zzz.rb')"
 
 # --- the wiring, asserted by reading the workflow ---------------------------
 # These conditions are evaluated by the Actions engine, so they can be read but

@@ -39,6 +39,7 @@ jobs:
       test-command: >-
         ./tests/check-suite-completeness.test.sh
         ./tests/render-formulae.test.sh
+        ./tests/render-formulae-attestation.test.sh
         ./tests/update-workflow.test.sh
         ./tests/check-products-consistent.test.sh
         ./tests/locale-pinned.test.sh

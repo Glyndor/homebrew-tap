@@ -56,8 +56,17 @@ RELEASE_PUBKEY2_B64=""
 #   length, so any other size is by definition not a signature and is refused
 #   the same way whether too large or too small. The check is an equality,
 #   not a comparison: anything that is not 64 bytes is wrong here.
+#
+#   MAX_ASSET_BYTES = 104857600 (100 MiB). The cap on the binary that
+#   verify_attestation downloads so its digest can be checked against
+#   SHA256SUMS and so the SLSA attestation can be verified against the
+#   claimed tag. Today's podup binaries are 5-8 MiB; 100 MiB is over ten
+#   times the largest today and leaves room for Electron-class CLI
+#   products. Anything larger is suspect as a denial-of-service: the
+#   renderer holds the bytes while the attestation check runs.
 MAX_SUMS_BYTES=4096
 MAX_SIG_BYTES=64
+MAX_ASSET_BYTES=104857600
 
 # The only way to override it is --pubkey, which tests/render-formulae.test.sh
 # uses to sign a synthetic release with an ephemeral key. A run with no
@@ -205,6 +214,130 @@ sys.exit("SHA256SUMS does not verify against any configured release key")
 PY
 }
 
+# Verify the build provenance of the release. The signature on SHA256SUMS
+# proves the digests the renderer is about to write into formulae; it does
+# not prove the digests came from THIS release. An actor who can publish a
+# release can take last year's binaries, upload them under a new higher tag
+# with the matching old SHA256SUMS and its valid old signature, and the
+# renderer accepts them: every digest matches, the signature verifies, and
+# the formula points users at old code under a new version number.
+# Version monotonicity does not help; the fake tag is higher.
+#
+# GitHub's SLSA provenance attestations bind an artifact to the tag it was
+# built from. A re-uploaded binary still carries the attestation naming its
+# OLD tag, so verification against the new tag fails. That is the property
+# that closes the gap. Two measured facts decide the shape of this
+# function:
+#
+#   SHA256SUMS itself is NOT attested (`gh attestation verify` on it
+#   answers HTTP 404). Only the built artifacts are, so the attested thing
+#   has to be an artifact the renderer names.
+#
+#   `gh attestation verify` takes a file path or an OCI reference. It has
+#   no digest-only mode, so the asset has to be downloaded to verify it.
+#
+# ONE asset per release is verified, not every referenced one. Every asset
+# the release ships was built in the same workflow run, so a single
+# attestation check proves the tag is honest; the SHA256SUMS is signed as
+# a whole, so one downloaded asset's digest matching its SHA256SUMS entry
+# extends the signature's trust to the entries the renderer does not
+# download. Verifying every asset costs a download for no extra security.
+#
+# The chosen asset is the first non-dash one in the PRODUCTS table order;
+# for podup that is podup-darwin-arm64 (the mac_arm slot). The download's
+# SHA-256 is computed and checked against the SHA256SUMS entry for that
+# asset before the attestation check runs, so the digest the renderer
+# renders for it is the digest that was verified -- and the control
+# inspects something rather than confirming two pieces of input agree
+# without having read either.
+#
+# A release predating attestations is a different fault from a failed
+# verification, and the message names which: one is "this release was not
+# built by a workflow that emits provenance" and the other is "an
+# attestation for this release names a different tag." Both fail closed;
+# the operator reading the log needs to know which.
+#
+# Reads $base from its caller (render_product sets it just above).
+verify_attestation() { # $1=repo $2=tag $3=asset $4=expected_sha256
+	local repo="$1" tag="$2" asset="$3" expected="$4"
+	local asset_path="$work/attest.asset"
+	local json_path="$work/attestation.json"
+	local err_path="$work/attestation.err"
+	local size actual
+
+	rm -f "$asset_path" "$json_path" "$err_path"
+
+	# --connect-timeout and --max-time bound the read: a hung TLS or hung
+	# stream is the failure mode that would otherwise outlast the job's
+	# own deadline. The network-calls check requires --max-time on every
+	# curl.
+	if ! curl -fsSL --connect-timeout 10 --max-time 120 \
+		-o "$asset_path" "$base/$asset"; then
+		echo "::error::$repo $tag: failed to download $asset for attestation verification" >&2
+		return 1
+	fi
+
+	# Bound the bytes on disk BEFORE anything reads them. The cap and
+	# its rationale are at MAX_ASSET_BYTES above.
+	size="$(stat -c%s "$asset_path")"
+	[ "$size" -le "$MAX_ASSET_BYTES" ] || {
+		echo "::error::$repo $tag: $asset is $size bytes, over the ${MAX_ASSET_BYTES}-byte cap" >&2
+		return 1
+	}
+
+	# The digest that gets verified must be the digest that gets rendered.
+	# Compute it from the download and compare against the SHA256SUMS
+	# entry for this asset before the attestation runs, so a mismatch is
+	# a third message and not folded into either of the attestation
+	# messages.
+	actual="$(sha256sum "$asset_path" | awk '{print $1}')"
+	[ "$actual" = "$expected" ] || {
+		echo "::error::$repo $tag: downloaded $asset has digest $actual, not the $expected that SHA256SUMS declares" >&2
+		return 1
+	}
+
+	# --source-ref pins the tag the artifact is claimed to have been
+	# built from, --signer-workflow pins the workflow that emitted the
+	# attestation. gh enforces them as part of the verify, and exits
+	# non-zero when they don't match. The python check below is a sanity
+	# pass over the JSON so a successful exit with no entries still
+	# fails.
+	if ! gh attestation verify "$asset_path" \
+		--repo "$repo" \
+		--source-ref "refs/tags/$tag" \
+		--signer-workflow "$repo/.github/workflows/release.yml" \
+		--format json \
+		>"$json_path" 2>"$err_path"; then
+		# Three failure shapes, distinguished from the gh error text
+		# so the operator reading the log knows which fault fired.
+		# The first is a release that predates attestations, not an
+		# attack; the other two are. All three fail closed.
+		local msg
+		msg="$(tr '\n' ' ' < "$err_path")"
+		if printf '%s' "$msg" | grep -qi 'no attestation\|not found\|404'; then
+			echo "::error::$repo $tag: $asset carries no attestation; this release was not built by a workflow that emits provenance, or predates provenance verification" >&2
+		elif printf '%s' "$msg" | grep -qi 'signer\|workflow does not match\|cert-identity'; then
+			echo "::error::$repo $tag: $asset's attestation was not signed by the release workflow of $repo" >&2
+		elif printf '%s' "$msg" | grep -qi 'source ref\|sourcerepositoryref\|different tag'; then
+			echo "::error::$repo $tag: $asset's attestation names a different tag; the artifact was built from another tag, not $tag" >&2
+		else
+			echo "::error::$repo $tag: $asset attestation verification failed: $msg" >&2
+		fi
+		return 1
+	fi
+
+	# A successful verify with no entries in the JSON would mean the CLI
+	# returned 0 with nothing to show, which is not a real success. The
+	# python block reads the JSON; if gh's output shape changes, this
+	# turns into an explicit message instead of a silent pass.
+	python3 - "$json_path" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+if not isinstance(data, list) or not data:
+    sys.exit("attestation verification produced no entries")
+PY
+}
+
 # Print the verified SHA-256 of an asset. Fails unless the manifest lists it
 # exactly once with a well-formed digest.
 #
@@ -296,8 +429,9 @@ asset_expr() { # $1=arm asset  $2=intel asset
 }
 
 # Render one product's formula. Returns non-zero without touching any file when
-# the release cannot be read, its SHA256SUMS does not verify, or an asset the
-# table names is missing.
+# the release cannot be read, its SHA256SUMS does not verify, the build
+# provenance is missing or names another tag, or an asset the table names is
+# missing.
 #
 # Every step is checked explicitly rather than left to `set -e`: this runs as an
 # `if !` condition below, which disables errexit for the whole function, so an
@@ -383,6 +517,29 @@ render_product() { # $1=table entry
 	}
 
 	base="https://github.com/$repo/releases/download/$tag"
+
+	# Verify build provenance before anything is rendered. The signature on
+	# SHA256SUMS proves the digests came from this product's release, but
+	# not that THIS release is the genuine one for $tag: an actor who can
+	# publish a release can re-upload last year's binaries with the matching
+	# old signed SHA256SUMS and have them accepted under a new tag. The
+	# attestation is what binds the binary to $tag. Pick the first
+	# non-dash asset in the table -- the comment on verify_attestation
+	# records why one is enough -- and have the same function compare its
+	# download's digest against SHA256SUMS, so the digest the renderer
+	# renders is the digest that was verified.
+	verify_asset=""
+	for candidate in "$mac_arm" "$mac_intel" "$linux_arm" "$linux_intel"; do
+		[ "$candidate" != "-" ] && verify_asset="$candidate" && break
+	done
+	verify_sha="$(hash_of "$verify_asset")" || {
+		echo "::error::$repo $tag: the verified SHA256SUMS does not list $verify_asset" >&2
+		return 1
+	}
+	verify_attestation "$repo" "$tag" "$verify_asset" "$verify_sha" || {
+		echo "::error::$repo $tag: $verify_asset build provenance is missing, names another tag, or was not signed by the release workflow" >&2
+		return 1
+	}
 
 	# Build only the blocks the product actually ships, one platform at a time.
 	# Two platforms with the same shape is what makes this a function rather

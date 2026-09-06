@@ -6,7 +6,6 @@
 class Podup < Formula
   desc "Docker-compose translator and runner for rootless Podman"
   homepage "https://github.com/Glyndor/podup"
-  version "5.9.1"
   license "MIT"
 
   on_macos do

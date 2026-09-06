@@ -183,4 +183,5 @@ check "and the message says the file is not there" "1" "$(said 'no such file: /n
 
 echo
 echo "$pass passed, $fail failed"
+printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]

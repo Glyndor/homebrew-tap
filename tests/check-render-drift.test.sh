@@ -496,6 +496,7 @@ echo
 echo "--- summary ---"
 echo "passed: $pass"
 echo "failed: $fail"
+printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 
 if [ "$fail" -ne 0 ]; then
 	exit 1

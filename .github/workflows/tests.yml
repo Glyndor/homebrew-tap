@@ -24,35 +24,44 @@ on:
 permissions:
   contents: read
 
+# The first item is the runner and the rest are its arguments. A `&&` chain
+# cannot tell a suite that ran every assertion from one that exited early
+# having run three: both leave a zero status and the chain moves on. Every
+# test file now ends by printing a sentinel after its last assertion, and
+# tests/check-suite-completeness.test.sh requires one from every file it was
+# given, naming the file that did not produce one.
+#
+
 jobs:
   shell:
     uses: ./.github/workflows/reusable-shell-ci.yml
     with:
       test-command: >-
+        ./tests/check-suite-completeness.test.sh
         ./tests/render-formulae.test.sh
-        && ./tests/update-workflow.test.sh
-        && ./tests/check-products-consistent.test.sh
-        && ./tests/locale-pinned.test.sh
-        && ./tests/check-test-coverage.test.sh
-        && ./tests/check-dco-on-main.test.sh
-        && ./tests/ci-runs-every-test.test.sh
-        && ./tests/lint-workflow-shell.test.sh
-        && ./tests/reusable-line-limit.test.sh
-        && ./tests/reusable-shell-ci.test.sh
-        && ./tests/reusable-empty-diff.test.sh
-        && ./tests/reusable-dco.test.sh
-        && ./tests/check-editorconfig.test.sh
-        && ./tests/check-reusable-drift.test.sh
-        && ./tests/workflow-shape.test.sh
-        && ./tests/check-render-drift.test.sh
-        && ./tests/reusable-dependabot-freshness.test.sh
-        && ./tests/reusable-schedule-freshness.test.sh
-        && ./tests/reusable-workflow-lint.test.sh
-        && ./tests/brew-jobs-are-bounded.test.sh
-        && ./tests/audit-runs-on-a-schedule.test.sh
-        && ./tests/jobs-are-bounded.test.sh
-        && ./tests/network-calls-are-bounded.test.sh
-        && ./tests/check-suite-on-main.test.sh
+        ./tests/update-workflow.test.sh
+        ./tests/check-products-consistent.test.sh
+        ./tests/locale-pinned.test.sh
+        ./tests/check-test-coverage.test.sh
+        ./tests/check-dco-on-main.test.sh
+        ./tests/ci-runs-every-test.test.sh
+        ./tests/lint-workflow-shell.test.sh
+        ./tests/reusable-line-limit.test.sh
+        ./tests/reusable-shell-ci.test.sh
+        ./tests/reusable-empty-diff.test.sh
+        ./tests/reusable-dco.test.sh
+        ./tests/check-editorconfig.test.sh
+        ./tests/check-reusable-drift.test.sh
+        ./tests/workflow-shape.test.sh
+        ./tests/check-render-drift.test.sh
+        ./tests/reusable-dependabot-freshness.test.sh
+        ./tests/reusable-schedule-freshness.test.sh
+        ./tests/reusable-workflow-lint.test.sh
+        ./tests/brew-jobs-are-bounded.test.sh
+        ./tests/audit-runs-on-a-schedule.test.sh
+        ./tests/jobs-are-bounded.test.sh
+        ./tests/network-calls-are-bounded.test.sh
+        ./tests/check-suite-on-main.test.sh
       # shellcheck: tests/lint-workflow-shell.test.sh plants a violation and
       # requires the linter to report it, so it needs the linter. The gate
       # itself runs in the shellcheck job against the pinned binary; this one

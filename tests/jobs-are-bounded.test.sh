@@ -120,4 +120,5 @@ check "every non-caller job in this repository's workflows carries timeout-minut
 
 echo
 echo "$pass passed, $fail failed"
+printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]

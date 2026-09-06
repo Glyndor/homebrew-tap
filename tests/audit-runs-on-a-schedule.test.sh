@@ -106,4 +106,5 @@ check "brew audit runs on a schedule in this repository" "0" "$rc"
 
 echo
 echo "$pass passed, $fail failed"
+printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]

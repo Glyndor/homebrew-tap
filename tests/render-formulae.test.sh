@@ -178,7 +178,11 @@ rc=0; run "$WORK/r1/scripts/render-formulae.sh" "$WORK/r1" || rc=$?
 check "a verified release renders and exits 0" "0" "$rc"
 
 F="$WORK/r1/Formula/podup.rb"
-contains "the version comes from the release tag" "$F" 'version "9.9.9"'
+# The version is not declared: Homebrew scans it from the url, and `brew audit
+# --strict` refuses a declared one as redundant with the scan. The url
+# assertion below is where the tag reaching the formula is checked now, so
+# both halves of that property have a case here.
+check "no version is declared" "0" "$(grep -c '^  version ' "$F")"
 contains "the arm64 url points at the tagged asset" "$F" \
 	'url "https://github.com/Glyndor/podup/releases/download/v9.9.9/podup-darwin-arm64"'
 contains "the arm64 checksum is the one the signed manifest declares" "$F" \
@@ -243,7 +247,7 @@ generator_with "$WORK/r7/scripts/render-formulae.sh" \
 printf 'PRE-EXISTING\n' > "$WORK/r7/Formula/ghostly.rb"
 rc=0; run "$WORK/r7/scripts/render-formulae.sh" "$WORK/r7" || rc=$?
 check "a broken product does not stop a good one" "1" \
-	"$(grep -c 'version "9.9.9"' "$WORK/r7/Formula/podup.rb")"
+	"$(grep -c 'download/v9.9.9/podup-darwin-arm64' "$WORK/r7/Formula/podup.rb")"
 check "the run still fails, so the skip is not silent" "3" "$rc"
 check "the skipped product keeps the formula it had" "PRE-EXISTING" \
 	"$(cat "$WORK/r7/Formula/ghostly.rb")"
@@ -446,8 +450,10 @@ generator_with "$WORK/r12/scripts/render-formulae.sh" \
 rc=0; run "$WORK/r12/scripts/render-formulae.sh" "$WORK/r12" || rc=$?
 check "two healthy products both render, exit 0" "0" "$rc"
 check "both formulae exist" "2" "$(find "$WORK/r12/Formula" -name '*.rb' | wc -l)"
-contains "each gets its own version" "$WORK/r12/Formula/podup.rb" 'version "1.2.3"'
-contains "including the second" "$WORK/r12/Formula/other.rb" 'version "4.5.6"'
+contains "each gets its own version, through its url" "$WORK/r12/Formula/podup.rb" \
+	'url "https://github.com/Glyndor/podup/releases/download/v1.2.3/podup-darwin-arm64"'
+contains "including the second" "$WORK/r12/Formula/other.rb" \
+	'url "https://github.com/Glyndor/other/releases/download/v4.5.6/other-darwin-arm64"'
 contains "each gets its own licence" "$WORK/r12/Formula/other.rb" 'license "Apache-2.0"'
 contains "and its own version check" "$WORK/r12/Formula/other.rb" 'system "#{bin}/other", "-V"'
 contains "the first is untouched by the second" "$WORK/r12/Formula/podup.rb" 'license "MIT"'

@@ -2,7 +2,7 @@
 #
 # Tests for the shell inside .github/workflows/update.yml.
 #
-# That workflow decides, on every scheduled run, whether to commit to `main` —
+# That workflow decides, on every scheduled run, whether to commit to `main`,
 # and it commits without a pull request, so its decisions are the last thing
 # standing between a bad render and `brew install`. Three of them are ours
 # rather than GitHub's:
@@ -149,7 +149,7 @@ check "exit 1 also aborts rather than committing" "1" "$rc"
 # would exit 127 instead. A 1 with the message is proof the guard ran first.
 sandbox "$WORK/f" 0 no
 # The validate step runs after the generator, so empty the directory here
-# rather than through the stub — this step never invokes it.
+# rather than through the stub, because this step never invokes it.
 rm -f "$WORK/f"/Formula/*.rb
 rc=0; run_step "$VALIDATE" "$WORK/f" || rc=$?
 check "an emptied Formula/ fails validation" "1" "$rc"

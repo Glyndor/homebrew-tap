@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# Tests for scripts/render-formulae.sh — the generator that turns a product's
+# Tests for scripts/render-formulae.sh, the generator that turns a product's
 # signed release into the formula `brew install` uses.
 #
 # Why this is worth testing at all: update.yml commits this generator's output
 # straight to `main`, so there is no pull request between a bug here and a user
-# installing its result. The properties below are the ones that keep that safe —
+# installing its result. The properties below are the ones that keep that safe:
 # the signature gate is fail-closed, one product's broken release cannot remove
 # or hold back another's, and what the table declares is what the formula says.
 #
@@ -145,7 +145,7 @@ SIGN
 
 # A copy of the generator whose PRODUCTS table is replaced wholesale. Replacing
 # the block rather than editing fields keeps these tests working when the table
-# gains a column — it gained two while the generator was being rewritten.
+# gains a column; it gained two while the generator was being rewritten.
 generator_with() { # $1=destination $2...=table rows
 	local dest="$1"; shift
 	local rows
@@ -567,7 +567,7 @@ check "and no formula is written" "0" \
 
 # The single-architecture shape is one CI's `brew style` never sees: that job
 # runs over Formula/ in the repository, which carries only the two-architecture
-# podup. Validate it here when a validator exists, and say so when none does —
+# podup. Validate it here when a validator exists, and say so when none does:
 # skipping silently would leave the new shape unchecked everywhere.
 if command -v brew >/dev/null 2>&1; then
 	rc=0

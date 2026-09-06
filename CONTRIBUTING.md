@@ -111,6 +111,18 @@ reason it names. Four ways that goes wrong are written up in
 Assert **which** failure fired, never that some failure did. Everything runs
 under `set -euo pipefail`, so almost any mistake exits non-zero.
 
+Two things a green local run does not prove, both learned the hard way:
+
+**Git has its own exec bit and it is the one CI reads.** With
+`core.fileMode=false` set, `chmod +x` never reaches the index; the file works in
+your shell and the runner answers exit 126, taking the rest of the `&&` chain
+with it. `git ls-files -s tests/` shows the truth, `ls -l` does not, and
+`git update-index --chmod=+x tests/<name>.test.sh` fixes it.
+
+**The editorconfig check only sees tracked files.** That is deliberate, and a
+test pins it, so a new file with no final newline is clean until you commit it
+and red immediately after. Stage first, then check.
+
 ## Workflows
 
 | file | what a red means |

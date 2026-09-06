@@ -9,6 +9,38 @@ name: Audit
 # `<caller job id> / <inner job name>` and the file is not part of that name.
 
 on:
+  # A schedule, because `push: main` does not see the commits this gate exists
+  # to check. update.yml lands the rendered formulae through the GraphQL
+  # createCommitOnBranch mutation with GITHUB_TOKEN, and GitHub raises no
+  # workflow run for an event that token caused. Measured 2026-09-06:
+  # Formula/podup.rb was rewritten on `main` by github-actions[bot] on
+  # 2026-09-03, 2026-09-04 and 2026-09-05, and `gh run list --branch main`
+  # carried no `push` event at all since 2026-09-02. So the one check that
+  # reads the published output against an external standard ran only on pull
+  # requests, and this repository takes almost none: the update commits
+  # straight to `main` by design, because the organisation forbids Actions
+  # from opening pull requests.
+  #
+  # That is how #146 sat for three days. `brew audit` had started refusing the
+  # declared version as redundant with the one it scans from the url, every
+  # formula was failing, and the first person to see it was whoever next
+  # opened a pull request.
+  #
+  # Daily rather than hourly: what changes underneath is Homebrew's own rules,
+  # not this repository, and the job runs on a macOS runner, which bills at ten
+  # times a Linux minute. 09:19Z is off the hour and the half hour, where
+  # GitHub queues everyone's crons, and after the 08:13Z freshness slot and the
+  # hourly update, so a scheduled run reads a `main` that already carries the
+  # morning's render.
+  #
+  # No freshness watcher for this cron yet, deliberately.
+  # reusable-schedule-freshness fails when the workflow it names has no
+  # successful scheduled run, and on the day a cron lands there is none, so the
+  # watcher would open red for a reason that is not a fault. freshness.yml
+  # carries the same note about its own schedule; add this one there once two
+  # firings are on record.
+  schedule:
+    - cron: "19 9 * * *"
   pull_request:
   push:
     branches: [main]

@@ -36,6 +36,29 @@ RELEASE_PUBKEY_B64="HFv7vg5FCY7YyKUDbJhaQSfB9SboJGSblJtFbLmLHzM"
 # with them.
 RELEASE_PUBKEY2_B64=""
 
+# Bounds on the bytes this script reads off the network. The signature proves
+# what the publisher meant, but it does not bound how much of it there is; the
+# release assets are attacker-influenced (whoever can publish a release asset
+# controls it), and the embedded python reads both files whole, so without a
+# cap here an oversized signature or manifest would have every hourly run
+# transfer and allocate whatever the publisher attached.
+#
+# The numbers, derived from what a legitimate file actually looks like:
+#
+#   MAX_SUMS_BYTES = 4096 (4 KiB). A podup SHA256SUMS is a handful of
+#   `<64-hex>  <asset>\n` lines at under 90 bytes each, a few hundred bytes in
+#   total. Even a roster of dozens of products with realistic macOS and Linux
+#   binary asset names lands well under a kilobyte; 4 KiB is orders of
+#   magnitude of headroom over today's file and still fits comfortably under
+#   the size of a single apt sibling's per-signature cap.
+#
+#   MAX_SIG_BYTES = 64, exact. A raw Ed25519 signature has no other valid
+#   length, so any other size is by definition not a signature and is refused
+#   the same way whether too large or too small. The check is an equality,
+#   not a comparison: anything that is not 64 bytes is wrong here.
+MAX_SUMS_BYTES=4096
+MAX_SIG_BYTES=64
+
 # The only way to override it is --pubkey, which tests/render-formulae.test.sh
 # uses to sign a synthetic release with an ephemeral key. A run with no
 # arguments trusts the constant above and nothing else, and there is deliberately
@@ -105,6 +128,25 @@ verify_sha256sums() { # $1=repo $2=tag
 	gh release download "$2" --repo "$1" \
 		--pattern SHA256SUMS --pattern SHA256SUMS.sig --dir "$work" --clobber \
 		|| return 1
+	# Bound the bytes on disk BEFORE the embedded python reads them. The
+	# signature is exactly 64 bytes and a legitimate manifest is a few hundred,
+	# so anything else is by definition neither, and an attacker who can
+	# publish release assets can pick the size of what the renderer transfers
+	# and holds in memory. A size refusal is reported here so it stays a third
+	# thing and is not folded into either of the two python messages: "our
+	# trust anchor is malformed" or "their signature does not verify". The
+	# measured size goes in both messages so an oversized file does not look
+	# like a parse error.
+	sums_size="$(stat -c%s "$work/SHA256SUMS")"
+	[ "$sums_size" -le "$MAX_SUMS_BYTES" ] || {
+		echo "::error::$1 $2: SHA256SUMS is $sums_size bytes, over the ${MAX_SUMS_BYTES}-byte cap" >&2
+		return 1
+	}
+	sig_size="$(stat -c%s "$work/SHA256SUMS.sig")"
+	[ "$sig_size" -eq "$MAX_SIG_BYTES" ] || {
+		echo "::error::$1 $2: SHA256SUMS.sig is $sig_size bytes; an Ed25519 signature is exactly ${MAX_SIG_BYTES} bytes" >&2
+		return 1
+	}
 	python3 - "$work/SHA256SUMS" "$work/SHA256SUMS.sig" \
 		"$RELEASE_PUBKEY_B64" "$RELEASE_PUBKEY2_B64" <<'PY'
 import base64, binascii, sys
@@ -321,7 +363,7 @@ render_product() { # $1=table entry
 	esac
 
 	verify_sha256sums "$repo" "$tag" || {
-		echo "::error::$repo $tag: SHA256SUMS is missing or does not verify against the org release key"
+		echo "::error::$repo $tag: SHA256SUMS is missing, oversized, or does not verify against the org release key" >&2
 		return 1
 	}
 

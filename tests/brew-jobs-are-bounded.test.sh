@@ -140,4 +140,5 @@ check "every job in this repository that runs brew is bounded and told not to up
 
 echo
 echo "$pass passed, $fail failed"
+printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]

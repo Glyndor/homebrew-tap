@@ -139,4 +139,5 @@ check "every curl invocation in scripts/ carries --max-time" "0" "$rc"
 
 echo
 echo "$pass passed, $fail failed"
+printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]

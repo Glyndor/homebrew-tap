@@ -89,3 +89,64 @@ jobs:
     with:
       workflow: freshness.yml
       max-age-days: 2
+
+  # Watches the suite, the way reusable-schedule-freshness watches a cron:
+  # fails when a run that should have been green was not. The other jobs in
+  # this file fail for ABSENCE (a schedule stopped firing). Tests fails for
+  # a different reason -- presence with a bad conclusion -- and
+  # reusable-schedule-freshness cannot see it, because the newest
+  # *successful* scheduled run is independent of what happened on the last
+  # push. A merge that landed a red Tests re-run on `main` is invisible to
+  # every other watcher in this file.
+  #
+  # Measured 2026-09-06 across the three channels: `Tests` failed on `main`
+  # for twenty minutes (19:32 to 19:52 UTC) while a pull request whose run
+  # was still reporting got merged, and the only reason anybody noticed was
+  # that somebody went looking. This job surfaces that within one push or
+  # one freshness tick.
+  #
+  # DELIBERATELY NOT A REQUIRED STATUS CHECK. A red `main` would then block
+  # the pull request that repairs it, which deepens the failure this exists
+  # to surface. The check name must stay advisory: the rule that fixes a
+  # red `main` is "land a forward fix", and a required check is the rule
+  # that prevents it. Keep this out of the ruleset.
+  #
+  # In-progress runs are not a verdict. The newest run whose status is
+  # `completed` is what is checked, because conflating "still running"
+  # with "succeeded" would mean the next green run hides any red that
+  # landed while the previous one was finishing. With no completed run on
+  # record at all, the script exits 1 and says so rather than passing
+  # silently over an empty history.
+  #
+  # permissions match reusable-schedule-freshness: reading this
+  # repository's run history needs `actions: read`, and a job cannot
+  # elevate beyond its workflow's grant.
+  tests-on-main:
+    name: newest completed Tests run on main
+    runs-on: ubuntu-latest
+    # Measured 2 to 15 seconds for the API call (same shape as
+    # reusable-schedule-freshness, which measured this on its own steps);
+    # the verdict script itself runs in single-digit milliseconds. Ten
+    # minutes is the floor this org uses for a job whose honest run is
+    # seconds.
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Check the newest completed Tests run on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Twenty items is enough to cover any realistic day on this repo
+          # (measured: zero to three Tests runs on main per day over the
+          # last week), and the script filters in-progress runs client-side
+          # before picking the newest verdict, so a smaller page that
+          # happens to be all queued or in-progress does not produce a
+          # false negative.
+          file="$(mktemp)"
+          trap 'rm -f "$file"' EXIT
+          gh api "repos/${REPO}/actions/workflows/tests.yml/runs?branch=main&per_page=20" > "$file"
+          ./scripts/check-suite-on-main.sh "$file"

@@ -18,156 +18,16 @@
 
 set -euo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-GENERATOR="$HERE/scripts/render-formulae.sh"
-WORK="$(mktemp -d)"
-RELEASES="$WORK/releases"
-BIN="$WORK/bin"
-
-cleanup() { rm -rf "$WORK"; }
-trap cleanup EXIT
-
+HERE_FIXTURE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The linter cannot follow a sourced path built at run time, and the fixture
+# is where check() and the counters live. The disable is on the source line
+# alone; the counters are re-declared here so nothing downstream has to be
+# excused for reading them.
+# shellcheck disable=SC1091
+. "$HERE_FIXTURE/render-fixture.sh"
 pass=0
 fail=0
 
-check() { # <description> <expected> <actual>
-	if [ "$2" = "$3" ]; then
-		echo "ok    $1"
-		pass=$((pass + 1))
-	else
-		echo "FAIL  $1"
-		echo "        expected: $2"
-		echo "        actual:   $3"
-		fail=$((fail + 1))
-	fi
-}
-
-contains() { # <description> <file> <substring>
-	if grep -qF -- "$3" "$2" 2>/dev/null; then
-		echo "ok    $1"
-		pass=$((pass + 1))
-	else
-		echo "FAIL  $1"
-		echo "        $2 does not contain: $3"
-		fail=$((fail + 1))
-	fi
-}
-
-# --- an ephemeral signing key, and a stub gh that serves fixtures ------------
-
-mkdir -p "$BIN" "$RELEASES"
-PUBKEY="$(python3 - "$WORK" <<'PY'
-import base64, os, sys
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives import serialization
-key = Ed25519PrivateKey.generate()
-raw = key.private_bytes(encoding=serialization.Encoding.Raw,
-                        format=serialization.PrivateFormat.Raw,
-                        encryption_algorithm=serialization.NoEncryption())
-open(os.path.join(sys.argv[1], "signing.key"), "wb").write(raw)
-pub = key.public_key().public_bytes(encoding=serialization.Encoding.Raw,
-                                    format=serialization.PublicFormat.Raw)
-# Unpadded, the way the generator stores and re-pads it.
-print(base64.b64encode(pub).decode().rstrip("="))
-PY
-)"
-
-# `gh release view --repo R --json tagName --jq .tagName` prints the tag stored
-# for that repo; `gh release download TAG --repo R ... --dir D` copies the
-# fixture's SHA256SUMS pair into D. Anything else is a test bug, not a silent
-# pass, so it exits non-zero.
-cat > "$BIN/gh" <<'SH'
-#!/usr/bin/env bash
-set -euo pipefail
-sub="${1:-}"; shift || true
-repo=""; dir=""
-args=("$@")
-for ((i = 0; i < ${#args[@]}; i++)); do
-	case "${args[i]}" in
-		--repo) repo="${args[i+1]}" ;;
-		--dir)  dir="${args[i+1]}" ;;
-	esac
-done
-slug="${repo//\//__}"
-base="$RELEASES/$slug"
-case "$sub" in
-	release)
-		what="${args[0]}"
-		[ -d "$base" ] || { echo "release not found" >&2; exit 1; }
-		if [ "$what" = "view" ]; then
-			cat "$base/tag"
-		else
-			cp "$base/SHA256SUMS" "$dir/SHA256SUMS" 2>/dev/null || exit 1
-			cp "$base/SHA256SUMS.sig" "$dir/SHA256SUMS.sig" 2>/dev/null || exit 1
-		fi
-		;;
-	*) echo "stub gh: unexpected subcommand $sub" >&2; exit 90 ;;
-esac
-SH
-chmod +x "$BIN/gh"
-export RELEASES
-export PATH="$BIN:$PATH"
-
-# Publish a synthetic release: a SHA256SUMS listing the given assets, signed
-# with the ephemeral key.
-publish() { # $1=repo $2=tag $3...=asset names
-	local repo="$1" tag="$2"; shift 2
-	local slug="${repo//\//__}" base
-	base="$RELEASES/$slug"
-	rm -rf "$base"; mkdir -p "$base"
-	printf '%s' "$tag" > "$base/tag"
-	: > "$base/SHA256SUMS"
-	local i=0 asset
-	for asset in "$@"; do
-		i=$((i + 1))
-		printf '%064d  %s\n' "$i" "$asset" >> "$base/SHA256SUMS"
-	done
-	python3 - "$WORK/signing.key" "$base/SHA256SUMS" "$base/SHA256SUMS.sig" <<'PY'
-import sys
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-key = Ed25519PrivateKey.from_private_bytes(open(sys.argv[1], "rb").read())
-open(sys.argv[3], "wb").write(key.sign(open(sys.argv[2], "rb").read()))
-PY
-}
-
-# Re-sign a hand-built SHA256SUMS so the generator still sees a valid signature.
-# The point of these cases is malformed CONTENT behind a good signature.
-resign() { # $1=sums file $2=repo
-	local base="$RELEASES/${2//\//__}"
-	cp "$1" "$base/SHA256SUMS"
-	python3 - "$WORK/signing.key" "$base/SHA256SUMS" "$base/SHA256SUMS.sig" <<'SIGN'
-import sys
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-key = Ed25519PrivateKey.from_private_bytes(open(sys.argv[1], "rb").read())
-open(sys.argv[3], "wb").write(key.sign(open(sys.argv[2], "rb").read()))
-SIGN
-}
-
-# A copy of the generator whose PRODUCTS table is replaced wholesale. Replacing
-# the block rather than editing fields keeps these tests working when the table
-# gains a column; it gained two while the generator was being rewritten.
-generator_with() { # $1=destination $2...=table rows
-	local dest="$1"; shift
-	local rows
-	rows="$(printf '\t"%s"\n' "$@")"
-	awk -v rows="$rows" '
-		/^PRODUCTS=\(/ { print; print rows; inside = 1; next }
-		inside && /^\)/ { print; inside = 0; next }
-		!inside        { print }
-	' "$GENERATOR" > "$dest"
-	chmod +x "$dest"
-}
-
-run() { # $1=script $2=repo root ; prints nothing, returns the exit status
-	( cd "$2" && "$1" --pubkey "$PUBKEY" ) > "$WORK/out" 2>&1
-}
-
-# A repo root with a Formula/ directory, for the generator to write into.
-new_root() { # $1=path
-	rm -rf "$1"; mkdir -p "$1/scripts" "$1/Formula"
-}
-
-PODUP="Glyndor/podup|podup|Podup|MIT|Docker-compose translator|podup-darwin-arm64|podup-darwin-x86_64|-|-|--version"
 
 # --- the happy path ---------------------------------------------------------
 
@@ -186,9 +46,9 @@ check "no version is declared" "0" "$(grep -c '^  version ' "$F")"
 contains "the arm64 url points at the tagged asset" "$F" \
 	'url "https://github.com/Glyndor/podup/releases/download/v9.9.9/podup-darwin-arm64"'
 contains "the arm64 checksum is the one the signed manifest declares" "$F" \
-	'sha256 "0000000000000000000000000000000000000000000000000000000000000001"'
+	'sha256 "9c4c120a44c601243afdf38fb1a8f45bc86b1e74121aac78902f1c3f8b489a62"'
 contains "the x86_64 checksum is the one the signed manifest declares" "$F" \
-	'sha256 "0000000000000000000000000000000000000000000000000000000000000002"'
+	'sha256 "3ec08322a9c9e8489b8510a6237291217621af1683eac70147e61995cfc947ea"'
 contains "the licence comes from the table" "$F" 'license "MIT"'
 contains "the version check comes from the table" "$F" 'system "#{bin}/podup", "--version"'
 contains "install uses the asset name, not a glob" "$F" \

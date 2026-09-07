@@ -33,6 +33,17 @@
 #                         A rotation applied in one channel and not the other
 #                         leaves both scripts accepting different signing keys,
 #                         and every check stays green because the code matches.
+#       verify_attestation the function that downloads one asset, checks its
+#                         digest against the SHA256SUMS entry, and runs
+#                         `gh attestation verify` with --source-ref pinned
+#                         to the tag being rendered. The signature on
+#                         SHA256SUMS proves the digests came from this
+#                         product's release, not that the release is the
+#                         genuine one for the tag: an actor who can publish
+#                         a release can re-upload last year's binaries with
+#                         the matching old signed SHA256SUMS. The
+#                         attestation is what binds the binary to the tag.
+#                         This is shared logic and belongs in the contract.
 #
 #   render_product is EXCLUDED by name, with the reason given below. The two
 #   repositories render to different formats, so the function legitimately
@@ -83,6 +94,7 @@ UNITS=(
 	py_block
 	hash_of
 	release_keys
+	verify_attestation
 )
 
 # render_product is intentionally excluded by name. It formats to Ruby formulae
@@ -142,6 +154,9 @@ extract_unit() { # $1=file $2=unit
 			# than silently accepted as the whole unit.
 			sed -n '/^RELEASE_PUBKEY_B64=/,/^RELEASE_PUBKEY2_B64=/p' "$file"
 			;;
+		verify_attestation)
+			sed -n '/^verify_attestation()/,/^}/p' "$file"
+			;;
 		*)
 			echo "::error::internal: unknown unit '$unit'" >&2
 			return 1
@@ -155,12 +170,12 @@ extract_unit() { # $1=file $2=unit
 # The default branch refuses unknown units: in bash a case with no matching
 # branch returns success, which would let a partial extraction of a unit that
 # has not been wired in here be accepted as a whole one. That is the silent
-# pass that a new unit (e.g. release_keys above) has to defeat by being
-# listed explicitly.
+# pass that a new unit (release_keys and verify_attestation above) has to
+# defeat by being listed explicitly.
 unit_is_complete() { # $1=last-line $2=unit
 	local last="$1" unit="$2"
 	case "$unit" in
-		verify_sha256sums|hash_of)
+		verify_sha256sums|hash_of|verify_attestation)
 			[[ "$last" =~ ^}[[:space:]]*$ ]]
 			;;
 		py_block)

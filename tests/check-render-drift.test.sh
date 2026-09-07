@@ -4,10 +4,10 @@
 #
 # The contract being tested:
 #
-#   * four named units (verify_sha256sums, py_block, hash_of, release_keys)
-#     inside the local render script must stay byte-identical (after stripping
-#     comments and blanks) to the same units inside the sibling's
-#     differently-named render script;
+#   * five named units (verify_sha256sums, py_block, hash_of, release_keys,
+#     verify_attestation) inside the local render script must stay
+#     byte-identical (after stripping comments and blanks) to the same
+#     units inside the sibling's differently-named render script;
 #   * render_product is excluded on purpose, and a change inside it must not
 #     turn the check red;
 #   * comment-only changes are tolerated (comments legitimately describe each
@@ -73,6 +73,10 @@ hash_of() {
 	local matches
 	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
 	echo "$matches"
+}
+
+verify_attestation() {
+	gh attestation verify "$1" --repo "$2" --source-ref "$3"
 }
 
 render_product() {
@@ -151,7 +155,7 @@ cp "$work/scripts/render-formulae.sh" "$work/remote.sh"
 run_with_remote "$work/remote.sh"
 exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
 expect_eq "$exit_code" "0" "exit 0 when units are identical"
-expect_contains "$combined" "compared 4 render unit" "success line names compared 4"
+expect_contains "$combined" "compared 5 render unit" "success line names compared 5"
 expect_contains "$combined" "verification logic agrees" "success line says logic agrees"
 
 echo
@@ -181,6 +185,10 @@ hash_of() {
 	echo "$matches"
 }
 
+verify_attestation() {
+	gh attestation verify "$1" --repo "$2" --source-ref "$3"
+}
+
 render_product() {
 	echo "ruby"
 }
@@ -191,6 +199,7 @@ expect_eq "$exit_code" "1" "exit 1 on drift in verify_sha256sums"
 expect_contains "$err_body" "verify_sha256sums has drifted" "names verify_sha256sums"
 expect_not_contains "$err_body" "py_block has drifted" "does not falsely name py_block"
 expect_not_contains "$err_body" "hash_of has drifted" "does not falsely name hash_of"
+expect_not_contains "$err_body" "verify_attestation has drifted" "does not falsely name verify_attestation"
 
 echo
 echo "=== a change inside the python block fails and names that unit ==="
@@ -219,6 +228,10 @@ hash_of() {
 	echo "$matches"
 }
 
+verify_attestation() {
+	gh attestation verify "$1" --repo "$2" --source-ref "$3"
+}
+
 render_product() {
 	echo "ruby"
 }
@@ -227,6 +240,7 @@ run_with_remote "$work/remote.sh"
 exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
 expect_eq "$exit_code" "1" "exit 1 on drift in py_block"
 expect_contains "$err_body" "py_block has drifted" "names py_block"
+expect_not_contains "$err_body" "verify_attestation has drifted" "does not falsely name verify_attestation"
 
 echo
 echo "=== a change inside render_product passes, because that unit is excluded ==="
@@ -258,6 +272,10 @@ hash_of() {
 	echo "$matches"
 }
 
+verify_attestation() {
+	gh attestation verify "$1" --repo "$2" --source-ref "$3"
+}
+
 render_product() {
 	# This is TOTALLY different. It must NOT be compared.
 	echo "json"
@@ -268,7 +286,7 @@ REMOTE
 run_with_remote "$work/remote.sh"
 exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
 expect_eq "$exit_code" "0" "exit 0 when only render_product differs"
-expect_contains "$combined" "compared 4 render unit" "still compares 4 units"
+expect_contains "$combined" "compared 5 render unit" "still compares 5 units"
 expect_not_contains "$err_body" "drifted" "no drift message"
 expect_not_contains "$err_body" "render_product" "the excluded unit is not named as a missing unit either"
 
@@ -306,6 +324,11 @@ hash_of() {
 	echo "$matches"
 }
 
+verify_attestation() {
+	# Remote-only comment in verify_attestation.
+	gh attestation verify "$1" --repo "$2" --source-ref "$3"
+}
+
 render_product() {
 	echo "ruby"
 }
@@ -313,7 +336,7 @@ REMOTE
 run_with_remote "$work/remote.sh"
 exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
 expect_eq "$exit_code" "0" "exit 0 on comment-only diff"
-expect_contains "$combined" "compared 4 render unit" "still compares 4 units"
+expect_contains "$combined" "compared 5 render unit" "still compares 5 units"
 
 echo
 echo "=== a unit missing from the remote file fails and names which unit ==="
@@ -333,6 +356,10 @@ hash_of() {
 	echo "$matches"
 }
 
+verify_attestation() {
+	gh attestation verify "$1" --repo "$2" --source-ref "$3"
+}
+
 render_product() {
 	echo "ruby"
 }
@@ -342,6 +369,86 @@ exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$wor
 expect_eq "$exit_code" "1" "exit 1 when a unit is missing on the remote"
 expect_contains "$err_body" "verify_sha256sums could not be found" "names the missing unit"
 expect_contains "$err_body" "scripts/render-manifests.sh" "points at the remote file path"
+
+echo
+echo "=== a change inside verify_attestation fails and names that unit ==="
+# verify_attestation is a function the drift script must compare: a change
+# inside it that lands only on one side is the exact failure mode a
+# provenance-verification edit would introduce.
+cat > "$work/remote.sh" <<'REMOTE'
+#!/usr/bin/env bash
+set -euo pipefail
+
+verify_sha256sums() {
+	rm -f "$work/SHA256SUMS"
+	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
+	python3 - <<'PY'
+import sys
+def load(b64):
+	b64 = b64.strip()
+	return b64
+msg = open(sys.argv[1], "rb").read()
+print("verify", msg)
+PY
+}
+
+hash_of() {
+	local matches
+	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
+	echo "$matches"
+}
+
+verify_attestation() {
+	gh attestation verify "$1" --repo "$2" --source-ref "$3" --deny-self-hosted-runners
+}
+
+render_product() {
+	echo "ruby"
+}
+REMOTE
+run_with_remote "$work/remote.sh"
+exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
+expect_eq "$exit_code" "1" "exit 1 on drift in verify_attestation"
+expect_contains "$err_body" "verify_attestation has drifted" "names verify_attestation"
+expect_not_contains "$err_body" "verify_sha256sums has drifted" "does not falsely name verify_sha256sums"
+expect_not_contains "$err_body" "py_block has drifted" "does not falsely name py_block"
+expect_not_contains "$err_body" "hash_of has drifted" "does not falsely name hash_of"
+
+echo
+echo "=== verify_attestation missing on the remote side is reported by name ==="
+# The new unit is gone on the remote side. The drift script must name it the
+# same way it names the older units when they are missing.
+cat > "$work/remote.sh" <<'REMOTE'
+#!/usr/bin/env bash
+set -euo pipefail
+
+verify_sha256sums() {
+	rm -f "$work/SHA256SUMS"
+	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
+	python3 - <<'PY'
+import sys
+def load(b64):
+	b64 = b64.strip()
+	return b64
+msg = open(sys.argv[1], "rb").read()
+print("verify", msg)
+PY
+}
+
+hash_of() {
+	local matches
+	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
+	echo "$matches"
+}
+
+render_product() {
+	echo "ruby"
+}
+REMOTE
+run_with_remote "$work/remote.sh"
+exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
+expect_eq "$exit_code" "1" "exit 1 when verify_attestation is missing on the remote"
+expect_contains "$err_body" "verify_attestation could not be found" "names the missing unit"
 
 echo
 echo "=== a curl failure produces the fetch message, not the drift message ==="

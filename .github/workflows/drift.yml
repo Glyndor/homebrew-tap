@@ -59,8 +59,10 @@ jobs:
   drift:
     name: reusable drift
     runs-on: ubuntu-latest
-    # Measured around 10 seconds, and the job makes fourteen sequential
-    # network fetches with no deadline on each.
+    # Measured around 10 seconds. The job makes fourteen sequential network
+    # fetches, and each one is bounded where it is issued rather than here:
+    # the scripts pass their own deadline, so this ceiling catches a job that
+    # wedges outside them rather than a single slow fetch.
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

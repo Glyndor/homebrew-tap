@@ -107,16 +107,37 @@ jobs:
             3) echo "partial=1" >> "$GITHUB_OUTPUT" ;;
             *) exit "$rc" ;;
           esac
-          # Both kinds of change count: a tracked formula modified in place, and
-          # a brand-new one git has never seen before. `git diff` only sees the
-          # first shape; without `git ls-files -o` the first formula of a newly
-          # added product lands here, never in the diff, and the channel
-          # silently stays empty for it. Merging the two outputs into one list
-          # fixes both the change gate below and, via the same fix in the
-          # commit step, the additions payload.
-          changed_paths="$(git diff --name-only --diff-filter=ACMR -- Formula
-                           git ls-files -o --exclude-standard -- Formula)"
-          if [ -z "$changed_paths" ]; then
+          # Three kinds of change count: a tracked formula modified in place,
+          # a brand-new one git has never seen before, and a tracked one the
+          # renderer removed. Without the third, deleting a product leaves its
+          # formula published: the renderer removes it from the working tree,
+          # the gate does not see it (`--diff-filter=ACMR` filters deletions
+          # out), and the commit step never runs. Adds (ACMR + untracked) and
+          # dels (D) stay separate because an untracked path can never be a
+          # deletion, matching the additions/deletions split the commit step
+          # already uses.
+          adds_paths="$(git diff --name-only --diff-filter=ACMR -- Formula
+                        git ls-files -o --exclude-standard -- Formula)"
+          dels_paths="$(git diff --name-only --diff-filter=D -- Formula)"
+          # Refuse a deletion-only render that would empty the channel. The
+          # validate step's empty-tap guard would still catch it, but only
+          # after this step has run; on the cron, that turns into a red nobody
+          # can clear and no pull request to fix. Catching it here is the only
+          # way the refusal carries a name and an actionable message.
+          if [ -n "$dels_paths" ] && [ -z "$adds_paths" ]; then
+            # Tracked formulae that survive the deletion: the tracked set
+            # minus the deleted paths. If nothing survives, the deletion
+            # would leave Formula/ empty. The `|| true` is needed because
+            # `grep` returns 1 when there are no matches, and a failed
+            # assignment under `set -e` would exit the script before the
+            # emptiness check below.
+            remaining="$(git ls-files -- Formula | grep -Fxvf <(printf '%s\n' "$dels_paths") || true)"
+            if [ -z "$remaining" ]; then
+              echo "::error::the render would empty the channel; refusing to commit an empty tap"
+              exit 1
+            fi
+          fi
+          if [ -z "$adds_paths" ] && [ -z "$dels_paths" ]; then
             echo "changed=0" >> "$GITHUB_OUTPUT"
             echo "No formula changed."
           else

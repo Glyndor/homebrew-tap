@@ -67,16 +67,24 @@ PY
 
 # A repository the step can run in: a git repo with a committed Formula/ and a
 # stub generator whose behaviour each case chooses.
-sandbox() { # $1=path $2=generator exit code $3=writes? (yes|no|empty)
+sandbox() { # $1=path $2=generator exit code $3=writes? (yes|no|empty|del|del-multi)
 	local dir="$1" code="$2" mode="$3"
 	rm -rf "$dir"; mkdir -p "$dir/scripts" "$dir/Formula"
 	printf 'class Podup < Formula\nend\n' > "$dir/Formula/podup.rb"
+	# `del-multi` adds a second tracked formula so a deletion can leave the
+	# channel with one left, exercising the deletion-only-but-survivor path
+	# without also tripping the empty-channel refusal.
+	if [ "$mode" = "del-multi" ]; then
+		printf 'class Zzz < Formula\nend\n' > "$dir/Formula/zzz.rb"
+	fi
 	cat > "$dir/scripts/render-formulae.sh" <<SH
 #!/usr/bin/env bash
 case "$mode" in
-	yes)   printf 'class Podup < Formula\n  # changed\nend\n' > "$dir/Formula/podup.rb" ;;
-	new)   printf 'class Zzz < Formula\nend\n' > "$dir/Formula/zzz.rb" ;;
-	empty) rm -f "$dir"/Formula/*.rb ;;
+	yes)       printf 'class Podup < Formula\n  # changed\nend\n' > "$dir/Formula/podup.rb" ;;
+	new)       printf 'class Zzz < Formula\nend\n' > "$dir/Formula/zzz.rb" ;;
+	empty)     rm -f "$dir"/Formula/*.rb ;;
+	del)       rm -f "$dir/Formula/podup.rb" ;;
+	del-multi) rm -f "$dir/Formula/podup.rb" ;;
 esac
 exit $code
 SH
@@ -258,6 +266,59 @@ stub_gh "$WORK/gh-new"
 adds_paths="$(jq -r '.variables.changes.additions[].path' "$WORK/gh-new/.stdin" 2>/dev/null || true)"
 check "the commit payload's additions include the untracked path" "1" \
 	"$(printf '%s' "$adds_paths" | grep -cFx 'Formula/zzz.rb')"
+
+# --- a deletion-only render --------------------------------------------------
+# A deletion-only render is a render whose only effect is to remove a tracked
+# formula from the working tree. The gate at update.yml:117 only counted
+# modifications and additions (`--diff-filter=ACMR` plus untracked), so a
+# deletion-only render set `changed=0` and the commit step never ran. The
+# formula for the product the channel no longer carries stayed published.
+#
+# The observation that must hold: a render whose only difference from HEAD
+# is a removed file produces a non-zero change count, and the commit payload
+# carries that removal. The gate and the payload are separate steps, so they
+# are asserted separately: a fix that makes the gate fire while the payload
+# still drops the deletion would pass a single combined assertion.
+
+# `del-multi` starts with two tracked formulae and the stub deletes one, so
+# the channel survives the deletion; this exercises the deletion-only path
+# without also tripping the empty-channel refusal below.
+sandbox "$WORK/j" 0 del-multi
+rc=0; run_step "$RENDER" "$WORK/j" || rc=$?
+check "a deletion-only render flips the change gate to 1" "1" "$(output changed)"
+
+# Reuse the same sandbox so the working tree is exactly the state the render
+# step produced: `Formula/zzz.rb` tracked, `Formula/podup.rb` removed.
+stub_gh "$WORK/gh-del"
+( cd "$WORK/j" && \
+	PATH="$WORK/gh-del:$PATH" \
+	STUB_DIR="$WORK/gh-del" \
+	REPO="Glyndor/homebrew-tap" \
+	GH_TOKEN="dummy" \
+	bash "$COMMIT" ) > "$WORK/out" 2>&1 || true
+dels_paths="$(jq -r '.variables.changes.deletions[].path' "$WORK/gh-del/.stdin" 2>/dev/null || true)"
+check "the commit payload's deletions include the removed path" "1" \
+	"$(printf '%s' "$dels_paths" | grep -cFx 'Formula/podup.rb')"
+
+# --- a deletion that would empty the channel ---------------------------------
+# A deletion-only render whose deletions remove the LAST tracked formula
+# would leave Formula/ empty. The validate step's empty-tap guard would
+# still catch it, but only after the render step has run; on the cron, that
+# becomes a red that nobody can clear with no pull request to fix. The render
+# step refuses it here, with an explicit message that names the cause and
+# the action.
+#
+# `del` is the case with one tracked formula; the stub removes it, so the
+# deletion would empty the channel. This is the case that turns into the
+# permanent hourly red without this refusal.
+sandbox "$WORK/k" 0 del
+rc=0; run_step "$RENDER" "$WORK/k" || rc=$?
+check "a deletion that would empty the channel refuses the render step" "1" "$rc"
+check "and the error names the empty-channel cause" "1" \
+	"$(grep -c 'the render would empty the channel' "$WORK/out")"
+check "and says the commit was refused" "1" \
+	"$(grep -c 'refusing to commit an empty tap' "$WORK/out")"
+check "and sets no changed output" "" "$(output changed)"
 
 # --- the wiring, asserted by reading the workflow ---------------------------
 # These conditions are evaluated by the Actions engine, so they can be read but

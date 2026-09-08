@@ -116,6 +116,33 @@ jobs:
       workflow: drift.yml
       max-age-days: 3
 
+  # audit.yml gained a daily cron in #148 and nothing watched it. That cron is
+  # the only thing that runs `brew audit` against the published formulae at
+  # all: the workflow's `push` trigger cannot see the commits that change them,
+  # because update.yml writes them with createCommitOnBranch under GITHUB_TOKEN
+  # and GitHub starts no workflow for that token's events. So the audit runs on
+  # the schedule or it does not run, and a cron that stops takes the only
+  # external standard the archive is measured against with it.
+  #
+  # Added after the cron rather than with it, the same order freshness-itself
+  # took and for the same reason: reusable-schedule-freshness fails when the
+  # workflow it names has no successful scheduled run, so a watcher added on
+  # the day the cron landed opens red for a reason that is not a fault.
+  #
+  # Two days, from the two firings on record rather than from the period. The
+  # cron asks for 09:19Z; the first ran 2026-09-07 at 15:05Z and the second
+  # 2026-09-08 at 13:40Z, so it arrived 5h46m and 4h21m late. A one-day
+  # threshold on a daily cron would spend most of its margin on GitHub being
+  # late and would trip on lateness rather than on failure.
+  freshness-audit:
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/reusable-schedule-freshness.yml
+    with:
+      workflow: audit.yml
+      max-age-days: 2
+
   # Watches the suite, the way reusable-schedule-freshness watches a cron:
   # fails when a run that should have been green was not. The other jobs in
   # this file fail for ABSENCE (a schedule stopped firing). Tests fails for

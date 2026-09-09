@@ -104,27 +104,56 @@ case "$sub" in
 		fi
 		;;
 	attestation)
-		# The renderer calls `gh attestation verify FILE --repo R
-		# --source-ref REF --signer-workflow W --format json`. argv
-		# after `shift` is: [0]=verify, [1]=FILE, [2]=--repo,
-		# [3]=R, [4]=--source-ref, [5]=REF, [6]=--signer-workflow,
-		# [7]=W, [8]=--format, [9]=json. The outcome is steered by
-		# ATTEST_STUB_OUTCOME; default is a one-entry JSON array with
-		# a verifiable certificate.
+		# The two pins that close the gap the SHA256SUMS signature does
+		# not cover: --source-ref names the tag the artifact was built
+		# from, --signer-workflow names the workflow that signed the
+		# attestation. A regression that drops either pin would let an
+		# artifact from another tag, or one signed by a foreign
+		# workflow, verify against this release; refuse on that fault
+		# before honouring ATTEST_STUB_OUTCOME, so a stub that always
+		# refused or always passed would still go red here.
+		source_ref=""
+		signer=""
+		for ((i = 0; i < ${#args[@]}; i++)); do
+			case "${args[i]}" in
+				--source-ref)      source_ref="${args[i+1]}" ;;
+				--signer-workflow) signer="${args[i+1]}" ;;
+			esac
+		done
+		expected_ref="refs/tags/$(cat "$base/tag")"
+		expected_signer="$repo/.github/workflows/release.yml"
+		if [ -z "$source_ref" ]; then
+			echo "stub gh: refusing attestation verify, --source-ref pin missing; an artifact from another tag would verify against this release" >&2
+			exit 1
+		fi
+		if [ "$source_ref" != "$expected_ref" ]; then
+			echo "stub gh: refusing attestation verify, --source-ref is $source_ref, expected $expected_ref" >&2
+			exit 1
+		fi
+		if [ -z "$signer" ]; then
+			echo "stub gh: refusing attestation verify, the trusted-workflow pin is missing; a foreign signing identity's provenance would verify against this release" >&2
+			exit 1
+		fi
+		if [ "$signer" != "$expected_signer" ]; then
+			echo "stub gh: refusing attestation verify, the trusted-workflow pin does not match; passed $signer, expected $expected_signer" >&2
+			exit 1
+		fi
+		# Pins verified; ATTEST_STUB_OUTCOME controls the rest so the
+		# wrong-tag, wrong-signer and no-attestation cases still fire.
 		case "${ATTEST_STUB_OUTCOME:-ok}" in
 			ok)
 				cat "$base/attestation.json"
 				;;
 			no-attestation)
-				echo "no attestations found for $repo at ${args[5]} (HTTP 404)" >&2
+				echo "no attestations found for $repo at $source_ref (HTTP 404)" >&2
 				exit 1
 				;;
 			wrong-tag)
-				echo "the attestation source ref does not match expected ${args[5]}; the artifact was built from another tag" >&2
+				echo "the attestation source ref does not match expected $source_ref; the artifact was built from another tag" >&2
 				exit 1
 				;;
 			wrong-signer)
-				echo "the signer workflow does not match ${args[7]}; cert-identity check failed" >&2
+				echo "the signer workflow does not match $signer; cert-identity check failed" >&2
 				exit 1
 				;;
 			*)

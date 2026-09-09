@@ -147,6 +147,123 @@ check "the whole render fails closed, not just the asset" "3" "$rc"
 check "and the existing formula is left untouched" "PRE-EXISTING-FORMULA" \
 	"$(cat "$WORK/p6/Formula/podup.rb")"
 
+# --- provenance pins must be passed by the renderer -------------------------
+#
+# The two attestation pins --source-ref and --signer-workflow are the
+# gate that closes the gap the SHA256SUMS signature does not cover: an
+# actor who can publish a release can re-upload last year's binaries
+# with the matching old signed SHA256SUMS, and only the attestation
+# pin stops the formula from pointing users at old code under a new
+# version. The cases below drive the renderer with a modified copy of
+# itself, so the committed script is never touched, and assert that
+# dropping or mis-pointing each pin fails the render.
+#
+# Case 5 (baseline, first of these) is what stops a stub that refuses
+# everything from passing the four pin checks that follow.
+
+# Baseline: the unmodified renderer still succeeds.
+publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
+unset ATTEST_STUB_OUTCOME
+new_root "$WORK/p7"
+generator_with "$WORK/p7/scripts/render-formulae.sh" "$PODUP"
+rc=0
+out="$( cd "$WORK/p7" && "$WORK/p7/scripts/render-formulae.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+check "the unmodified renderer still succeeds" "0" "$rc"
+
+# Removing --source-ref from the renderer's call. A regression that
+# dropped the pin would let an artifact from another tag verify
+# against this release, and the stub must refuse that.
+publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
+unset ATTEST_STUB_OUTCOME
+new_root "$WORK/p8"
+generator_with "$WORK/p8/scripts/render-formulae.sh" "$PODUP"
+# Single quotes keep $tag literal so the sed pattern matches the
+# renderer's source, where it is double-quoted bash text rather than
+# a sed expression.
+# shellcheck disable=SC2016
+sed '/--source-ref "refs\/tags\/$tag"/d' \
+	"$WORK/p8/scripts/render-formulae.sh" \
+	> "$WORK/p8/scripts/render-formulae.sh.new"
+mv "$WORK/p8/scripts/render-formulae.sh.new" \
+	"$WORK/p8/scripts/render-formulae.sh"
+chmod +x "$WORK/p8/scripts/render-formulae.sh"
+rc=0
+out="$( cd "$WORK/p8" && "$WORK/p8/scripts/render-formulae.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+check "a renderer without --source-ref fails the render" "3" "$rc"
+check "and the message names the missing source-ref pin" "1" \
+	"$(printf '%s' "$out" | grep -c 'source-ref pin missing')"
+check "and no formula is written from it" "0" \
+	"$(find "$WORK/p8/Formula" -name '*.rb' | wc -l)"
+
+# Pointing --source-ref at another tag. The downgrade attack the pin
+# exists to catch: an artifact built from v0.0.0-ATTACKER still carries
+# its old attestation, and the renderer must not accept it under v9.9.9.
+publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
+unset ATTEST_STUB_OUTCOME
+new_root "$WORK/p9"
+generator_with "$WORK/p9/scripts/render-formulae.sh" "$PODUP"
+# $tag is the literal text in the renderer's source, not a sed
+# expression.
+# shellcheck disable=SC2016
+sed 's|--source-ref "refs/tags/$tag"|--source-ref "refs/tags/v0.0.0-ATTACKER"|' \
+	"$WORK/p9/scripts/render-formulae.sh" \
+	> "$WORK/p9/scripts/render-formulae.sh.new"
+mv "$WORK/p9/scripts/render-formulae.sh.new" \
+	"$WORK/p9/scripts/render-formulae.sh"
+chmod +x "$WORK/p9/scripts/render-formulae.sh"
+rc=0
+out="$( cd "$WORK/p9" && "$WORK/p9/scripts/render-formulae.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+check "a renderer pointing --source-ref at another tag fails" "3" "$rc"
+check "and the message names the wrong source-ref" "1" \
+	"$(printf '%s' "$out" | grep -c 'refs/tags/v0.0.0-ATTACKER')"
+check "and no formula is written from it" "0" \
+	"$(find "$WORK/p9/Formula" -name '*.rb' | wc -l)"
+
+# Removing --signer-workflow from the renderer's call. Without it, a
+# foreign workflow's attestation would verify against this release,
+# and the stub must refuse that.
+publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
+unset ATTEST_STUB_OUTCOME
+new_root "$WORK/p10"
+generator_with "$WORK/p10/scripts/render-formulae.sh" "$PODUP"
+sed '/--signer-workflow/d' \
+	"$WORK/p10/scripts/render-formulae.sh" \
+	> "$WORK/p10/scripts/render-formulae.sh.new"
+mv "$WORK/p10/scripts/render-formulae.sh.new" \
+	"$WORK/p10/scripts/render-formulae.sh"
+chmod +x "$WORK/p10/scripts/render-formulae.sh"
+rc=0
+out="$( cd "$WORK/p10" && "$WORK/p10/scripts/render-formulae.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+check "a renderer without --signer-workflow fails the render" "3" "$rc"
+check "and the message names the missing trusted-workflow pin" "1" \
+	"$(printf '%s' "$out" | grep -c 'trusted-workflow pin is missing')"
+check "and no formula is written from it" "0" \
+	"$(find "$WORK/p10/Formula" -name '*.rb' | wc -l)"
+
+# Pointing --signer-workflow at a foreign workflow. The pin exists so
+# the provenance claim is made by the workflow this renderer trusts
+# to make it; a foreign signer must fail.
+publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
+unset ATTEST_STUB_OUTCOME
+new_root "$WORK/p11"
+generator_with "$WORK/p11/scripts/render-formulae.sh" "$PODUP"
+# $repo is the literal text in the renderer's source, not a sed
+# expression.
+# shellcheck disable=SC2016
+sed 's|--signer-workflow "$repo/.github/workflows/release.yml"|--signer-workflow "$repo/.github/workflows/attacker.yml"|' \
+	"$WORK/p11/scripts/render-formulae.sh" \
+	> "$WORK/p11/scripts/render-formulae.sh.new"
+mv "$WORK/p11/scripts/render-formulae.sh.new" \
+	"$WORK/p11/scripts/render-formulae.sh"
+chmod +x "$WORK/p11/scripts/render-formulae.sh"
+rc=0
+out="$( cd "$WORK/p11" && "$WORK/p11/scripts/render-formulae.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+check "a renderer pointing --signer-workflow at a foreign workflow fails" "3" "$rc"
+check "and the message names the wrong signer workflow" "1" \
+	"$(printf '%s' "$out" | grep -c 'attacker.yml')"
+check "and no formula is written from it" "0" \
+	"$(find "$WORK/p11/Formula" -name '*.rb' | wc -l)"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

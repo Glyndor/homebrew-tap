@@ -14,7 +14,8 @@ name: DCO on main
 # hand -- the same trade apt's publish.yml makes for its read-back check: "a red
 # run and a forward fix is the archive's policy everywhere else".
 #
-# Commits authored by github-actions[bot] are exempt, and that is not a loophole.
+# Commits pushed by github-actions[bot] or by glyndor-updater[bot], the app
+# update.yml commits through, are exempt, and that is not a loophole.
 # DCO is a person's attestation about their right to submit code. A bot
 # regenerating a formula from an already-verified release is not contributing in
 # that sense, and emitting a trailer on its behalf would manufacture an

@@ -129,6 +129,24 @@ commit "$D" "Jose" "jose@test.invalid" "feat: a thing" no
 rc=0; run "$D" "$B" "$(base_of "$D")" "Jose" || rc=$?
 check "a human push of an unsigned commit is reported" "1" "$rc"
 
+# --- the updater app is the second bot ---------------------------------------
+#
+# update.yml commits through the glyndor-updater app since main gained
+# required status checks; its pushes arrive as glyndor-updater[bot]. Same
+# exemption, same reason, and the same two ways of being wrong: a human
+# pusher with that author field is still a human.
+D="$(repo app)"; B="$(base_of "$D")"
+commit "$D" "glyndor-updater[bot]" "0+glyndor-updater[bot]@users.noreply.github.com" \
+	"chore: update formulae from the latest signed releases" no
+rc=0; run "$D" "$B" "$(base_of "$D")" "glyndor-updater[bot]" || rc=$?
+check "a push by the updater app is exempt" "0" "$rc"
+check "and names the app as the pusher" "1" "$(said 'pushed by glyndor-updater[bot], whose commits are exempt')"
+rc=0; run "$D" "$B" "$(base_of "$D")" || rc=$?
+check "with no pusher the app's author field is the weak-signal exemption" "0" "$rc"
+check "and says so" "1" "$(said 'author field says glyndor-updater[bot] (weak signal)')"
+rc=0; run "$D" "$B" "$(base_of "$D")" "Jose" || rc=$?
+check "a human push whose author field says the app is still reported" "1" "$rc"
+
 # --- no pusher supplied: weaker signal, said out loud -----------------------
 #
 # Running by hand has no event payload. Falling back is fine; falling back

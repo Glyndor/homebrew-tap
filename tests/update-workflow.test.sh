@@ -120,6 +120,20 @@ check "the validate step was extracted from the workflow" "1" \
 check "the commit step was extracted from the workflow" "2" \
 	"$(grep -c 'createCommitOnBranch' "$COMMIT")"
 
+# --- the commit runs as the updater app, not as GITHUB_TOKEN -----------------
+#
+# main has required status checks and a direct push carries none, so the
+# commit only lands through a bypass actor, and the app is the only one GitHub
+# accepts. A commit step back on github.token would fail on every scheduled
+# run with a rule violation, and nothing else here would say why.
+check "the updater app token is minted before the commit" "1" \
+	"$(grep -c 'uses: actions/create-github-app-token@' "$WORKFLOW")"
+# shellcheck disable=SC2016 # the ${{ }} is Actions syntax to grep for, not shell expansion
+check "the commit step authenticates with the app token" "1" \
+	"$(grep -c 'GH_TOKEN: ${{ steps.app.outputs.token }}' "$WORKFLOW")"
+check "and no step commits with github.token" "0" \
+	"$(awk '/name: Commit the update to main/,/run: \|/' "$WORKFLOW" | grep -c 'github.token')"
+
 # --- exit code becomes `partial` -------------------------------------------
 
 sandbox "$WORK/a" 0 yes
@@ -324,7 +338,7 @@ check "and sets no changed output" "" "$(output changed)"
 # These conditions are evaluated by the Actions engine, so they can be read but
 # not executed here. Reading them still catches the wiring being dropped.
 
-check "both later steps are gated on changed" "2" \
+check "the validate, mint and commit steps are all gated on changed" "3" \
 	"$(grep -c "if: steps.render.outputs.changed == '1'" "$WORKFLOW")"
 check "the failure step is gated on partial" "1" \
 	"$(grep -c "if: steps.render.outputs.partial == '1'" "$WORKFLOW")"

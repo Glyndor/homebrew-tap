@@ -271,7 +271,7 @@ verify_attestation() { # $1=repo $2=tag $3=asset $4=expected_sha256
 	# stream is the failure mode that would otherwise outlast the job's
 	# own deadline. The network-calls check requires --max-time on every
 	# curl.
-	if ! curl -fsSL --connect-timeout 10 --max-time 120 \
+	if ! curl -fsSL --proto-redir =https --connect-timeout 10 --max-time 120 \
 		-o "$asset_path" "$base/$asset"; then
 		echo "::error::$repo $tag: failed to download $asset for attestation verification" >&2
 		return 1

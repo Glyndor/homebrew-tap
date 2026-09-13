@@ -18,7 +18,7 @@
 #
 # WHAT IS COMPARED
 #
-#   Four named units inside the script:
+#   Five named units inside the script:
 #
 #       verify_sha256sums  the function that fetches SHA256SUMS + .sig and
 #                         verifies the Ed25519 signature against the
@@ -44,6 +44,9 @@
 #                         the matching old signed SHA256SUMS. The
 #                         attestation is what binds the binary to the tag.
 #                         This is shared logic and belongs in the contract.
+#       verify_attestation  the function that downloads one asset, checks its
+#                         digest against the verified SHA256SUMS and verifies
+#                         its build provenance against the release tag
 #
 #   render_product is EXCLUDED by name, with the reason given below. The two
 #   repositories render to different formats, so the function legitimately

@@ -521,6 +521,54 @@ else
 	echo "note  were generated but NOT validated in this run"
 fi
 
+# --- every published digest is verified against the tag ----------------------
+#
+# The signer of SHA256SUMS authenticates the LIST of digests, not the tag each
+# entry was built from. Verifying one asset leaves the rest of the list
+# attested only by the signature, which is exactly the gap that lets a release
+# editor re-upload last year's binaries for one architecture while keeping the
+# genuine newer attestation on the other. Every published digest has to be
+# checked, and the run has to fail closed if any one of them refuses.
+
+# Refusal that targets the SECOND asset of two. The render aborts before
+# writing anything, the formula that was on disk stays byte-identical, and the
+# error names the asset the stub refused. The shell substitution captures the
+# full stderr stream so the assertion can grep it for the asset name.
+publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
+unset ATTEST_STUB_OUTCOME
+export ATTEST_STUB_REFUSE_ASSET=podup-darwin-x86_64
+new_root "$WORK/r21"
+generator_with "$WORK/r21/scripts/render-formulae.sh" "$PODUP"
+printf 'PRE-EXISTING-FORMULA\n' > "$WORK/r21/Formula/podup.rb"
+rc=0
+out="$( cd "$WORK/r21" && "$WORK/r21/scripts/render-formulae.sh" \
+	--pubkey "$PUBKEY" 2>&1 )" || rc=$?
+unset ATTEST_STUB_REFUSE_ASSET
+check "a second asset with provenance for another tag is refused" "3" "$rc"
+check "and the formula on disk is left as it was" "PRE-EXISTING-FORMULA" \
+	"$(cat "$WORK/r21/Formula/podup.rb")"
+check "and the refusal names that asset" "1" \
+	"$(printf '%s' "$out" | grep -c 'stub gh: refusing attestation verify for podup-darwin-x86_64')"
+
+# Two assets, no refusal. The renderer has to reach verify_attestation once
+# for each asset: otherwise the bug above is back, because only one digest
+# would be bound to the tag and the other would ride on the SHA256SUMS
+# signature alone. The stub's call log records every verify invocation
+# regardless of outcome, so the count reflects what the renderer ASKED for
+# rather than what the stub accepted. Setting ATTEST_STUB_LOG points the log
+# at a per-test file the assertion greps.
+publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
+unset ATTEST_STUB_OUTCOME
+unset ATTEST_STUB_REFUSE_ASSET
+new_root "$WORK/r22"
+generator_with "$WORK/r22/scripts/render-formulae.sh" "$PODUP"
+export ATTEST_STUB_LOG="$WORK/r22.attest.log"
+: > "$ATTEST_STUB_LOG"
+run "$WORK/r22/scripts/render-formulae.sh" "$WORK/r22" || true
+unset ATTEST_STUB_LOG
+check "every asset gets its own provenance check (2 of 2)" "2" \
+	"$(grep -c '^attestation verify ' "$WORK/r22.attest.log")"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

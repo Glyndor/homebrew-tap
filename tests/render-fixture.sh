@@ -104,6 +104,27 @@ case "$sub" in
 		fi
 		;;
 	attestation)
+		# Find the file the renderer is verifying. `gh attestation verify FILE
+		# [flags...]` puts FILE at args[1] once `verify` has been shifted past
+		# -- the existing array still starts with the verb. The log and the
+		# per-asset refusal both need it.
+		verify_file=""
+		for ((i = 1; i < ${#args[@]}; i++)); do
+			case "${args[i]}" in
+				--*) ;;
+				*) verify_file="${args[i]}"; break ;;
+			esac
+		done
+		# Call-log: every verify invocation is appended regardless of
+		# outcome, so the count reflects what the renderer ASKED for
+		# rather than what the stub accepted. The file is named by an
+		# env var so each test can point it at its own scratch space,
+		# and the line records the file being verified: that is the only
+		# stable identifier the stub has, because verify_attestation
+		# reuses one work file for every call.
+		if [ -n "${ATTEST_STUB_LOG:-}" ]; then
+			printf 'attestation verify %s\n' "$verify_file" >> "$ATTEST_STUB_LOG"
+		fi
 		# The two pins that close the gap the SHA256SUMS signature does
 		# not cover: --source-ref names the tag the artifact was built
 		# from, --signer-workflow names the workflow that signed the
@@ -137,6 +158,24 @@ case "$sub" in
 		if [ "$signer" != "$expected_signer" ]; then
 			echo "stub gh: refusing attestation verify, the trusted-workflow pin does not match; passed $signer, expected $expected_signer" >&2
 			exit 1
+		fi
+		# Refusal targeting one asset. ATTEST_STUB_REFUSE_ASSET names
+		# the asset the test wants to refuse; the stub reads the file
+		# it was asked to verify and strips the "asset-" prefix that
+		# publish() writes, since verify_attestation reuses one work
+		# file for every call and the args do not name the asset.
+		# Without reading the bytes the stub could not tell one verify
+		# from the next, and the test for "every published digest is
+		# verified" would have no way to steer a single asset. Falls
+		# through to ATTEST_STUB_OUTCOME for every other asset, so the
+		# existing cases are unaffected when the env var is unset.
+		if [ -n "${ATTEST_STUB_REFUSE_ASSET:-}" ] && [ -n "$verify_file" ]; then
+			content="$(cat "$verify_file" 2>/dev/null || true)"
+			asset_in_file="${content#asset-}"
+			if [ "$asset_in_file" = "${ATTEST_STUB_REFUSE_ASSET}" ]; then
+				echo "stub gh: refusing attestation verify for ${ATTEST_STUB_REFUSE_ASSET}, its provenance names another tag" >&2
+				exit 1
+			fi
 		fi
 		# Pins verified; ATTEST_STUB_OUTCOME controls the rest so the
 		# wrong-tag, wrong-signer and no-attestation cases still fire.

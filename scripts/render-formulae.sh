@@ -518,28 +518,24 @@ render_product() { # $1=table entry
 
 	base="https://github.com/$repo/releases/download/$tag"
 
-	# Verify build provenance before anything is rendered. The signature on
-	# SHA256SUMS proves the digests came from this product's release, but
-	# not that THIS release is the genuine one for $tag: an actor who can
-	# publish a release can re-upload last year's binaries with the matching
-	# old signed SHA256SUMS and have them accepted under a new tag. The
-	# attestation is what binds the binary to $tag. Pick the first
-	# non-dash asset in the table -- the comment on verify_attestation
-	# records why one is enough -- and have the same function compare its
-	# download's digest against SHA256SUMS, so the digest the renderer
-	# renders is the digest that was verified.
-	verify_asset=""
-	for candidate in "$mac_arm" "$mac_intel" "$linux_arm" "$linux_intel"; do
-		[ "$candidate" != "-" ] && verify_asset="$candidate" && break
+	# Verify build provenance for every published digest before anything is
+	# rendered. Signing SHA256SUMS authenticates the list's bytes, not the
+	# tag each entry was built for: an actor who can publish a release can
+	# replay last year's binaries with the matching old signed SHA256SUMS
+	# and keep the genuine newer attestation on whichever asset the
+	# renderer did not reach. One attested asset binds only its own digest,
+	# so every published digest is checked against the tag.
+	for verify_asset in "$mac_arm" "$mac_intel" "$linux_arm" "$linux_intel"; do
+		[ "$verify_asset" != "-" ] || continue
+		verify_sha="$(hash_of "$verify_asset")" || {
+			echo "::error::$repo $tag: the verified SHA256SUMS does not list $verify_asset" >&2
+			return 1
+		}
+		verify_attestation "$repo" "$tag" "$verify_asset" "$verify_sha" || {
+			echo "::error::$repo $tag: $verify_asset build provenance is missing, names another tag, or was not signed by the release workflow" >&2
+			return 1
+		}
 	done
-	verify_sha="$(hash_of "$verify_asset")" || {
-		echo "::error::$repo $tag: the verified SHA256SUMS does not list $verify_asset" >&2
-		return 1
-	}
-	verify_attestation "$repo" "$tag" "$verify_asset" "$verify_sha" || {
-		echo "::error::$repo $tag: $verify_asset build provenance is missing, names another tag, or was not signed by the release workflow" >&2
-		return 1
-	}
 
 	# Build only the blocks the product actually ships, one platform at a time.
 	# Two platforms with the same shape is what makes this a function rather

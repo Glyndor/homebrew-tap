@@ -64,8 +64,10 @@ jobs:
   update:
     name: Render, validate, and commit
     runs-on: ubuntu-latest
+    # contents:read is enough for GITHUB_TOKEN now: the write goes through the
+    # updater app's token, minted below only when there is something to commit.
     permissions:
-      contents: write
+      contents: read
     # The validate step runs `brew style`, and brew updates itself before
     # doing anything unless told not to. tests.yml already sets both variables
     # and a bound for exactly that reason (a `brew style` hung for 45 minutes
@@ -179,10 +181,24 @@ jobs:
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
           brew style "${formulae[@]}"
 
+      # main now has required status checks, and a direct push has none, so
+      # the commit below needs a bypass actor. github-actions[bot] cannot be
+      # one; a GitHub App can. glyndor-updater is that app, installed on this
+      # repository with contents:write and nothing else, and its id and key
+      # live in the repository's variables and secrets. The token lives for
+      # this job only.
+      - name: Mint a token for the updater app
+        if: steps.render.outputs.changed == '1'
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.UPDATER_APP_ID }}
+          private-key: ${{ secrets.UPDATER_APP_PRIVATE_KEY }}
+
       - name: Commit the update to main (GitHub-signed)
         if: steps.render.outputs.changed == '1'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -216,8 +232,11 @@ jobs:
             '{query:"mutation($repo:String!,$branch:String!,$head:GitObjectID!,$msg:String!,$changes:FileChanges!){createCommitOnBranch(input:{branch:{repositoryNameWithOwner:$repo,branchName:$branch},expectedHeadOid:$head,message:{headline:$msg},fileChanges:$changes}){commit{oid}}}",
               variables:{repo:$repo,branch:$branch,head:$head,msg:$msg,changes:{additions:$adds,deletions:$dels}}}' \
           )
-          # This runs as GITHUB_TOKEN, a job-scoped token on its own rate limit.
-          # The GraphQL mutation is what makes the commit GitHub-signed, which
+          # This runs as the updater app's installation token, minted in the
+          # step above, so the ruleset's bypass for that app applies and the
+          # commit is authored by glyndor-updater[bot], which dco-on-main.yml
+          # exempts by pusher. The GraphQL mutation is what makes the commit
+          # GitHub-signed, which
           # is what `main`'s require-signed-commits rule accepts without any
           # signing key being stored in this repository. Do not swap it for a
           # plain `git push`: that commit would be unsigned and the ruleset

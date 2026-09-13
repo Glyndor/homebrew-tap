@@ -35,11 +35,20 @@ BEFORE="${1:?usage: check-dco-on-main.sh <before-sha> <after-sha> [pusher]}"
 AFTER="${2:?usage: check-dco-on-main.sh <before-sha> <after-sha> [pusher]}"
 PUSHER="${3-}"
 
-BOT="github-actions[bot]"
+# Two bots: github-actions[bot] for anything a workflow does with its own
+# token, and glyndor-updater[bot], the app update.yml commits through since
+# main gained required status checks (an app can be a bypass actor, the
+# built-in bot cannot). Both are exempt for the same reason.
+is_bot() { # $1=login
+	case "$1" in
+		"github-actions[bot]"|"glyndor-updater[bot]") return 0 ;;
+		*) return 1 ;;
+	esac
+}
 
 if [ -n "$PUSHER" ]; then
-	if [ "$PUSHER" = "$BOT" ]; then
-		echo "pushed by $BOT, whose commits are exempt from DCO"
+	if is_bot "$PUSHER"; then
+		echo "pushed by $PUSHER, whose commits are exempt from DCO"
 		exempt_all=yes
 	else
 		echo "pushed by $PUSHER; every commit in this push needs a trailer"
@@ -65,11 +74,11 @@ for c in $commits; do
 	author="$(git log -1 --format='%an' "$c")"
 	case "$exempt_all" in
 		yes)
-			echo "skip $(git log -1 --format='%h' "$c")  pushed by $BOT"
+			echo "skip $(git log -1 --format='%h' "$c")  pushed by $PUSHER"
 			continue ;;
 		fallback)
-			if [ "$author" = "$BOT" ]; then
-				echo "skip $(git log -1 --format='%h' "$c")  author field says $BOT (weak signal)"
+			if is_bot "$author"; then
+				echo "skip $(git log -1 --format='%h' "$c")  author field says $author (weak signal)"
 				continue
 			fi ;;
 	esac

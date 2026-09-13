@@ -338,12 +338,17 @@ check "and sets no changed output" "" "$(output changed)"
 # These conditions are evaluated by the Actions engine, so they can be read but
 # not executed here. Reading them still catches the wiring being dropped.
 
-check "the validate, mint and commit steps are all gated on changed" "3" \
+check "the validate and commit steps are gated on changed, the mint step is not" "2" \
 	"$(grep -c "if: steps.render.outputs.changed == '1'" "$WORKFLOW")"
 check "the failure step is gated on partial" "1" \
 	"$(grep -c "if: steps.render.outputs.partial == '1'" "$WORKFLOW")"
 check "the failure step is last, after the commit" "1" \
 	"$(awk '/name: Commit the update/ { c = NR } /name: Fail if any product was skipped/ { f = NR } END { print (c && f && f > c) ? 1 : 0 }' "$WORKFLOW")"
+# The mint step has no `if:` on purpose. A removed installation or an invalid
+# private key used to stay invisible until the next run that had something to
+# publish; reading the step's own block confirms the gate is not there.
+check "the mint step has no if: so a broken credential fails the next scheduled run" "0" \
+	"$(awk '/name: Mint a token/,/uses: actions\/create-github-app-token/' "$WORKFLOW" | grep -c 'if:')"
 
 echo
 echo "$pass passed, $fail failed"

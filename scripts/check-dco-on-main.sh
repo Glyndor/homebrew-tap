@@ -64,8 +64,19 @@ case "$BEFORE" in
 	*) range="$BEFORE..$AFTER" ;;
 esac
 
+# rev-list failing is the answer to "could the range be walked?". A
+# shallow clone, a SHA the checkout does not have, a history rewrite all
+# return non-zero. The previous shape swallowed that with `2>/dev/null ||
+# true` and exited 0 with "no commits in range", which is not the same
+# answer: a range that cannot be enumerated is "we do not know", and this
+# gate is not the place to confuse that with "empty". Drop both, exit 1,
+# and let git's own reason reach stderr so the next run that hits this
+# says what was wrong.
 # shellcheck disable=SC2086 # `range` is either "A..B" or "SHA -1", both intended
-commits="$(git rev-list --no-merges $range 2>/dev/null || true)"
+if ! commits="$(git rev-list --no-merges $range)"; then
+	echo "::error::could not enumerate $range; the range could not be checked, which is not the same as empty" >&2
+	exit 1
+fi
 [ -n "$commits" ] || { echo "no commits in range; nothing to check"; exit 0; }
 
 missing=""

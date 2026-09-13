@@ -177,6 +177,19 @@ check "a zero before-sha passes when the tip is signed" "0" "$rc"
 check "and checks exactly one commit" "1" \
 	"$(grep -c '1 human commit(s) checked' "$WORK/out")"
 
+# --- an unavailable before-sha fails rather than passing as empty -----------
+#
+# rev-list against a SHA the checkout does not have (a shallow clone, a
+# history rewrite) cannot walk the range. The previous shape swallowed that
+# with `2>/dev/null || true` and exited 0 with "no commits in range", which
+# is not the same answer: a range that cannot be enumerated is "we do not
+# know", and a DCO gate is not the place to confuse that with "empty".
+D="$(repo unavailable)"; commit "$D" "Jose" "jose@test.invalid" "feat: tip" yes
+rc=0; run "$D" "1111111111111111111111111111111111111111" "$(base_of "$D")" "Jose" || rc=$?
+check "an unavailable before-sha fails rather than passing as empty" "1" "$rc"
+check "and says the range could not be checked" "1" \
+	"$(said 'could not enumerate')"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

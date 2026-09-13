@@ -87,6 +87,15 @@ jobs:
   # the 08:13Z slot at 13:48Z, so delays of two to five and a half hours are
   # ordinary. A one-day threshold on a twice-daily job would sit close enough to
   # its own limit to trip on lateness rather than on failure.
+  #
+  # count-any-conclusion, because this job watches the workflow it is part
+  # of. With the success-only query, one stretch without a successful
+  # scheduled run (a paused cron, or another job here staying red) made this
+  # job fail every run after that, and a failed run never becomes the success
+  # the next query looks for: the alarm re-armed itself with the cron alive,
+  # and toggling the workflow could not clear it. What this job can honestly
+  # measure about itself is whether the cron fires; the jobs above report the
+  # faults.
   freshness-itself:
     permissions:
       contents: read
@@ -95,6 +104,7 @@ jobs:
     with:
       workflow: freshness.yml
       max-age-days: 2
+      count-any-conclusion: true
 
   # Nothing watched drift.yml's cron, and that cron is the only thing that runs
   # the comparison at all: the file triggers on schedule and workflow_dispatch

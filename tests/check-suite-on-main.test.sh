@@ -28,6 +28,9 @@
 
 set -uo pipefail
 
+# The runner exports these; cases that need one set it on their own line.
+unset GITHUB_EVENT_NAME GITHUB_SHA GITHUB_REPOSITORY REPO
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECK="$HERE/scripts/check-suite-on-main.sh"
 WORK="$(mktemp -d)"

@@ -168,18 +168,35 @@ jobs:
   # that somebody went looking. This job surfaces that within one push or
   # one freshness tick.
   #
-  # DELIBERATELY NOT A REQUIRED STATUS CHECK. A red `main` would then block
-  # the pull request that repairs it, which deepens the failure this exists
-  # to surface. The check name must stay advisory: the rule that fixes a
-  # red `main` is "land a forward fix", and a required check is the rule
-  # that prevents it. Keep this out of the ruleset.
+  # Two modes, picked by the script from GITHUB_EVENT_NAME:
   #
-  # In-progress runs are not a verdict. The newest run whose status is
-  # `completed` is what is checked, because conflating "still running"
-  # with "succeeded" would mean the next green run hides any red that
-  # landed while the previous one was finishing. With no completed run on
-  # record at all, the script exits 1 and says so rather than passing
-  # silently over an empty history.
+  # On push, the verdict is the tests.yml run on main whose head_sha
+  # equals the pushed commit (GITHUB_SHA). On 2026-09-19, in
+  # scoop-bucket, the push that fixed a red main had a green tests.yml,
+  # but this job ran at the same moment, read the newest COMPLETED run,
+  # which was the previous commit's red one, and put a red cross on the
+  # repair. Picking the run with the matching head_sha closes that race. The script polls up to 32 times with 15 s between
+  # attempts (8 minutes, inside this job's 10-minute timeout); a
+  # `cancelled` conclusion for the pushed commit is RED, because nothing
+  # newer can answer for that commit.
+  #
+  # On schedule and pull_request, the verdict is the newest completed run
+  # on main, sorted by created_at newest first, because the API does not
+  # guarantee that order: the schedule-freshness gate went false red twice
+  # on trusting it (Glyndor/apt#249, Glyndor/scoop-bucket#173).
+  # `cancelled` conclusions are skipped with a count: a cancelled run
+  # means a newer push superseded it, not that the suite is red.
+  #
+  # `per_page=30` in both modes. A page that comes back unsorted cannot
+  # be trusted on its own, and thirty is comfortably above what any
+  # realistic day on this repository produces (measured: zero to three
+  # Tests runs on main per day over the last week).
+  #
+  # DELIBERATELY NOT A REQUIRED STATUS CHECK. A red `main` would then
+  # block the pull request that repairs it, which deepens the failure
+  # this exists to surface. The check name must stay advisory: the rule
+  # that fixes a red `main` is "land a forward fix", and a required
+  # check is the rule that prevents it. Keep this out of the ruleset.
   #
   # permissions match reusable-schedule-freshness: reading this
   # repository's run history needs `actions: read`, and a job cannot
@@ -187,11 +204,10 @@ jobs:
   tests-on-main:
     name: newest completed Tests run on main
     runs-on: ubuntu-latest
-    # Measured 2 to 15 seconds for the API call (same shape as
-    # reusable-schedule-freshness, which measured this on its own steps);
-    # the verdict script itself runs in single-digit milliseconds. Ten
-    # minutes is the floor this org uses for a job whose honest run is
-    # seconds.
+    # The script polls up to 32 times with 15 s between attempts in push
+    # mode, 8 minutes at most. The 10-minute floor this org
+    # uses for a job whose honest run is seconds still covers that with
+    # margin to spare.
     timeout-minutes: 10
     permissions:
       contents: read
@@ -201,19 +217,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Check the newest completed Tests run on main
+      - name: Check the tests.yml run that should answer for this event
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          # Twenty items is enough to cover any realistic day on this repo
-          # (measured: zero to three Tests runs on main per day over the
-          # last week), and the script filters in-progress runs client-side
-          # before picking the newest verdict, so a smaller page that
-          # happens to be all queued or in-progress does not produce a
-          # false negative.
-          file="$(mktemp)"
-          trap 'rm -f "$file"' EXIT
-          gh api "repos/${REPO}/actions/workflows/tests.yml/runs?branch=main&per_page=20" > "$file"
-          ./scripts/check-suite-on-main.sh "$file"
+          ./scripts/check-suite-on-main.sh

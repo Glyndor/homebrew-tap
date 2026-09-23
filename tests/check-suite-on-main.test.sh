@@ -391,6 +391,52 @@ check "R6: the output does not name the run for a (id 100)" "0" \
 check "R6: the output does not say main is red" "0" \
 	"$(printf '%s' "$out" | grep -c 'main is red')"
 
+# --- R7: push asks the API for head_sha=<pushed commit> ---------------------
+#
+# A re-run of an older commit produces a new run object with a different
+# head_sha; if the script asks the API only for branch=main it gets a
+# page where newer runs push the pushed commit's run past position 30,
+# and every polling attempt reads the same wrong page. Adding head_sha
+# to the query keeps the page bounded to runs for the pushed commit.
+write_responses "$(push_page \
+	"$(push_run_obj b completed success 2026-09-19T15:22:53Z 200)" \
+)"
+run_env push b
+check "R7: push asks the API for head_sha=<pushed commit>" "1" \
+	"$(log_arg_n 1 "$WORK/gh.log" | grep -q 'head_sha=b' && echo 1 || echo 0)"
+
+# --- R8/R9: push tie-break by id when created_at is identical ---------------
+#
+# Two runs for the same commit with identical created_at, different ids
+# and conclusions. The lower id is success, the higher id is failure.
+# Without the tie-break the verdict would depend on which order the API
+# returned, so the same shape is exercised in both orders and the
+# verdict must be the higher id's in both.
+#
+# Two runs of the same commit with the same created_at can only happen
+# on a re-run, but the API stamps both the queued run and the re-run
+# with the same created_at to the second. Sorting newest first by
+# created_at alone is not enough: page order would decide the verdict.
+write_responses "$(push_page \
+	"$(push_run_obj b completed success 2026-09-19T15:22:53Z 100)" \
+	"$(push_run_obj b completed failure 2026-09-19T15:22:53Z 200)" \
+)"
+run_env push b
+check "R8: push with tied created_at picks the higher id (lower first)" "1" \
+	"$(said 'id:         200')"
+check "R8: push with tied created_at reports the higher id's conclusion" "1" \
+	"$(said 'conclusion: failure')"
+
+write_responses "$(push_page \
+	"$(push_run_obj b completed failure 2026-09-19T15:22:53Z 200)" \
+	"$(push_run_obj b completed success 2026-09-19T15:22:53Z 100)" \
+)"
+run_env push b
+check "R9: push with tied created_at still picks the higher id (reversed)" "1" \
+	"$(said 'id:         200')"
+check "R9: push with tied created_at still reports the higher id's conclusion" "1" \
+	"$(said 'conclusion: failure')"
+
 # --- S1: schedule with an unsorted page (older success first) --------------
 #
 # On 2026-09-08 a one-item page returned a run from thirteen days
@@ -447,6 +493,48 @@ write_responses "$(push_page \
 run_env schedule ""
 check "S4: schedule asks for per_page=30" "1" \
 	"$(log_arg_n 1 "$WORK/gh.log" | grep -q 'per_page=30' && echo 1 || echo 0)"
+
+# --- S5: schedule queries with status=completed ----------------------------
+#
+# In-flight runs (queued, in_progress) cannot be allowed to fill the
+# 30-item page ahead of the newest completed one. The schedule URL must
+# ask the API for completed runs up front; the local jq filter is the
+# second guard, not the first.
+write_responses "$(push_page \
+	"$(run_obj completed success 2026-09-19T15:00:00Z 100)" \
+)"
+run_env schedule ""
+check "S5: schedule asks for status=completed in the URL" "1" \
+	"$(log_arg_n 1 "$WORK/gh.log" | grep -q 'status=completed' && echo 1 || echo 0)"
+
+# --- S6/S7: schedule tie-break by id when created_at is identical ---------
+#
+# Same shape as R8/R9 but on the schedule path: two completed runs share
+# created_at, lower id is success, higher id is failure, exercised in
+# both orders. The verdict must be the higher id's in both.
+#
+# Reuses push_run_obj because the schedule jq only filters by status and
+# conclusion, so the extra head_sha field is harmless, and run_obj hard-
+# codes id to "1", which would defeat the test of the id tie-break.
+write_responses "$(push_page \
+	"$(push_run_obj _ completed success 2026-09-19T15:30:00Z 100)" \
+	"$(push_run_obj _ completed failure 2026-09-19T15:30:00Z 200)" \
+)"
+run_env schedule ""
+check "S6: schedule with tied created_at picks the higher id (lower first)" "1" \
+	"$(said 'id:         200')"
+check "S6: schedule with tied created_at reports the higher id's conclusion" "1" \
+	"$(said 'conclusion: failure')"
+
+write_responses "$(push_page \
+	"$(push_run_obj _ completed failure 2026-09-19T15:30:00Z 200)" \
+	"$(push_run_obj _ completed success 2026-09-19T15:30:00Z 100)" \
+)"
+run_env schedule ""
+check "S7: schedule with tied created_at still picks the higher id (reversed)" "1" \
+	"$(said 'id:         200')"
+check "S7: schedule with tied created_at still reports the higher id's conclusion" "1" \
+	"$(said 'conclusion: failure')"
 
 echo
 echo "$pass passed, $fail failed"

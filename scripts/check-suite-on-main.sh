@@ -64,7 +64,7 @@ check_schedule_json() {
 		[ .workflow_runs[]
 		  | select(.status == "completed" and .conclusion != "cancelled")
 		]
-		| sort_by(.created_at) | reverse | .[0] // empty
+		| sort_by(.created_at, .id) | reverse | .[0] // empty
 	')"
 	cancelled_count="$(printf '%s' "$json" | jq -r '
 		[ .workflow_runs[]
@@ -125,12 +125,15 @@ push_path() { # $1=REPO $2=SHA
 
 	while [ "$attempt" -le "$max_attempts" ]; do
 		local page run
-		page="$(gh api "repos/${repo}/actions/workflows/tests.yml/runs?branch=main&per_page=30")"
+		# head_sha so the API returns only runs for the pushed commit; a
+		# re-run of an older commit cannot push this run past page 30.
+		# The local jq select is the second guard, not the first.
+		page="$(gh api "repos/${repo}/actions/workflows/tests.yml/runs?branch=main&per_page=30&head_sha=${sha}")"
 		run="$(printf '%s' "$page" | jq -r --arg sha "$sha" '
 			[ .workflow_runs[]
 			  | select(.head_sha == $sha)
 			]
-			| sort_by(.created_at) | reverse | .[0] // empty
+			| sort_by(.created_at, .id) | reverse | .[0] // empty
 		')"
 
 		if [ -n "$run" ]; then
@@ -187,7 +190,9 @@ if [ -z "$INPUT" ] && [ -n "${GITHUB_EVENT_NAME:-}" ]; then
 		fi
 		push_path "$REPO" "$SHA"
 	else
-		JSON="$(gh api "repos/${REPO}/actions/workflows/tests.yml/runs?branch=main&per_page=30")"
+		# status=completed so in-flight runs cannot fill the 30-item page
+		# ahead of the newest completed one.
+		JSON="$(gh api "repos/${REPO}/actions/workflows/tests.yml/runs?branch=main&per_page=30&status=completed")"
 		check_schedule_json "$JSON"
 	fi
 else

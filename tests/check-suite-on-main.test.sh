@@ -391,6 +391,20 @@ check "R6: the output does not name the run for a (id 100)" "0" \
 check "R6: the output does not say main is red" "0" \
 	"$(printf '%s' "$out" | grep -c 'main is red')"
 
+# --- R7: push asks the API for head_sha=<pushed commit> ---------------------
+#
+# A re-run of an older commit produces a new run object with a different
+# head_sha; if the script asks the API only for branch=main it gets a
+# page where newer runs push the pushed commit's run past position 30,
+# and every polling attempt reads the same wrong page. Adding head_sha
+# to the query keeps the page bounded to runs for the pushed commit.
+write_responses "$(push_page \
+	"$(push_run_obj b completed success 2026-09-19T15:22:53Z 200)" \
+)"
+run_env push b
+check "R7: push asks the API for head_sha=<pushed commit>" "1" \
+	"$(log_arg_n 1 "$WORK/gh.log" | grep -q 'head_sha=b' && echo 1 || echo 0)"
+
 # --- S1: schedule with an unsorted page (older success first) --------------
 #
 # On 2026-09-08 a one-item page returned a run from thirteen days

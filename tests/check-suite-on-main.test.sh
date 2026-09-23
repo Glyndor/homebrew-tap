@@ -448,6 +448,19 @@ run_env schedule ""
 check "S4: schedule asks for per_page=30" "1" \
 	"$(log_arg_n 1 "$WORK/gh.log" | grep -q 'per_page=30' && echo 1 || echo 0)"
 
+# --- S5: schedule queries with status=completed ----------------------------
+#
+# In-flight runs (queued, in_progress) cannot be allowed to fill the
+# 30-item page ahead of the newest completed one. The schedule URL must
+# ask the API for completed runs up front; the local jq filter is the
+# second guard, not the first.
+write_responses "$(push_page \
+	"$(run_obj completed success 2026-09-19T15:00:00Z 100)" \
+)"
+run_env schedule ""
+check "S5: schedule asks for status=completed in the URL" "1" \
+	"$(log_arg_n 1 "$WORK/gh.log" | grep -q 'status=completed' && echo 1 || echo 0)"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

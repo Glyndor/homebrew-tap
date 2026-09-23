@@ -187,7 +187,9 @@ if [ -z "$INPUT" ] && [ -n "${GITHUB_EVENT_NAME:-}" ]; then
 		fi
 		push_path "$REPO" "$SHA"
 	else
-		JSON="$(gh api "repos/${REPO}/actions/workflows/tests.yml/runs?branch=main&per_page=30")"
+		# status=completed so in-flight runs cannot fill the 30-item page
+		# ahead of the newest completed one.
+		JSON="$(gh api "repos/${REPO}/actions/workflows/tests.yml/runs?branch=main&per_page=30&status=completed")"
 		check_schedule_json "$JSON"
 	fi
 else

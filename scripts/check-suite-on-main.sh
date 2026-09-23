@@ -64,7 +64,7 @@ check_schedule_json() {
 		[ .workflow_runs[]
 		  | select(.status == "completed" and .conclusion != "cancelled")
 		]
-		| sort_by(.created_at) | reverse | .[0] // empty
+		| sort_by(.created_at, .id) | reverse | .[0] // empty
 	')"
 	cancelled_count="$(printf '%s' "$json" | jq -r '
 		[ .workflow_runs[]
@@ -133,7 +133,7 @@ push_path() { # $1=REPO $2=SHA
 			[ .workflow_runs[]
 			  | select(.head_sha == $sha)
 			]
-			| sort_by(.created_at) | reverse | .[0] // empty
+			| sort_by(.created_at, .id) | reverse | .[0] // empty
 		')"
 
 		if [ -n "$run" ]; then

@@ -10,23 +10,23 @@ class Podup < Formula
 
   on_macos do
     on_arm do
-      url "https://github.com/Glyndor/podup/releases/download/v5.10.19/podup-darwin-arm64"
-      sha256 "e812b05dcc327dd1112dedf98b393a59371ccf2cae795a80cce24c74b847b08d"
+      url "https://github.com/Glyndor/podup/releases/download/v5.10.20/podup-darwin-arm64"
+      sha256 "a2208cdb507d0992c2566d94663deeabac9fc30e4964fb9741fa613ed8aec994"
     end
     on_intel do
-      url "https://github.com/Glyndor/podup/releases/download/v5.10.19/podup-darwin-x86_64"
-      sha256 "4e5144aa982814b1aa941b652c8b22b93d18f83fe62f7770dae2a43f004a3e12"
+      url "https://github.com/Glyndor/podup/releases/download/v5.10.20/podup-darwin-x86_64"
+      sha256 "d251f409ba986cff3347b347630f7ffa93160f1c6c26fe9cd5b826d893318ad7"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/Glyndor/podup/releases/download/v5.10.19/podup-linux-arm64"
-      sha256 "d56e8d141d2bd428a3af71a0b1f2f2bab0bea7efeea1bccae01dfeda595dd93e"
+      url "https://github.com/Glyndor/podup/releases/download/v5.10.20/podup-linux-arm64"
+      sha256 "ff88aab35eb43bf65aae7fdc78822c5ee92727b769355d604fbcf57d1661e460"
     end
     on_intel do
-      url "https://github.com/Glyndor/podup/releases/download/v5.10.19/podup-linux-x86_64"
-      sha256 "5504423cf2b7235fe4f8b5c15d9f876bacfad93103a27053c4082653d964b02f"
+      url "https://github.com/Glyndor/podup/releases/download/v5.10.20/podup-linux-x86_64"
+      sha256 "26e5631931f10736d467af8b8ebc2c7648ff4a8486d26d561b5e07b6b570f533"
     end
   end
 

@@ -345,7 +345,7 @@ PY
 # nothing about it being well-formed. Before this, a duplicated entry printed
 # BOTH hashes into one field and the run exited 0 -- a fail-open on
 # signature-verified input, and in the Scoop bucket's case one that passed
-# ci.yml's validation and would have been committed to main. Glyndor/apt's
+# tests.yml's validation and would have been committed to main. Glyndor/apt's
 # publish.yml states the assumption this rests on: the release assets are
 # attacker-influenced, because whoever can publish a release controls them.
 hash_of() { # $1=asset
@@ -596,7 +596,7 @@ render_product() { # $1=table entry
 	# `.../releases/download/v<version>/<asset>` as <version>. The audit
 	# message is the evidence that it does, since the rule only fires when the
 	# scanned version EQUALS the declared one, and the `brew audit` job is what
-	# reads it on every pull request and on the daily run against `main`.
+	# reads it on every pull request and on every push to `main`.
 	cat >"$root/Formula/$formula.rb" <<RB
 # typed: false
 # frozen_string_literal: true

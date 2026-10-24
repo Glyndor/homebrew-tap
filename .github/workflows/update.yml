@@ -47,7 +47,7 @@ on:
   workflow_dispatch:
   # Optional instant trigger: a product's release workflow may
   # POST /repos/Glyndor/homebrew-tap/dispatches with event_type "release".
-  # Nothing is wired to it today; the daily schedule is the baseline.
+  # Nothing is wired to it today; the hourly schedule is the baseline.
   repository_dispatch:
     types: [release]
 
@@ -155,10 +155,10 @@ jobs:
           # between it and `brew install`. `brew style` (rubocop) catches
           # formatting and deprecated-API issues.
           #
-          # This is half of ci.yml's gate, not all of it. `brew audit --strict`
+          # This is half of the gate of tests.yml and audit.yml, not all of it. `brew audit --strict`
           # resolves the active spec, which a Linux runner leaves unevaluated
           # inside the formula's `on_macos` block, so it needs a macOS runner
-          # and runs in ci.yml on the resulting push rather than here.
+          # and runs in audit.yml on the resulting push rather than here.
           # Refuse to commit an empty tap. The guard below fires before brew is
           # set up, which is the only thing that makes it a guard at all: with
           # `shopt -s nullglob` active, an unmatched `Formula/*.rb` resolves

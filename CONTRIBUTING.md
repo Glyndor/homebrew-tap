@@ -15,7 +15,7 @@ It is the Homebrew tap for Glyndor's products. It carries no product source:
 `Formula/*.rb` is generated from each product's latest signed release, with the
 release signature verified before anything is written. Edit
 `scripts/render-formulae.sh`, never the formulae themselves: the next scheduled
-run overwrites them, so a hand edit survives until the following morning and
+run overwrites them, so a hand edit survives until the next hourly run and
 then disappears without a trace.
 
 **Its git content IS the published artifact.** A commit on `main` is what
@@ -28,32 +28,30 @@ commits the result to `main` directly, through the GraphQL
 `createCommitOnBranch` mutation.
 
 It cannot open a pull request instead: the organisation forbids GitHub Actions
-from creating or approving them, and that setting is locked org-wide. And a
-required status check would reject the push, because checks have not run on a
-commit that no pull request produced.
+from creating or approving them, and that setting is locked org-wide. A commit
+that no pull request produced has no checks run on it, so the push needs a
+bypass actor on the ruleset. `github-actions[bot]` cannot be one; a GitHub App
+can. `glyndor-updater` is that app, installed on this repository with
+`contents: write` and nothing else. The job mints a short-lived token from the
+app's private key (`UPDATER_APP_PRIVATE_KEY`, a repository secret; the id is
+the variable `UPDATER_APP_ID`) on every scheduled run, so a removed
+installation or a broken key turns into a red run within the hour.
 
-So this repository's ruleset omits require-pull-request and required checks. The
-compensating controls are `required_signatures` (every commit on `main` is
-verified, and `createCommitOnBranch` commits are GitHub-signed) plus the
-validation that runs INSIDE `update.yml` before the commit lands.
+The ruleset on `main` otherwise applies to everyone, humans included, with no
+bypass for them: pull request required (squash only), required checks with the
+branch up to date, `required_signatures`, linear history and CodeQL. The app's
+bypass covers the bot's push and nothing a human can do. Commits made through
+`createCommitOnBranch` are GitHub-signed, which is how they satisfy
+`required_signatures` without a signing key in this repository.
 
-**That validation is the only gate between a bad render and `brew install`.** It is
-covered by `tests/update-workflow.test.sh`, which extracts the workflow's own
-`run:` blocks and executes them as they ship rather than against a copy.
+**The validation that runs INSIDE `update.yml` before the commit is the only
+gate between a bad render and `brew install`**, because the bot's push skips the
+required checks. It is covered by `tests/update-workflow.test.sh`, which
+extracts the workflow's own `run:` blocks and executes them as they ship rather
+than against a copy.
 
-One consequence was measured and settled rather than left open: dropping
-required checks also dropped the DCO gate for human pull requests. Three routes
-to prevention were ruled out by measurement: the bot cannot be a bypass actor,
-no commit-message rule exists, and a required check would block the bot's push.
-A GitHub App was declined because it adds no capability the job lacks,
-only a persistent credential in a repository people install software from. The
-record is in `ai-context`, `context/homebrew-tap/index.md`, under "Closed
-2026-08-26: detection shipped, prevention priced and declined".
-
-Detection did ship. `dco-on-main.yml` turns an unsigned human commit from
-something nobody notices into a red run within a minute. What stays uncovered is
-a human who sees that red and merges anyway, and none of the routes above would
-have helped with that one.
+`dco-on-main.yml` stays as detection for anything that lands without a pull
+request: an unsigned human commit would be a red run within a minute.
 
 ## Branch flow
 
@@ -70,9 +68,8 @@ There is no `develop`. Branch from `main`, open a pull request against
 
 - **An issue first.** Labels are the tracking system; there is no board. Apply
   `type:`, `prio:`, `effort:`, `status:` and `area:` where they fit.
-- **Sign every commit off.** `git commit -s`. The `dco` check runs on pull
-  requests but is **not** required by the ruleset here, for the reason above, so
-  it relies on you.
+- **Sign every commit off.** `git commit -s`. The `dco` check is required on
+  pull requests.
 - **Commits are signed**, GPG or SSH. `required_signatures` is enforced on
   `main`, and rebase-merge is disabled because GitHub re-creates rebased
   commits without signatures.
@@ -85,6 +82,7 @@ fail=0
 for t in tests/*.test.sh; do "./$t" || { echo "FAILED: $t"; fail=1; }; done
 shellcheck scripts/*.sh tests/*.sh || fail=1
 [ "$fail" -eq 0 ] && echo "all green" || echo "SOMETHING FAILED"
+[ "$fail" -eq 0 ]
 ```
 
 That last line is there because the loop cannot fail on its own. Running all of

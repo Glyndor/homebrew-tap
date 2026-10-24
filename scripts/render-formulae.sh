@@ -236,20 +236,15 @@ PY
 #   `gh attestation verify` takes a file path or an OCI reference. It has
 #   no digest-only mode, so the asset has to be downloaded to verify it.
 #
-# ONE asset per release is verified, not every referenced one. Every asset
-# the release ships was built in the same workflow run, so a single
-# attestation check proves the tag is honest; the SHA256SUMS is signed as
-# a whole, so one downloaded asset's digest matching its SHA256SUMS entry
-# extends the signature's trust to the entries the renderer does not
-# download. Verifying every asset costs a download for no extra security.
-#
-# The chosen asset is the first non-dash one in the PRODUCTS table order;
-# for podup that is podup-darwin-arm64 (the mac_arm slot). The download's
-# SHA-256 is computed and checked against the SHA256SUMS entry for that
-# asset before the attestation check runs, so the digest the renderer
-# renders for it is the digest that was verified -- and the control
-# inspects something rather than confirming two pieces of input agree
-# without having read either.
+# EVERY non-dash asset of a release is verified, not one per release. One
+# attested asset binds only its own digest, so an actor who can publish a
+# release could replay last year's binaries with the matching old signed
+# SHA256SUMS and keep a genuine attestation on whichever asset the renderer did
+# not reach. Each asset is downloaded and its SHA-256 computed and checked
+# against its SHA256SUMS entry before the attestation check runs, so the digest
+# the renderer renders for it is the digest that was verified -- and the control
+# inspects something rather than confirming two pieces of input agree without
+# having read either.
 #
 # A release predating attestations is a different fault from a failed
 # verification, and the message names which: one is "this release was not

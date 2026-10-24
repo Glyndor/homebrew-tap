@@ -1,7 +1,7 @@
 name: Tests
 
 # The shell lint, this repository's own suite, and the two checks that read the
-# generated tree: that PRODUCTS/README/Formula still agree, and that the
+# generated tree: that PRODUCTS and Formula/ still agree, and that the
 # formulae pass `brew style`.
 #
 # Split out of the former ci.yml, which carried the suite, pull request hygiene,
@@ -85,7 +85,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: The README table and Formula/ must match PRODUCTS
+      - name: Formula/ must match PRODUCTS
         run: |
           set -euo pipefail
           # The check itself lives in scripts/, not here, so that it can be

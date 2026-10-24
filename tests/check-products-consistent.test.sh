@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Tests for scripts/check-products-consistent.sh -- the check that PRODUCTS,
-# the README table and Formula/ still agree.
+# Tests for scripts/check-products-consistent.sh -- the check that PRODUCTS
+# and Formula/ still agree.
 #
 # This check lived inline in ci.yml, where nothing could reach it. It is the
 # only thing standing between a product being declared and a formula for it

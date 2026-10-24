@@ -87,7 +87,7 @@ pushed here by a product and no product holds a credential on this repository
 |---|---|---|
 | A stalled update job (the cron stops firing, or every run fails) | a freshness watcher fails when `update.yml` has no successful scheduled run within `max-age-days: 3`, runs twice a day on its own schedule, and watches itself at two days (`freshness.yml:41-42`, `:56-63`, `:84-91`, `reusable-schedule-freshness.yml:71-95`) | test: `tests/reusable-schedule-freshness.test.sh:120` (an 11-day-old run fails the 10-day limit), `:132` (no successful run on record fails) |
 | A hanging `brew` auto-update holds the concurrency group | the update job takes `update-formulae` with `cancel-in-progress: false`, so a hung run would queue every hourly run behind it (`update.yml:59-61`); every job that invokes `brew` carries `timeout-minutes` and `HOMEBREW_NO_AUTO_UPDATE` (`update.yml:76-79`, `tests.yml:82-89`, `audit.yml:27-32`) | test: `tests/brew-jobs-are-bounded.test.sh:138` (every job that runs `brew` is bounded and told not to update), proved on a planted workflow first at `:111` |
-| A persisted job token in a checkout | `persist-credentials: false` on every checkout; the commit step uses the token from `GH_TOKEN` and nothing here pushes with git | measurement: 13 `actions/checkout` steps and 13 `persist-credentials: false` across `.github/workflows/` on 2026-09-02; test: none |
+| A persisted job token in a checkout | `persist-credentials: false` on every checkout; the commit step uses the token from `GH_TOKEN` and nothing here pushes with git | measurement: the two `git grep` counts in the verification section below must be equal; test: none |
 | A third-party action in CI | one: `actions/create-github-app-token` in `update.yml`, pinned to a commit SHA, which receives the app's private key. The others are `actions/checkout`, `actions/setup-go` and `actions/cache`, each pinned to a commit SHA; `brew` is the runner's preinstalled copy (`update.yml:149`, `tests.yml:98`); the update job installs only `python3-cryptography` from Debian's archive (`update.yml:85-88`) | measurement: `git grep uses: .github/workflows` on 2026-09-02; test: none. The tooling-isolation assertion (`reusable-workflow-lint.yml:158-272`) matches `secrets.*` references and does not look at `uses:` actions, so the app-token action is covered by the SHA pin and Dependabot alone |
 | Dependency confusion on the tap name | the README documents the fully qualified `glyndor/tap/podup` only (`README.md:17`); the tap is deliberately not in homebrew-core, and the formula's URLs point at `github.com/Glyndor/podup` (`Formula/podup.rb:8,14`). A bare `brew install podup` would resolve elsewhere or not at all, and the tap cannot influence that | test: none |
 
@@ -153,8 +153,8 @@ reported as drift.
 ## How to verify this document
 
 ```sh
-git grep -n 'persist-credentials' .github/workflows | wc -l    # 13
-git grep -c 'actions/checkout@' .github/workflows | awk -F: '{s+=$2} END {print s}'   # 13
+git grep -n 'persist-credentials' .github/workflows | wc -l    # equals the next line
+git grep -c 'actions/checkout@' .github/workflows | awk -F: '{s+=$2} END {print s}'   # equals the line above
 git grep -hn '^\s*-\? *uses:' .github/workflows | grep -v 'uses: actions/\|uses: ./.github/workflows/reusable-'   # nothing
 sed -n 17,37p scripts/render-formulae.sh                        # the two key slots
 bash tests/render-formulae.test.sh

@@ -48,6 +48,14 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request supersedes the audit still running on the old
+# commit, and that audit is a macOS minute at ten times the Linux price. Only
+# pull requests cancel: a run on `main` is the one freshness reads, and a
+# cancelled one would leave it with nothing to read.
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   audit:
     name: brew audit

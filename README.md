@@ -22,7 +22,6 @@ Upgrades arrive with `brew upgrade`, like any other formula.
 | Package | What it is | macOS | Linux |
 | --- | --- | --- | --- |
 | [`podup`](https://github.com/Glyndor/podup) | Docker-compose translator and runner for rootless Podman | this tap | this tap |
-| [`epistle`](https://github.com/Glyndor/epistle) | Self-hosted headless mail server: SMTP, IMAP | not built | not built |
 | [`helmly-agent`](https://github.com/Glyndor/helmly-agent) | Hardened server agent for the Glyndor panel: signed commands over WireGuard and mTLS | not built | not built |
 
 On Linux this tap serves the same signed binaries the products publish for

@@ -614,6 +614,36 @@ for versions in \
 	fi
 done
 
+# A candidate that is not SemVer is refused even on a first publication, when
+# there is no served formula to compare with: published, it would make the next
+# valid release abort on a served version that cannot be parsed.
+new_root "$WORK/first"
+generator_with "$WORK/first/scripts/release/render-formulae.sh" "$PODUP"
+publish Glyndor/podup "v01.0.0" podup-darwin-arm64 podup-darwin-x86_64
+rc=0; run "$WORK/first/scripts/release/render-formulae.sh" "$WORK/first" || rc=$?
+check "a first publication with a leading-zero version is refused" "1" "$rc"
+contains "and the error names the version" "$WORK/out" "'01.0.0' is not a valid SemVer release version"
+check "and no formula was written" "0" "$([ -f "$WORK/first/Formula/podup.rb" ] && echo 1 || echo 0)"
+
+# Only active url lines say what is served: a comment naming another version
+# must neither block a release nor stand in for the real one.
+new_root "$WORK/served"
+generator_with "$WORK/served/scripts/release/render-formulae.sh" "$PODUP"
+publish Glyndor/podup "v1.0.0" podup-darwin-arm64 podup-darwin-x86_64
+run "$WORK/served/scripts/release/render-formulae.sh" "$WORK/served"
+{
+	echo '# url "https://github.com/Glyndor/podup/releases/download/v9.9.9/podup-darwin-arm64"'
+	cat "$WORK/served/Formula/podup.rb"
+} > "$WORK/served.rb" && cp "$WORK/served.rb" "$WORK/served/Formula/podup.rb"
+publish Glyndor/podup "v1.0.1" podup-darwin-arm64 podup-darwin-x86_64
+rc=0; run "$WORK/served/scripts/release/render-formulae.sh" "$WORK/served" || rc=$?
+check "a commented url naming a higher version does not block a release" "0" "$rc"
+sed -i 's|^\([[:space:]]*\)url "|\1# url "|' "$WORK/served/Formula/podup.rb"
+publish Glyndor/podup "v1.0.2" podup-darwin-arm64 podup-darwin-x86_64
+rc=0; run "$WORK/served/scripts/release/render-formulae.sh" "$WORK/served" || rc=$?
+check "a formula whose urls are all commented out has no served version" "1" "$rc"
+contains "and the error says so" "$WORK/out" "cannot determine a unique served version"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

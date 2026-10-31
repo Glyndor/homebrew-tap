@@ -61,23 +61,10 @@ import glob, os, re, sys
 
 root = sys.argv[1]
 CURL_RE = re.compile(r"(?:^|[^A-Za-z0-9_/])curl\s")
-CURL_INVOCATION = re.compile(r"\bcurl\b")
-
-def logical_lines(text):
-	# Join lines whose previous line ended in a backslash, then drop
-	# wholly-comment lines (they are not invocations either way). The
-	# collapse keeps `curl ... \\n  --max-time N \\n  url` as one
-	# invocation rather than two failing lines and a passing one.
-	out = []
-	for line in text.splitlines():
-		if out and out[-1].endswith("\\"):
-			out[-1] = out[-1][:-1] + " " + line.strip()
-		else:
-			out.append(line)
-	return [l for l in out if not l.lstrip().startswith("#")]
 
 bad = 0
-for path in sorted(glob.glob(os.path.join(root, "*.sh"))):
+paths = sorted(glob.glob(os.path.join(root, "**", "*.sh"), recursive=True))
+for path in paths:
 	with open(path) as fh:
 		text = fh.read()
 	# Look at every individual line too: a curl on a single line must
@@ -95,6 +82,7 @@ for path in sorted(glob.glob(os.path.join(root, "*.sh"))):
 		print(
 			f"{os.path.basename(path)}:{lineno}: missing --max-time on curl invocation"
 		)
+print(f"scanned {len(paths)} script(s)")
 sys.exit(1 if bad else 0)
 PY
 }
@@ -125,16 +113,20 @@ rc=0; out="$(audit "$WORK/planted")" || rc=$?
 check "a curl without --max-time is reported" "1" "$rc"
 check "and the report names the file, the line, and the missing flag" "1" \
 	"$(printf '%s\n' "$out" | grep -c 'x.sh:5: missing --max-time on curl invocation')"
-check "a curl with --max-time on the same line is not reported" "0" \
-	"$(printf '%s\n' "$out" | grep -c 'out2')"
-check "a # comment line mentioning curl is not an invocation" "0" \
-	"$(printf '%s\n' "$out" | grep -c 'url3')"
+check "exactly the two bare curls are reported, no safe line and no comment" \
+	"x.sh:5: missing --max-time on curl invocation
+x.sh:15: missing --max-time on curl invocation" \
+	"$(printf '%s\n' "$out" | grep -v '^scanned ')"
 check "a curl with --max-time on a continuation line is still reported" "1" \
 	"$(printf '%s\n' "$out" | grep -c 'x.sh:15: missing --max-time on curl invocation')"
 
 # --- the live scripts ------------------------------------------------------
 rc=0; out="$(audit "$HERE/scripts")" || rc=$?
 check "every curl invocation in scripts/ carries --max-time" "0" "$rc"
+expected="$(find "$HERE/scripts" -type f -name '*.sh' | wc -l)"
+check "and the scan really covered every script, at any depth" "scanned $expected script(s)" \
+	"$(printf '%s\n' "$out" | grep '^scanned ')"
+check "and there were scripts to cover" "1" "$([ "$expected" -gt 0 ] && echo 1 || echo 0)"
 [ -z "$out" ] || printf '%s\n' "$out" | sed 's/^/        /'
 
 echo

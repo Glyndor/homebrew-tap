@@ -254,6 +254,7 @@ check "and no formula was written from it" "0" \
 # Tags that are merely unusual must still render, or the guard is a version
 # policy rather than an injection guard.
 for good in "v1.0.0-rc.1" "v1.0.0+build.5" "v10.20.30"; do
+	rm -f "$WORK/r1/Formula/podup.rb"
 	publish "Glyndor/podup" "$good" podup-darwin-arm64 podup-darwin-x86_64
 	rc=0
 	( cd "$WORK/r1" && "$WORK/r1/scripts/render-formulae.sh" --pubkey "$PUBKEY" ) >/dev/null 2>&1 || rc=$?
@@ -261,6 +262,7 @@ for good in "v1.0.0-rc.1" "v1.0.0+build.5" "v10.20.30"; do
 done
 
 # Restore the fixture the later cases expect.
+rm -f "$WORK/r1/Formula/podup.rb"
 publish "Glyndor/podup" "v1.2.3" podup-darwin-arm64 podup-darwin-x86_64
 
 # --- a broken trust anchor is not a bad signature ---------------------------
@@ -579,6 +581,38 @@ check "every asset gets its own provenance check (2 of 2)" "2" \
 # drift-compared with the sibling repository, so both carry the same line.
 check "verify_attestation downloads the asset over https-only redirects" "1" \
 	"$(sed -n '/^verify_attestation()/,/^}/p' "$HERE/scripts/render-formulae.sh" | grep -c -- '--proto-redir =https')"
+
+# Version precedence: stable beats pre-release, build metadata has no weight,
+# numeric identifiers compare numerically, and a shorter pre-release sorts first.
+for versions in \
+	"1.0.0|1.0.0-rc1|1" \
+	"1.0.0|1.0.0+build.5|0" \
+	"1.0.0-rc.10|1.0.0-rc.2|1" \
+	"1.0.0-rc.1|1.0.0-rc|1" \
+	"1.0.0-alpha|1.0.0-1|1" \
+	"1.0.0-rc1|1.0.0|0"; do
+	IFS='|' read -r served candidate expected <<<"$versions"
+	new_root "$WORK/precedence"
+	generator_with "$WORK/precedence/scripts/render-formulae.sh" "$PODUP"
+	publish Glyndor/podup "v$served" podup-darwin-arm64 podup-darwin-x86_64
+	run "$WORK/precedence/scripts/render-formulae.sh" "$WORK/precedence"
+	cp "$WORK/precedence/Formula/podup.rb" "$WORK/precedence.before"
+	publish Glyndor/podup "v$candidate" podup-darwin-arm64 podup-darwin-x86_64
+	rc=0; run "$WORK/precedence/scripts/render-formulae.sh" "$WORK/precedence" || rc=$?
+	check "$served -> $candidate respects version precedence" "$expected" "$rc"
+	if [ "$expected" = "1" ]; then
+		contains "the precedence refusal identifies both versions" "$WORK/out" \
+			"::error::Glyndor/podup: refusing release downgrade from served $served to candidate $candidate"
+		check "the pre-release downgrade preserves every byte" "0" \
+			"$(cmp -s "$WORK/precedence.before" "$WORK/precedence/Formula/podup.rb"; echo $?)"
+	elif [[ "$candidate" == *+* ]]; then
+		contains "build metadata alone is not a downgrade: the formula is rendered for the new tag" \
+			"$WORK/precedence/Formula/podup.rb" "/releases/download/v$candidate/"
+	else
+		contains "the stable release replaces its pre-release" "$WORK/precedence/Formula/podup.rb" \
+			"/releases/download/v$candidate/"
+	fi
+done
 
 echo
 echo "$pass passed, $fail failed"

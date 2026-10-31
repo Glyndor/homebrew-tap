@@ -11,7 +11,7 @@
 #
 # Exit codes: 0 every product rendered; 3 at least one product was skipped and
 # the rest rendered (update.yml commits those, then fails the job); anything
-# else is a failure before any product was reached.
+# else stops publication, including a refused release downgrade.
 set -euo pipefail
 
 # The org's Ed25519 release-signing public key, raw and unpadded base64.
@@ -426,6 +426,42 @@ asset_expr() { # $1=arm asset  $2=intel asset
 	fi
 }
 
+# Compare the served URL version with the candidate using SemVer precedence:
+# numeric major/minor/patch; pre-release < stable; numeric pre-release identifiers
+# < text (ASCII), compared left to right; build metadata is ignored. rc1 is text.
+release_order() { # $1=formula path $2=repo $3=candidate; prints lower|equal|higher
+	python3 - "$1" "$2" "$3" <<'PYVERSION'
+import re, sys
+from pathlib import Path
+
+path, repo, candidate = sys.argv[1:]
+pattern = r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+
+def precedence(version):
+    match = re.fullmatch(pattern, version)
+    if not match:
+        sys.exit(f"::error::{repo}: cannot compare release version {version!r}")
+    major, minor, patch, pre = match.groups()
+    identifiers = [] if pre is None else pre.split(".")
+    if any(item.isdigit() and len(item) > 1 and item[0] == "0" for item in identifiers):
+        sys.exit(f"::error::{repo}: invalid numeric pre-release in {version!r}")
+    return (int(major), int(minor), int(patch), pre is None,
+            tuple((0, int(item)) if item.isdigit() else (1, item) for item in identifiers))
+
+try:
+    text = Path(path).read_text()
+except OSError as error:
+    sys.exit(f"::error::{repo}: cannot read served formula: {error}")
+versions = set(re.findall(r'url "https://github.com/' + re.escape(repo) + r'/releases/download/v?([^/]+)/', text))
+if len(versions) != 1:
+    sys.exit(f"::error::{repo}: cannot determine a unique served version from {path}")
+served = versions.pop()
+old, new = precedence(served), precedence(candidate)
+print(served)
+print("lower" if new < old else "higher" if new > old else "equal")
+PYVERSION
+}
+
 # Render one product's formula. Returns non-zero without touching any file when
 # the release cannot be read, its SHA256SUMS does not verify, the build
 # provenance is missing or names another tag, or an asset the table names is
@@ -534,6 +570,23 @@ render_product() { # $1=table entry
 			return 1
 		}
 	done
+
+	# Refuse before the write, with exit 1 rather than the partial-update code 3:
+	# update.yml must stop before committing any changes from this run.
+	if [ -f "$root/Formula/$formula.rb" ]; then
+		local comparison served order
+		comparison="$(release_order "$root/Formula/$formula.rb" "$repo" "$version")" || exit 1
+		served="${comparison%%$'\n'*}"
+		order="${comparison##*$'\n'}"
+		if [ "$order" = "lower" ]; then
+			if [ "${ALLOW_RELEASE_DOWNGRADE:-}" = "1" ]; then
+				echo "::warning::$repo: ALLOW_RELEASE_DOWNGRADE=1 permits rollback from served $served to candidate $version" >&2
+			else
+				echo "::error::$repo: refusing release downgrade from served $served to candidate $version" >&2
+				exit 1
+			fi
+		fi
+	fi
 
 	# Build only the blocks the product actually ships, one platform at a time.
 	# Two platforms with the same shape is what makes this a function rather

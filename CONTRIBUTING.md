@@ -53,6 +53,16 @@ than against a copy.
 `dco-on-main.yml` stays as detection for anything that lands without a pull
 request: an unsigned human commit would be a red run within a minute.
 
+## Manual release rollback
+
+The renderer rejects a release older than the version in the served formula.
+For an intentional rollback, make the desired signed release `latest`, then run
+`ALLOW_RELEASE_DOWNGRADE=1 ./scripts/render-formulae.sh` locally and review the
+diff before submitting it through the normal branch flow. This bypass leaves
+signature, digest and provenance verification enabled and logs a warning naming
+the product, served version and candidate version. Only the exact value `1`
+enables it. `update.yml` never sets it, including on `workflow_dispatch`.
+
 ## Branch flow
 
 ```

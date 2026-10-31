@@ -60,6 +60,7 @@ jobs:
         ./tests/reusable-workflow-lint.test.sh
         ./tests/brew-jobs-are-bounded.test.sh
         ./tests/audit-runs-on-a-schedule.test.sh
+        ./tests/audit-trusts-the-linked-tap.test.sh
         ./tests/jobs-are-bounded.test.sh
         ./tests/network-calls-are-bounded.test.sh
         ./tests/check-suite-on-main.test.sh

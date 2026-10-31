@@ -32,9 +32,9 @@ check() { # <description> <expected> <actual>
 	fi
 }
 
-# A throwaway tap: PRODUCTS in scripts/, a README table, and Formula/*.rb.
-# Every argument is a formula name; the three lists are built from the same
-# arguments unless a case overrides one of them.
+# A throwaway tap: PRODUCTS in scripts/ and Formula/*.rb, and a README that is
+# only prose to the checker (see the case below). Every argument is a formula
+# name; the lists are built from the same arguments unless a case overrides one.
 mktap() { # $1=name $2...=formula names
 	local tap="$WORK/$1"; shift
 	mkdir -p "$tap/scripts" "$tap/scripts/artifacts" "$tap/scripts/release" "$tap/Formula"
@@ -44,11 +44,7 @@ mktap() { # $1=name $2...=formula names
 		for f in "$@"; do echo "	\"$f|$f|Glyndor/$f\""; done
 		echo ')'
 	} > "$tap/scripts/release/render-formulae.sh"
-	{
-		echo '| Formula | Product |'
-		echo '|---|---|'
-		for f in "$@"; do echo "| $f | $f |"; done
-	} > "$tap/README.md"
+	printf 'prose only\n' > "$tap/README.md"
 	for f in "$@"; do : > "$tap/Formula/$f.rb"; done
 	echo "$tap"
 }
@@ -59,7 +55,7 @@ said() { grep -qF "$1" "$WORK/out" && echo 1 || echo 0; }
 # --- everything agrees ------------------------------------------------------
 T="$(mktap agree alpha beta)"
 rc=0; run "$T" || rc=$?
-check "a tap where all three agree passes" "0" "$rc"
+check "a tap where PRODUCTS and Formula/ agree passes" "0" "$rc"
 
 # --- Formula/ is missing a file ---------------------------------------------
 T="$(mktap noformula alpha beta)"
@@ -85,7 +81,7 @@ check "and says it could not read PRODUCTS" "1" "$(said 'could not read PRODUCTS
 # while being ported between these two repositories -- the check was wrong and
 # the README was fine. What gets installed is decided by Formula/, which is still
 # compared; the README is documentation and can drift.
-B="$(mkbucket readme-edited alpha)" 2>/dev/null || B="$(mktap readme-edited alpha)"
+B="$(mktap readme-edited alpha)"
 printf 'totally different prose, no table at all\n' > "$B/README.md"
 rc=0; run "$B" || rc=$?
 check "rewriting the README does not fail the check" "0" "$rc"

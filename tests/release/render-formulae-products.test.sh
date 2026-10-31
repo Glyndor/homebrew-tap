@@ -93,6 +93,10 @@ for field in 3 4 9; do
 	refused "a quote in metadata field $field" "$field" 'text"quoted' 'would end or escape a Ruby string'
 	refused "a backslash in metadata field $field" "$field" 'path\name' 'would end or escape a Ruby string'
 	refused "an interpolation in metadata field $field" "$field" 'text#{1}' 'would end or escape a Ruby string'
+	# shellcheck disable=SC2016 # the $ is Ruby's, written literally on purpose
+	refused "a global interpolation in metadata field $field" "$field" 'text#$stdout' 'would end or escape a Ruby string'
+	refused "an instance interpolation in metadata field $field" "$field" 'text#@name' 'would end or escape a Ruby string'
+	refused "a class interpolation in metadata field $field" "$field" 'text#@@name' 'would end or escape a Ruby string'
 done
 prepare 4 $'line one\nline two'
 render

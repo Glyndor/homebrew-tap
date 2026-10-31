@@ -440,7 +440,7 @@ pattern = r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(
 def precedence(version):
     match = re.fullmatch(pattern, version)
     if not match:
-        sys.exit(f"::error::{repo}: cannot compare release version {version!r}")
+        sys.exit(f"::error::{repo}: {version!r} is not a valid SemVer release version")
     major, minor, patch, pre = match.groups()
     identifiers = [] if pre is None else pre.split(".")
     if any(item.isdigit() and len(item) > 1 and item[0] == "0" for item in identifiers):
@@ -448,15 +448,22 @@ def precedence(version):
     return (int(major), int(minor), int(patch), pre is None,
             tuple((0, int(item)) if item.isdigit() else (1, item) for item in identifiers))
 
+new = precedence(candidate)
+if path == "-":
+    print()
+    print("none")
+    sys.exit(0)
 try:
     text = Path(path).read_text()
 except OSError as error:
     sys.exit(f"::error::{repo}: cannot read served formula: {error}")
-versions = set(re.findall(r'url "https://github.com/' + re.escape(repo) + r'/releases/download/v?([^/]+)/', text))
+# Only the active `url "..."` lines count: the renderer always writes that
+# form, so a commented-out line or a url(...) call is not the served version.
+versions = set(re.findall(r'^[ \t]*url "https://github.com/' + re.escape(repo) + r'/releases/download/v?([^/]+)/', text, re.M))
 if len(versions) != 1:
     sys.exit(f"::error::{repo}: cannot determine a unique served version from {path}")
 served = versions.pop()
-old, new = precedence(served), precedence(candidate)
+old = precedence(served)
 print(served)
 print("lower" if new < old else "higher" if new > old else "equal")
 PYVERSION
@@ -508,7 +515,7 @@ render_product() { # $1=table entry
 	# end the string or run code.
 	for field in licence desc version_check; do
 		case "${!field}" in
-			*\"* | *\\* | *'#{'*)
+			*\"* | *\\* | *'#{'* | *'#$'* | *'#@'*)
 				echo "::error::the PRODUCTS entry \"$entry\" has a $field that would end or escape a Ruby string"
 				return 1
 				;;
@@ -600,18 +607,21 @@ render_product() { # $1=table entry
 
 	# Refuse before the write, with exit 1 rather than the partial-update code 3:
 	# update.yml must stop before committing any changes from this run.
-	if [ -f "$root/Formula/$formula.rb" ]; then
-		local comparison served order
-		comparison="$(release_order "$root/Formula/$formula.rb" "$repo" "$version")" || exit 1
-		served="${comparison%%$'\n'*}"
-		order="${comparison##*$'\n'}"
-		if [ "$order" = "lower" ]; then
-			if [ "${ALLOW_RELEASE_DOWNGRADE:-}" = "1" ]; then
-				echo "::warning::$repo: ALLOW_RELEASE_DOWNGRADE=1 permits rollback from served $served to candidate $version" >&2
-			else
-				echo "::error::$repo: refusing release downgrade from served $served to candidate $version" >&2
-				exit 1
-			fi
+	# The candidate is validated even when nothing is served yet: a first
+	# publication of an invalid version would otherwise make the next valid
+	# release abort on a served version that cannot be parsed.
+	local comparison served order served_path
+	served_path="-"
+	[ -f "$root/Formula/$formula.rb" ] && served_path="$root/Formula/$formula.rb"
+	comparison="$(release_order "$served_path" "$repo" "$version")" || exit 1
+	served="${comparison%%$'\n'*}"
+	order="${comparison##*$'\n'}"
+	if [ "$order" = "lower" ]; then
+		if [ "${ALLOW_RELEASE_DOWNGRADE:-}" = "1" ]; then
+			echo "::warning::$repo: ALLOW_RELEASE_DOWNGRADE=1 permits rollback from served $served to candidate $version" >&2
+		else
+			echo "::error::$repo: refusing release downgrade from served $served to candidate $version" >&2
+			exit 1
 		fi
 	fi
 

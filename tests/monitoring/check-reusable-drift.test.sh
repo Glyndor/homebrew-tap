@@ -171,6 +171,30 @@ check "and it made one request per file per sibling" "14" \
 check "and asked raw.githubusercontent.com for main" "14" \
 	"$(grep -c 'raw.githubusercontent.com/Glyndor/.*/main/.github/workflows/' "$WORK/curl.log")"
 
+# --- PLANTED: a # line inside a run: block is script, not a comment -------
+
+seed
+body "written for this repository" "# echo old" \
+	> "$WORK/repo/.github/workflows/reusable-line-limit.yml"
+body "written for this repository" "# echo new" \
+	> "$WORK/remote/${SIBLINGS[0]}/reusable-line-limit.yml"
+body "written for this repository" "# echo old" \
+	> "$WORK/remote/${SIBLINGS[1]}/reusable-line-limit.yml"
+out="$(run_check)"
+rc=$?
+check "a changed # line inside a run: block fails" "1" "$rc"
+check "and the error names the file" "1" "$(says "$out" 'reusable-line-limit.yml')"
+
+# A real YAML comment between steps may still differ.
+seed
+body "written here" "echo ok" > "$WORK/repo/.github/workflows/reusable-line-limit.yml"
+for s in "${SIBLINGS[@]}"; do
+	body "written there" "echo ok" > "$WORK/remote/$s/reusable-line-limit.yml"
+done
+out="$(run_check)"
+rc=$?
+check "a differing YAML comment outside a run: block still passes" "0" "$rc"
+
 # --- PLANTED: a changed `run:` block must fail, and be named --------------
 
 seed
@@ -208,7 +232,7 @@ check "and nothing is reported as drift" "0" "$(counts "$out" 'has drifted')"
 check "and all 14 copies were still compared" "1" \
 	"$(says "$out" 'compared 14 reusable workflow')"
 
-# --- PLANTED: an indented comment inside a run: body is still a comment ---
+# --- PLANTED: an indented # line inside a run: body is script, so it counts ---
 
 seed
 sed 's|          set -euo pipefail|          set -euo pipefail\n          # a note that only makes sense here|' \
@@ -216,7 +240,7 @@ sed 's|          set -euo pipefail|          set -euo pipefail\n          # a no
 mv "$WORK/tmp.yml" "$WORK/repo/.github/workflows/reusable-dco.yml"
 out="$(run_check)"
 rc=$?
-check "a comment added inside a run: block passes" "0" "$rc"
+check "a # line added inside a run: block is drift" "1" "$rc"
 
 # --- PLANTED: a failing curl is a fetch failure, never drift --------------
 

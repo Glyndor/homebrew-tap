@@ -69,11 +69,29 @@ workflows="$root/.github/workflows"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-# Reduce a workflow to the lines that decide what it does: drop lines whose
-# first non-space character starts a comment, drop blank lines, and drop
-# trailing whitespace so an invisible byte cannot masquerade as drift.
+# Reduce a workflow to the lines that decide what it does: drop comment lines
+# and blank lines, and drop trailing whitespace so an invisible byte cannot
+# masquerade as drift. A line starting with # inside a block scalar (run: |) is
+# part of the script, not a YAML comment: a commented-out command a later edit
+# could re-enable is drift, so those lines are kept.
 strip_prose() { # $1=file
-	sed -e 's/[[:space:]]*$//' -e '/^[[:space:]]*#/d' -e '/^$/d' "$1"
+	awk '
+		{ sub(/[ \t]+$/, "") }
+		/^$/ { next }
+		{
+			match($0, /^[ \t]*/); ind = RLENGTH
+		}
+		inblock && ind > key { print; next }
+		{ inblock = 0 }
+		/^[ \t]*#/ { next }
+		{
+			print
+			if ($0 ~ /:[ \t]*[|>][-+0-9]*[ \t]*$/) {
+				inblock = 1; key = ind
+				if ($0 ~ /^[ \t]*-[ \t]/) key = ind + 2
+			}
+		}
+	' "$1"
 }
 
 compared=0

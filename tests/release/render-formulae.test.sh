@@ -357,6 +357,44 @@ rc=0; run "$WORK/r11/scripts/release/render-formulae.sh" "$WORK/r11" || rc=$?
 check "a short digest is rejected" "3" "$rc"
 contains "and the error gives the length" "$WORK/out" "is 6 characters, not 64"
 
+# The size cap is exact: a signed manifest of exactly MAX_SUMS_BYTES passes the
+# size check and goes on to be rendered, one byte more is refused as oversized.
+for size in 4096 4097; do
+	publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
+	cp "$RELEASES/Glyndor__podup/SHA256SUMS" "$WORK/tmpsums"
+	pad=$(( size - $(stat -c%s "$WORK/tmpsums") - 64 - 2 - 1 ))
+	{
+		cat "$WORK/tmpsums"
+		printf '%064d  ' 0
+		head -c "$pad" /dev/zero | tr '\0' x
+		printf '\n'
+	} > "$WORK/tmpsums2"
+	check "the fixture manifest is exactly $size bytes" "$size" "$(stat -c%s "$WORK/tmpsums2")"
+	resign "$WORK/tmpsums2" Glyndor/podup
+	new_root "$WORK/cap$size"
+	generator_with "$WORK/cap$size/scripts/release/render-formulae.sh" "$PODUP"
+	rc=0; run "$WORK/cap$size/scripts/release/render-formulae.sh" "$WORK/cap$size" || rc=$?
+	if [ "$size" = 4096 ]; then
+		check "a signed manifest of exactly 4096 bytes is accepted" "0" "$rc"
+	else
+		check "a signed manifest of 4097 bytes is refused" "3" "$rc"
+		contains "and is named as over the cap" "$WORK/out" "over the 4096-byte cap"
+	fi
+done
+
+# An uppercase digest in the signed manifest is well-formed hexadecimal, but the
+# renderer compares it with the lowercase sha256sum of the download: it must be
+# refused rather than rendered under a digest that was not the one verified.
+publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
+awk '{ print toupper($1) "  " $2 }' "$RELEASES/Glyndor__podup/SHA256SUMS" > "$WORK/tmpsums"
+resign "$WORK/tmpsums" Glyndor/podup
+new_root "$WORK/upper"
+generator_with "$WORK/upper/scripts/release/render-formulae.sh" "$PODUP"
+rc=0; run "$WORK/upper/scripts/release/render-formulae.sh" "$WORK/upper" || rc=$?
+check "an uppercase digest in the manifest is not rendered" "3" "$rc"
+contains "and the refusal is the digest comparison" "$WORK/out" "has digest"
+check "and no formula is written" "0" "$(find "$WORK/upper/Formula" -name '*.rb' | wc -l)"
+
 # --- two healthy products together -------------------------------------------
 # The plain multi-product case: the suite otherwise only ever pairs a good
 # product with a broken one, and this is the shape the second real product takes.

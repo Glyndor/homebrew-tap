@@ -9,17 +9,13 @@ name: Audit
 # `<caller job id> / <inner job name>` and the file is not part of that name.
 
 on:
-  # A schedule, because `push: main` does not see the commits this gate exists
-  # to check. update.yml lands the rendered formulae through the GraphQL
-  # createCommitOnBranch mutation with GITHUB_TOKEN, and GitHub raises no
-  # workflow run for an event that token caused. Measured 2026-09-06:
-  # Formula/podup.rb was rewritten on `main` by github-actions[bot] on
-  # 2026-09-03, 2026-09-04 and 2026-09-05, and `gh run list --branch main`
-  # carried no `push` event at all since 2026-09-02. So the one check that
-  # reads the published output against an external standard ran only on pull
-  # requests, and this repository takes almost none: the update commits
-  # straight to `main` by design, because the organisation forbids Actions
-  # from opening pull requests.
+  # The schedule checks published formulae against changes in Homebrew's rules
+  # even when this repository has not changed. App-authenticated update commits
+  # also trigger the push run.
+  #
+  # Historical measurement, 2026-09-06: updates then used GITHUB_TOKEN, whose
+  # events did not trigger workflows. Formula/podup.rb changed on September
+  # 3, 4 and 5 with no push run since September 2.
   #
   # That is how #146 sat for three days. `brew audit` had started refusing the
   # declared version as redundant with the one it scans from the url, every

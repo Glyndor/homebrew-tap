@@ -4,8 +4,8 @@
 # Pull-based, mirroring Glyndor/apt: no product pushes into this repository. This
 # reads each product's public GitHub release, verifies its signed SHA256SUMS
 # against the org release-signing key, and renders a formula that installs the
-# macOS binary from that release with the verified checksum. macOS only: Linux
-# is served by the apt repo (apt.glyndor.net).
+# macOS and Linux binaries from that release with verified checksums. The apt
+# repository (apt.glyndor.net) also serves supported Debian-based systems.
 #
 # Run by .github/workflows/update.yml on a schedule and on demand.
 #
@@ -94,15 +94,15 @@ while [ $# -gt 0 ]; do
 done
 
 # Products to publish, one per line:
-#   repo|formula|Class|SPDX licence|description|arm64|x86_64|version check
+#   repo|formula|Class|SPDX licence|description|mac-arm64|mac-x86_64|linux-arm64|linux-x86_64|version check
 #
 # An asset field of "-" means the product publishes nothing for that
-# architecture and the formula omits it; at least one must be a real name. An
+# OS/architecture and the formula omits it; at least one must be a real name. An
 # EMPTY field stays an error, because that is what a dropped column looks like.
 #
-# `arm64`/`x86_64` are the macOS release asset names, and `version check` is the
-# argument the formula's test block passes to the installed binary. Add a
-# product here once it ships macOS binaries with a signed SHA256SUMS. Keep it in
+# The four asset fields name macOS and Linux release binaries, respectively.
+# `version check` is the argument the formula's test block passes to the installed
+# binary. Add a product once it ships signed SHA256SUMS and asset provenance. Keep it in
 # step with the apt repo's PRODUCTS list where a product ships on both.
 #
 # The licence and the version check used to be written into the template for
@@ -486,6 +486,33 @@ render_product() { # $1=table entry
 			echo "::error::the PRODUCTS entry \"$entry\" has no $field"
 			return 1
 		}
+	done
+
+	# The formula name becomes a path under Formula/ and the class name is a Ruby
+	# constant; both are held to what they are. A "/" or ".." in the name would
+	# write outside Formula/, and a ";" in the class would add Ruby. The match is
+	# made in the C locale: in a UTF-8 one a range such as a-z also matches
+	# accented letters. The roster belongs to this repository, so this is defence
+	# in depth for the day it has an automated source, not an answer to a known
+	# attack.
+	printf '%s' "$formula" | LC_ALL=C grep -qE '^[a-z0-9][a-z0-9._+@-]*$' || {
+		echo "::error::the PRODUCTS entry \"$entry\" has an invalid formula name \"$formula\""
+		return 1
+	}
+	printf '%s' "$cls" | LC_ALL=C grep -qE '^[A-Z][A-Za-z0-9]*$' || {
+		echo "::error::the PRODUCTS entry \"$entry\" has an invalid class name \"$cls\""
+		return 1
+	}
+	# The licence, description and version check are written inside Ruby double
+	# quotes without escaping, so a quote, a backslash or an interpolation would
+	# end the string or run code.
+	for field in licence desc version_check; do
+		case "${!field}" in
+			*\"* | *\\* | *'#{'*)
+				echo "::error::the PRODUCTS entry \"$entry\" has a $field that would end or escape a Ruby string"
+				return 1
+				;;
+		esac
 	done
 
 	tag="$(gh release view --repo "$repo" --json tagName --jq .tagName)" || {

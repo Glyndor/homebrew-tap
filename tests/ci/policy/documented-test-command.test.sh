@@ -56,7 +56,7 @@ out="$(cd "$WORK/t" && PATH="$WORK/bin:$PATH" bash -c "$block" 2>&1)"
 rc=$?
 check "with every suite passing the documented command succeeds" "0" "$rc"
 
-flat="$(grep -nE 'tests/\*\.(test\.)?sh|scripts/\*\.sh' "$HERE/CONTRIBUTING.md" "$HERE/.github/PULL_REQUEST_TEMPLATE.md" | wc -l | tr -d ' ')"
+flat="$(cat "$HERE/CONTRIBUTING.md" "$HERE/.github/PULL_REQUEST_TEMPLATE.md" | grep -cE 'tests/\*\.(test\.)?sh|scripts/\*\.sh')"
 check "no flat glob over tests/ or scripts/ is documented" "0" "$flat"
 
 echo

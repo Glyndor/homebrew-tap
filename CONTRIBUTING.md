@@ -113,8 +113,11 @@ it. That happened in the sibling `apt` repository and went unnoticed for a day.
 
 **A test you have not watched fail is not a test.** Before claiming a check
 works, delete or invert the control it covers and confirm it goes red for the
-reason it names. Four ways that goes wrong are written up in
-`standards/testing`.
+reason it names. Four ways that goes wrong: the change you made changed nothing; it changed
+something the test does not look at; the test went red, but for a reason other
+than the one it names; or the same tool that made the change also confirmed it.
+Confirm from something that took no part in the change, and read the failure
+message, not the colour.
 
 Assert **which** failure fired, never that some failure did. Everything runs
 under `set -euo pipefail`, so almost any mistake exits non-zero.
@@ -141,6 +144,8 @@ and red immediately after. Stage first, then check.
 | `freshness.yml` | something scheduled stopped happening elsewhere |
 | `dco.yml`, `line-limit.yml`, `workflow-lint.yml` | one rule each |
 | `update.yml` | the hourly regeneration, which commits to `main` |
+| `drift.yml` | this repository's copy of a reusable workflow, or of the renderer's verification logic, no longer agrees with its sibling channels |
+| `dco-on-main.yml` | a human commit reached `main` without a `Signed-off-by` trailer; detection after the push, not prevention |
 
 Every reusable lives in `.github/workflows/reusable-*.yml` as a copy taken from
 a named `Glyndor/.github` tag. Nothing is pulled remotely.

@@ -2,17 +2,10 @@ name: DCO on main
 
 # Detection, not prevention, and the difference is the whole point of this file.
 #
-# This repository's ruleset omits required status checks so that update.yml can
-# commit straight to `main` -- a required check rejects a push whose commits no
-# check has run on yet. Dropping them took the DCO gate with it, so a human pull
-# request can merge without a `Signed-off-by:` trailer and nothing says a word.
-# Four already have.
-#
-# Nothing here stops that. By the time this runs the commit is on `main` and
-# `main` is what `brew install` reads. What it buys is that the fifth one is
-# visible within a minute instead of surviving until somebody audits the log by
-# hand -- the same trade apt's publish.yml makes for its read-back check: "a red
-# run and a forward fix is the archive's policy everywhere else".
+# Human pull requests must pass the required DCO check. The updater GitHub App
+# bypasses required checks for generated commits; humans have no bypass under
+# the documented ruleset. This push watcher reports any unsigned human commit
+# that nevertheless reaches main, after publication rather than before it.
 #
 # Commits pushed by github-actions[bot] or by glyndor-updater[bot], the app
 # update.yml commits through, are exempt, and that is not a loophole.
@@ -22,12 +15,6 @@ name: DCO on main
 # attestation nobody made -- which is worse than its absence, and was rejected
 # when it was proposed. Exempting the bot scopes the rule to who it applies to;
 # it does not fake compliance.
-#
-# Prevention needs one of three things, none of them local to this repository:
-# the org-wide lock on Actions opening pull requests lifted, a GitHub App
-# identity for the bot (apps CAN be bypass actors, github-actions[bot] cannot),
-# or the bot pushing to a side ref where checks run before `main` fast-forwards.
-# See this repository's open issue.
 #
 # Push to main only, which is the only place its question exists: it reports a
 # human-authored commit that arrived without a sign-off. It gates nothing. By

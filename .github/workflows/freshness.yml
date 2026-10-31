@@ -126,13 +126,10 @@ jobs:
       workflow: drift.yml
       max-age-days: 3
 
-  # audit.yml gained a daily cron in #148 and nothing watched it. That cron is
-  # the only thing that runs `brew audit` against the published formulae at
-  # all: the workflow's `push` trigger cannot see the commits that change them,
-  # because update.yml writes them with createCommitOnBranch under GITHUB_TOKEN
-  # and GitHub starts no workflow for that token's events. So the audit runs on
-  # the schedule or it does not run, and a cron that stops takes the only
-  # external standard the archive is measured against with it.
+  # audit.yml gained a daily cron in #148. It checks the published formulae
+  # against Homebrew's external rules even without a repository change, so its
+  # schedule needs watching independently of push runs. Update commits now use
+  # the updater app and trigger those push runs too.
   #
   # Added after the cron rather than with it, the same order freshness-itself
   # took and for the same reason: reusable-schedule-freshness fails when the

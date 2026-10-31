@@ -6,12 +6,13 @@ formula rests on; this page is the assessor's view: one row per threat, the
 control that answers it, and the evidence that the control is real. Residual
 risks come last, on purpose.
 
-Every `path:line` below was read from this repository on 2026-09-02. Evidence
-is of three kinds: a **test** is a case under `tests/` that fails when the
+The original `path:line` references were recorded on 2026-09-02; paths were
+updated after the directory split. Admission controls and the documented ruleset
+were checked against the local tree on 2026-10-31. Evidence is of three kinds: a **test** is a case under `tests/` that fails when the
 control is removed from the file it covers; a **workflow** is a job that runs
 on every push, pull request or schedule, and here that is weaker than it sounds,
-because the ruleset on `main` requires no status check at all
-(`CONTRIBUTING.md:35-38`); a **measurement** is a number or an outcome read off
+because the updater app bypasses the required checks on `main`; human pull
+requests must pass them (`CONTRIBUTING.md`, “Branch rules”); a **measurement** is a number or an outcome read off
 a file or a run, with the date.
 
 ## What the tap is, and is not
@@ -71,12 +72,22 @@ pushed here by a product and no product holds a credential on this repository
 | One product's broken release removes or holds back another's | each product renders on its own; a failure leaves that product's formula as it was, the rest still commit, and the job fails last so the skip is loud (`scripts/release/render-formulae.sh:422-434`, `update.yml:96-108`, `:191-199`) | test: `tests/release/render-formulae.test.sh:245-248`, `tests/publication/update-workflow.test.sh:129-131` (exit 3 does not abort the step), `:241` (the failure step is last) |
 | A render that empties the tap is committed | the validate step refuses an empty `Formula/` before `brew` is set up, so the guard does not depend on the toolchain (`update.yml:139-144`) | test: `tests/publication/update-workflow.test.sh:155` (an emptied `Formula/` fails validation) |
 
+The manifest signature authenticates `SHA256SUMS`, not the tag returned by the
+release lookup. Before writing, `verify_attestation` downloads **every** declared
+asset, compares its SHA-256 with the signed manifest, and requires provenance
+for `refs/tags/$tag` from `$repo/.github/workflows/release.yml`. The version
+character check prevents Ruby interpolation; the provenance check binds the
+asset to the requested tag. Neither proves that trusted build inputs are benign.
+`release_order` then refuses a candidate below the served SemVer precedence.
+`tests/release/render-formulae-attestation.test.sh` exercises these checks,
+including a correctly authenticated older release and the manual override.
+
 ### Publication: how a commit reaches `main`
 
 | Threat | Control | Evidence |
 |---|---|---|
 | A malicious or careless formula committed by a human | `main` accepts only signed commits and linear history, and the bot's commits are GitHub-signed; together with the required pull request and checks, and it says who committed, not whether the change was right (`CONTRIBUTING.md:35-38`, `:76-78`). A hand edit to a formula is overwritten within the hour: the renderer rewrites every declared formula from the signed release and commits whatever differs (`scripts/release/render-formulae.sh:388-412`, `update.yml:110-115`). An edit to the generator itself is not | the ruleset lives on GitHub, not in this tree, and this page cites what `CONTRIBUTING.md` records of it; test: none for the overwrite; `tests/publication/update-workflow.test.sh:218-225` holds the commit path to `createCommitOnBranch` so a refactor to `git push` cannot ship an unsigned commit |
-| A human commit lands without a `Signed-off-by` trailer (the DCO gap) | `dco.yml` runs on pull requests and is a required check; `dco-on-main.yml` reports every human-authored commit that arrived without the trailer, exempting the bot by who pushed rather than by what the commit says (`dco-on-main.yml:36-61`, `scripts/governance/check-dco-on-main.sh:38-47`, `:77-91`). Detection, not prevention: the commit is already on `main` when it speaks | test: `tests/governance/check-dco-on-main.test.sh:72` (an unsigned human commit fails), `:97` (a human using the bot's exact subject is still reported), `:112` (an author field impersonating the bot is still reported) |
+| A human commit lands without a `Signed-off-by` trailer (the DCO gap) | `dco.yml` runs on pull requests and is a required check; `dco-on-main.yml` reports every human-authored commit that arrived without the trailer, exempting the bot by who pushed rather than by what the commit says (`dco-on-main.yml:36-61`, `scripts/governance/check-dco-on-main.sh:38-47`, `:77-91`). The required pull-request DCO check prevents an unsigned proposed commit from merging through that path. The push watcher detects any unsigned human commit that nevertheless lands; it cannot undo publication | test: `tests/governance/check-dco-on-main.test.sh:72` (an unsigned human commit fails), `:97` (a human using the bot's exact subject is still reported), `:112` (an author field impersonating the bot is still reported) |
 | A pull request neutralises a check by replacing its caller with a stub of the same name | none that prevents it; `CODEOWNERS` lists `.github/workflows/` so that required review from Code Owners can be switched on the day a second person gets Write (`.github/CODEOWNERS:4-17`) | measurement: single maintainer, read off `.github/CODEOWNERS:2` |
 | A caller quietly switches the test job off | `workflow-lint` asserts from outside the shell job that every caller of `reusable-shell-ci` passes a `test-command` that runs a suite, and that at least one caller exists (`reusable-workflow-lint.yml:113-156`) | test: `tests/ci/reusable/reusable-workflow-lint.test.sh:108` (an empty `test-command` is refused), `:130` (a tree with no caller is refused) |
 | A test exists and no workflow runs it, or a script has no test | one watcher fails when a suite under `tests/` is invoked by no workflow, another when a script under `scripts/` has no suite, each including itself (`scripts/quality/check-test-coverage.sh:22-35`, `tests.yml:31-50`) | test: `tests/ci/suites/ci-runs-every-test.test.sh:59`, `:75`; `tests/quality/check-test-coverage.test.sh` |
@@ -127,9 +138,26 @@ reported as drift.
 - **One maintainer.** Every pull request is reviewed and merged by its author
   (`.github/CODEOWNERS:2`), and a required status check is matched by name, so
   the mitigation for a second person with Write is written down rather than on.
-- **A valid signature is the end of what the tap can check.** A product whose
-  release pipeline is compromised signs what it likes; admission here binds the
-  formula to the manifest, not the manifest to good intent.
+- **A compromised trusted release pipeline.** Manifest signatures and per-asset
+  provenance authenticate the publisher and build context, not good intent. A
+  malicious binary built and signed by the trusted pipeline can pass both.
+- **The roster is trusted, and its fields are checked anyway.** The formula name
+  becomes a path and the class name a Ruby constant; the licence, description and
+  version check are written inside Ruby quotes without escaping. The renderer
+  holds the name to lowercase letters, digits, dot, plus, at and hyphen, the
+  class to a capitalised identifier, and refuses a quote, a backslash or `#{` in
+  the three metadata fields, so none of them can leave `Formula/` or add Ruby. A
+  newline splits the roster record and is refused as a missing field. The roster
+  belongs to this repository, so this is defence in depth for the day it has an
+  automated source.
+- **Rollback requires an explicit override or a changed trust boundary.** The
+  renderer refuses a release older than the served version by SemVer precedence
+  before writing, even when signature and provenance are valid. Equal precedence
+  still renders. `ALLOW_RELEASE_DOWNGRADE=1` permits a deliberate manual rollback
+  without bypassing signature, digest or provenance checks; `update.yml` never
+  sets it. This compares against the local served formula, not an independent
+  historical version ledger: replacing that baseline or changing the renderer
+  remains possible for an actor who controls publication.
 - **Monitoring shares fate with the monitored.** The update, the audit and the
   freshness watchers all run on GitHub Actions. An outage there stops the tap
   and its alarms together, and unlike apt there is no expiry on the artifact:

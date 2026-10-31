@@ -87,6 +87,14 @@ jobs:
           mkdir -p "$(dirname "$tap_dir")"
           ln -s "$GITHUB_WORKSPACE" "$tap_dir"
 
+          # Homebrew now refuses to load a formula from a tap it was not told to
+          # trust ("Refusing to load formula glyndor/tap/podup from untrusted
+          # tap"), which turned this job red on main on 2026-10-30 with no change
+          # to the tap. The linked workspace is the repository under review, so
+          # trusting it here widens nothing. It has to come after the link: the
+          # tap does not exist for brew before then.
+          brew trust glyndor/tap
+
           # Name every formula explicitly instead of passing `--tap`. Selecting
           # by tap means a link that silently resolved to nothing audits an
           # empty set and still exits 0: a green gate that checked no formula,

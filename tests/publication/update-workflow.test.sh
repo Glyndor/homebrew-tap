@@ -253,6 +253,61 @@ check "and pins expectedHeadOid" "yes" \
 check "and references branch main in the GraphQL argument" "yes" \
 	"$(branch_re='branchName:$branch'; grep -qF "$branch_re" "$WORK/gh/.stdin" 2>/dev/null && echo yes || echo no)"
 
+# The checks above only look for NAMES in the query. What matters is the values
+# the step sends: a mutation whose parent is not the checked-out HEAD, or whose
+# branch or repository is wrong, would still contain every one of those words
+# (measured: replacing the head with a constant left every check above green).
+payload="$WORK/gh/.stdin"
+check "the expected parent is the HEAD the step rendered from" \
+	"$(git -C "$WORK/h" rev-parse HEAD)" "$(jq -r '.variables.head' "$payload" 2>/dev/null)"
+check "and the branch it commits to is main" "main" \
+	"$(jq -r '.variables.branch' "$payload" 2>/dev/null)"
+check "and the repository is the one the job runs in" "Glyndor/homebrew-tap" \
+	"$(jq -r '.variables.repo' "$payload" 2>/dev/null)"
+
+# --- two updates racing for the same parent -------------------------------------
+#
+# expectedHeadOid is the only thing that stops a slow run from overwriting a
+# faster one. Play GitHub's side with a stub that keeps the branch head in a
+# file, accepts a mutation only when it names the current head, and advances the
+# head when it accepts one. Run the step twice from the same checkout: the
+# second names a head that is no longer current.
+race_gh() { # $1=dir
+	mkdir -p "$1"
+	cat > "$1/gh" <<'RACE'
+#!/usr/bin/env bash
+payload="$(cat)"
+exec 9>"$STUB_DIR/.lock"
+flock 9
+want="$(jq -r '.variables.head' <<<"$payload")"
+current="$(cat "$STUB_DIR/.remote-head")"
+if [ "$want" != "$current" ]; then
+	echo "gh: Expected branch to point to \"$want\" but it did not." >&2
+	exit 1
+fi
+echo "advanced-by-$$" > "$STUB_DIR/.remote-head"
+echo "$want" >> "$STUB_DIR/.accepted"
+exit 0
+RACE
+	chmod +x "$1/gh"
+}
+
+race_gh "$WORK/race"
+git -C "$WORK/h" rev-parse HEAD > "$WORK/race/.remote-head"
+: > "$WORK/race/.accepted"
+run_race() {
+	( cd "$WORK/h" && PATH="$WORK/race:$PATH" STUB_DIR="$WORK/race" REPO="Glyndor/homebrew-tap" \
+		GH_TOKEN="dummy" bash "$COMMIT" ) > "$WORK/out" 2>&1
+}
+
+rc=0; run_race || rc=$?
+check "the first update from a head is accepted" "0" "$rc"
+check "and says so" "1" "$(grep -c 'Committed the' "$WORK/out")"
+rc=0; run_race || rc=$?
+check "a second update from the same head is refused" "1" "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
+check "and does not claim to have committed" "0" "$(grep -c 'Committed the' "$WORK/out")"
+check "and the branch moved exactly once" "1" "$(wc -l < "$WORK/race/.accepted")"
+
 # --- a brand-new (untracked) formula ----------------------------------------
 # Every case above modifies or removes a tracked file. The first formula of a
 # newly added product is untracked at this point, and the old `git diff`-only

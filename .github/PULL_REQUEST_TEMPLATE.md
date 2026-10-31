@@ -10,8 +10,8 @@
 
 <!-- How was this tested? Check all that apply. -->
 
-- [ ] `./tests/*.test.sh` pass locally
-- [ ] `shellcheck scripts/*.sh tests/*.sh` is clean
+- [ ] every `*.test.sh` under `tests/` passes locally (the command in CONTRIBUTING.md)
+- [ ] `shellcheck` is clean over every `*.sh` under `scripts/` and `tests/`
 - [ ] `brew style`/`brew audit` pass, for changes to `Formula/` or the renderer
 
 <!--

@@ -89,8 +89,9 @@ There is no `develop`. Branch from `main`, open a pull request against
 
 ```sh
 fail=0
-for t in tests/*.test.sh; do "./$t" || { echo "FAILED: $t"; fail=1; }; done
-shellcheck scripts/*.sh tests/*.sh || fail=1
+while IFS= read -r -d '' t; do bash "$t" || { echo "FAILED: $t"; fail=1; }; done \
+  < <(find tests -name '*.test.sh' -print0 | sort -z)
+find scripts tests -name '*.sh' -print0 | xargs -0 shellcheck || fail=1
 [ "$fail" -eq 0 ] && echo "all green" || echo "SOMETHING FAILED"
 [ "$fail" -eq 0 ]
 ```

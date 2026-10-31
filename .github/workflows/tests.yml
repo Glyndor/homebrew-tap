@@ -36,6 +36,11 @@ jobs:
   shell:
     uses: ./.github/workflows/reusable-shell-ci.yml
     with:
+      # Only prose the suite does not read. README.md is read by
+      # check-products-consistent, so it is not listed;
+      # tests/shell-ci-scope.test.sh fails if this list grows to a file the
+      # suite reads.
+      skip-suite-paths: CONTRIBUTING.md docs/*.md
       test-command: >-
         ./tests/check-suite-completeness.test.sh
         ./tests/render-formulae.test.sh
@@ -49,6 +54,8 @@ jobs:
         ./tests/lint-workflow-shell.test.sh
         ./tests/reusable-line-limit.test.sh
         ./tests/reusable-shell-ci.test.sh
+        ./tests/shell-ci-scope.test.sh
+        ./tests/cancel-policy.test.sh
         ./tests/reusable-empty-diff.test.sh
         ./tests/reusable-dco.test.sh
         ./tests/check-editorconfig.test.sh

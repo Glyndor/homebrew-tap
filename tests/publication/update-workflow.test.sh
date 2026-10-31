@@ -265,6 +265,17 @@ check "and the branch it commits to is main" "main" \
 check "and the repository is the one the job runs in" "Glyndor/homebrew-tap" \
 	"$(jq -r '.variables.repo' "$payload" 2>/dev/null)"
 
+# The query must tie each argument to the variable that carries its value.
+# shellcheck disable=SC2016 # $head, $branch and $repo are GraphQL variables, literal on purpose
+{
+	check "expectedHeadOid is bound to the head variable" "yes" \
+		"$(grep -qF 'expectedHeadOid:$head' "$payload" && echo yes || echo no)"
+	check "the branch name is bound to the branch variable" "yes" \
+		"$(grep -qF 'branchName:$branch' "$payload" && echo yes || echo no)"
+	check "the repository is bound to the repo variable" "yes" \
+		"$(grep -qF 'repositoryNameWithOwner:$repo' "$payload" && echo yes || echo no)"
+}
+
 # --- two updates racing for the same parent -------------------------------------
 #
 # expectedHeadOid is the only thing that stops a slow run from overwriting a
@@ -279,7 +290,15 @@ race_gh() { # $1=dir
 payload="$(cat)"
 exec 9>"$STUB_DIR/.lock"
 flock 9
-want="$(jq -r '.variables.head' <<<"$payload")"
+# The head is read from the variable the QUERY binds to expectedHeadOid, not from
+# a variable name assumed here: a query that pins another value and leaves
+# variables.head correct must not look right.
+bound="$(jq -r '.query' <<<"$payload" | sed -nE 's/.*expectedHeadOid:\$([A-Za-z_]+).*/\1/p')"
+if [ -z "$bound" ]; then
+	echo "gh: the query does not bind expectedHeadOid to a variable." >&2
+	exit 1
+fi
+want="$(jq -r --arg v "$bound" '.variables[$v] // empty' <<<"$payload")"
 current="$(cat "$STUB_DIR/.remote-head")"
 if [ "$want" != "$current" ]; then
 	echo "gh: Expected branch to point to \"$want\" but it did not." >&2
@@ -299,6 +318,15 @@ run_race() {
 	( cd "$WORK/h" && PATH="$WORK/race:$PATH" STUB_DIR="$WORK/race" REPO="Glyndor/homebrew-tap" \
 		GH_TOKEN="dummy" bash "$COMMIT" ) > "$WORK/out" 2>&1
 }
+
+# The stub itself must be able to tell: a query pinning another variable is
+# refused even though variables.head carries the current head.
+good_head="$(cat "$WORK/race/.remote-head")"
+# shellcheck disable=SC2016 # GraphQL variable names, literal on purpose
+mismatch="$(jq -cn --arg h "$good_head" '{query:"mutation($head:GitObjectID!,$zero:GitObjectID!){createCommitOnBranch(input:{expectedHeadOid:$zero})}",variables:{head:$h,zero:"0000000000000000000000000000000000000000"}}')"
+rc=0; printf '%s' "$mismatch" | STUB_DIR="$WORK/race" "$WORK/race/gh" >/dev/null 2>&1 || rc=$?
+check "the race stub refuses a query that pins a different variable than head" "1" "$rc"
+check "and the branch did not move" "$good_head" "$(cat "$WORK/race/.remote-head")"
 
 rc=0; run_race || rc=$?
 check "the first update from a head is accepted" "0" "$rc"

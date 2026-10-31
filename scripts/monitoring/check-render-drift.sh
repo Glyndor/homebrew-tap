@@ -86,10 +86,6 @@ SIBLING_REPO="Glyndor/scoop-bucket"
 # repository renders Ruby formulae; the sibling renders JSON manifests.
 LOCAL_FILE="scripts/release/render-formulae.sh"
 REMOTE_FILE="scripts/release/render-manifests.sh"
-# The path the sibling used before it was split into folders. Tried only when the
-# new one is absent, so the check keeps working in the window between the two
-# repositories' moves. Delete it, and the fallback below, once both have moved.
-REMOTE_FILE_LEGACY="scripts/render-manifests.sh"
 
 # Units that MUST stay byte-identical (after stripping comments and blanks).
 # Everything inside this array is the contract.
@@ -205,27 +201,8 @@ if [ ! -f "$local_script" ]; then
 	absent=1
 else
 	remote_url="https://raw.githubusercontent.com/$SIBLING_REPO/main/$REMOTE_FILE"
-	legacy_url="https://raw.githubusercontent.com/$SIBLING_REPO/main/$REMOTE_FILE_LEGACY"
 
-	fetch_remote() { curl -fsSL --connect-timeout 10 --max-time 60 "$1" > "$tmp/remote" 2>"$tmp/curl.err"; }
-
-	# The error that matters on a double failure is the one for the preferred
-	# path, so it is kept while the legacy one is tried.
-	fetched=0
-	if fetch_remote "$remote_url"; then
-		fetched=1
-	else
-		cp "$tmp/curl.err" "$tmp/curl.err.preferred"
-		if fetch_remote "$legacy_url"; then
-			fetched=1
-			REMOTE_FILE="$REMOTE_FILE_LEGACY"
-			remote_url="$legacy_url"
-		else
-			cp "$tmp/curl.err.preferred" "$tmp/curl.err"
-		fi
-	fi
-
-	if [ "$fetched" != 1 ]; then
+	if ! curl -fsSL --connect-timeout 10 --max-time 60 "$remote_url" > "$tmp/remote" 2>"$tmp/curl.err"; then
 		echo "::error::could not fetch $REMOTE_FILE from $SIBLING_REPO: the request to GitHub failed" >&2
 		echo "  $remote_url" >&2
 		if [ -s "$tmp/curl.err" ]; then

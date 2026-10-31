@@ -42,14 +42,6 @@ if [ "${CURL_STUB_FAIL:-}" = "1" ]; then
 	echo "curl: stubbed network failure to GitHub" >&2
 	exit 22
 fi
-# CURL_STUB_ONLY limits the stub to URLs ending in that path, so a sibling that
-# serves only one of its two locations can be played.
-if [ -n "${CURL_STUB_ONLY:-}" ]; then
-	case "${*: -1}" in
-		*"$CURL_STUB_ONLY") ;;
-		*) echo "curl: (22) The requested URL returned error: 404" >&2; exit 22 ;;
-	esac
-fi
 cat "${CURL_STUB_FILE:-/dev/null}"
 STUB
 chmod +x "$work/bin/curl"
@@ -606,29 +598,6 @@ expect_eq "$exit_code" "1" "a local file carrying no units fails"
 expect_not_contains "$combined" "the verification logic agrees" \
 	"and does not print the success line"
 cp "$work/local-backup.sh" "$work/scripts/release/render-formulae.sh"
-
-echo
-echo "=== the sibling's renderer is found at its new or its old path ==="
-#
-# While the sibling repository is split into folders its renderer is at one path
-# or the other. The check tries the new one first and falls back to the old, so
-# the window between the two moves does not turn it red; once neither exists it
-# is a fetch failure naming the preferred path, not drift.
-CURL_STUB_ONLY="scripts/release/render-manifests.sh" run_with_remote "$work/scripts/release/render-formulae.sh"
-exit_code=$(cat "$work/exit"); combined="$(cat "$work/out")$(cat "$work/err")"
-expect_eq "$exit_code" "0" "a sibling serving only the new path is compared"
-expect_compare_count_gt_zero "$combined" "and units were really compared"
-
-CURL_STUB_ONLY="scripts/render-manifests.sh" run_with_remote "$work/scripts/release/render-formulae.sh"
-exit_code=$(cat "$work/exit"); combined="$(cat "$work/out")$(cat "$work/err")"
-expect_eq "$exit_code" "0" "a sibling serving only the old path is compared"
-expect_compare_count_gt_zero "$combined" "and units were really compared"
-
-CURL_STUB_ONLY="nowhere/else.sh" run_with_remote "$work/scripts/release/render-formulae.sh"
-exit_code=$(cat "$work/exit"); combined="$(cat "$work/out")$(cat "$work/err")"
-expect_eq "$exit_code" "1" "a sibling serving neither path is a failure"
-expect_contains "$combined" "could not fetch scripts/release/render-manifests.sh" "naming the preferred path"
-expect_contains "$combined" "not drift" "and calling it a fetch failure, not drift"
 
 echo
 echo "--- summary ---"

@@ -40,7 +40,7 @@ jobs:
       # check-products-consistent, so it is not listed;
       # tests/ci/suites/shell-ci-scope.test.sh fails if this list grows to a file the
       # suite reads.
-      skip-suite-paths: CONTRIBUTING.md docs/*.md
+      skip-suite-paths: docs/*.md
       test-command: >-
         ./tests/ci/suites/check-suite-completeness.test.sh
         ./tests/release/render-formulae.test.sh
@@ -72,6 +72,7 @@ jobs:
         ./tests/ci/policy/jobs-are-bounded.test.sh
         ./tests/ci/policy/network-calls-are-bounded.test.sh
         ./tests/monitoring/check-suite-on-main.test.sh
+        ./tests/ci/policy/documented-test-command.test.sh
       # shellcheck: tests/quality/lint-workflow-shell.test.sh plants a violation and
       # requires the linter to report it, so it needs the linter. The gate
       # itself runs in the shellcheck job against the pinned binary; this one

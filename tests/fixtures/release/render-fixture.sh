@@ -195,6 +195,10 @@ case "$sub" in
 				echo "the signer workflow does not match $signer; cert-identity check failed" >&2
 				exit 1
 				;;
+			empty-list) echo '[]' ;;
+			empty-object) echo '{}' ;;
+			json-null) echo 'null' ;;
+			not-json) echo 'attestation verified' ;;
 			*)
 				echo "stub gh: unknown ATTEST_STUB_OUTCOME ${ATTEST_STUB_OUTCOME}" >&2
 				exit 90

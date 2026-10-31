@@ -14,7 +14,7 @@ welcome; unsolicited pull requests are not accepted.
 It is the Homebrew tap for Glyndor's products. It carries no product source:
 `Formula/*.rb` is generated from each product's latest signed release, with the
 release signature verified before anything is written. Edit
-`scripts/render-formulae.sh`, never the formulae themselves: the next scheduled
+`scripts/release/render-formulae.sh`, never the formulae themselves: the next scheduled
 run overwrites them, so a hand edit survives until the next hourly run and
 then disappears without a trace.
 
@@ -46,7 +46,7 @@ bypass covers the bot's push and nothing a human can do. Commits made through
 
 **The validation that runs INSIDE `update.yml` before the commit is the only
 gate between a bad render and `brew install`**, because the bot's push skips the
-required checks. It is covered by `tests/update-workflow.test.sh`, which
+required checks. It is covered by `tests/publication/update-workflow.test.sh`, which
 extracts the workflow's own `run:` blocks and executes them as they ship rather
 than against a copy.
 
@@ -57,7 +57,7 @@ request: an unsigned human commit would be a red run within a minute.
 
 The renderer rejects a release older than the version in the served formula.
 For an intentional rollback, make the desired signed release `latest`, then run
-`ALLOW_RELEASE_DOWNGRADE=1 ./scripts/render-formulae.sh` locally and review the
+`ALLOW_RELEASE_DOWNGRADE=1 ./scripts/release/render-formulae.sh` locally and review the
 diff before submitting it through the normal branch flow. This bypass leaves
 signature, digest and provenance verification enabled and logs a warning naming
 the product, served version and candidate version. Only the exact value `1`
@@ -103,11 +103,11 @@ included. The workflow chains the same scripts with `&&`, which is why CI has
 never been able to miss one.
 
 **Every script in `scripts/` needs a test.**
-`scripts/check-test-coverage.sh` fails when one does not, itself included --
+`scripts/quality/check-test-coverage.sh` fails when one does not, itself included --
 it lives in `scripts/`, so deleting its test makes it report itself.
 
 **Every test must be wired into a workflow.**
-`tests/ci-runs-every-test.test.sh` fails when one is not. An unregistered test
+`tests/ci/suites/ci-runs-every-test.test.sh` fails when one is not. An unregistered test
 sits in `tests/`, passes by hand, and reads as coverage while CI never runs
 it. That happened in the sibling `apt` repository and went unnoticed for a day.
 

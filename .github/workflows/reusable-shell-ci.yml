@@ -144,11 +144,11 @@ jobs:
       - name: Lint the shell embedded in workflows
         run: |
           set -euo pipefail
-          script=./scripts/lint-workflow-shell.sh
+          script=./scripts/quality/lint-workflow-shell.sh
           if [ ! -e "$script" ]; then
             echo "no $script in this repository; skipping"
           elif [ ! -x "$script" ]; then
-            echo "::error file=scripts/lint-workflow-shell.sh::$script exists but git records it non-executable, so it would be silently skipped. Fix with: git update-index --chmod=+x scripts/lint-workflow-shell.sh" >&2
+            echo "::error file=scripts/quality/lint-workflow-shell.sh::$script exists but git records it non-executable, so it would be silently skipped. Fix with: git update-index --chmod=+x scripts/quality/lint-workflow-shell.sh" >&2
             exit 1
           else
             "$script" "$SEVERITY"

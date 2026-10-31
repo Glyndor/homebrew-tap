@@ -31,15 +31,15 @@ pushed here by a product and no product holds a credential on this repository
 |---|---|---|
 | The formulae | `Formula/*.rb` on `main` | what `brew` executes as the installing user |
 | The rendered checksums | `sha256` lines inside each formula (`Formula/podup.rb:15,19,26,30`) | the only thing that binds a download to the release the tap verified |
-| The organization's release key (public half) | `scripts/render-formulae.sh:25`, with a second slot at `:37` | the trust anchor that admits a release into the tap |
+| The organization's release key (public half) | `scripts/release/render-formulae.sh:25`, with a second slot at `:37` | the trust anchor that admits a release into the tap |
 | `main` itself | this repository | every `brew update` reads it, and the bot writes to it without a pull request |
 
 ## Trust boundaries and actors
 
 - **A product's GitHub release.** Untrusted until its `SHA256SUMS.sig` verifies
-  against a configured key (`scripts/render-formulae.sh:102-164`). Its assets
+  against a configured key (`scripts/release/render-formulae.sh:102-164`). Its assets
   are attacker-influenced by definition: whoever can publish a release controls
-  them (`scripts/render-formulae.sh:173-175`).
+  them (`scripts/release/render-formulae.sh:173-175`).
 - **GitHub.** Hosts the repository, serves the release assets, runs the
   workflows, and signs the bot's commits through `createCommitOnBranch`
   (`update.yml:159-162`). One trust domain; see Out of scope.
@@ -64,29 +64,29 @@ pushed here by a product and no product holds a credential on this repository
 
 | Threat | Control | Evidence |
 |---|---|---|
-| A tampered or substituted release asset (a binary swapped after publication, or a `SHA256SUMS` rewritten to match it) | the checksum never comes from the asset; it is read from a `SHA256SUMS` whose detached Ed25519 signature verified first, and `brew` refuses a download whose bytes do not match the pinned digest (`scripts/render-formulae.sh:102-164`, `:166-197`) | test: `tests/render-formulae.test.sh:211` (an unverifiable signature skips the product and writes no formula), `:219` (an asset missing from the manifest), `:408`, `:421`, `:433` (a manifest that verifies but is malformed) |
-| A release signed by a wrong or rotated key | verification fails closed against every configured slot; exhausting the slots is an error, not a fallthrough, and the product keeps the formula it had (`scripts/render-formulae.sh:137-162`, `:426-433`) | test: `tests/render-formulae.test.sh:306` (two wrong keys still fail closed), `:395` (a well-formed key that did not sign it fails as a signature), `:248` (the skipped product keeps its formula) |
-| The trust anchor is swapped from outside the script | the key is a constant overridden only by `--pubkey` and `--pubkey2`; no environment variable reaches it (`scripts/render-formulae.sh:39-62`) | test: `tests/render-formulae.test.sh:273` (the environment cannot swap the trust anchor) |
-| A compromised product repository publishes a malicious release under a valid signature | the tap verifies that the manifest is the one the product published and that what it interpolates is well formed: a tag carrying Ruby is refused before it reaches the generated formula (`scripts/render-formulae.sh:287-317`), and a digest must be one entry of 64 hex characters (`:176-196`). It cannot tell a malicious binary from a good one when both are correctly signed, and the release job of the product holds the signing key (`update.yml:36-38`), so this is a residual risk, stated below | test: `tests/render-formulae.test.sh:323` (a release tag carrying Ruby is refused, and the error names the tag rather than the signature); none for the binary itself |
-| One product's broken release removes or holds back another's | each product renders on its own; a failure leaves that product's formula as it was, the rest still commit, and the job fails last so the skip is loud (`scripts/render-formulae.sh:422-434`, `update.yml:96-108`, `:191-199`) | test: `tests/render-formulae.test.sh:245-248`, `tests/update-workflow.test.sh:129-131` (exit 3 does not abort the step), `:241` (the failure step is last) |
-| A render that empties the tap is committed | the validate step refuses an empty `Formula/` before `brew` is set up, so the guard does not depend on the toolchain (`update.yml:139-144`) | test: `tests/update-workflow.test.sh:155` (an emptied `Formula/` fails validation) |
+| A tampered or substituted release asset (a binary swapped after publication, or a `SHA256SUMS` rewritten to match it) | the checksum never comes from the asset; it is read from a `SHA256SUMS` whose detached Ed25519 signature verified first, and `brew` refuses a download whose bytes do not match the pinned digest (`scripts/release/render-formulae.sh:102-164`, `:166-197`) | test: `tests/release/render-formulae.test.sh:211` (an unverifiable signature skips the product and writes no formula), `:219` (an asset missing from the manifest), `:408`, `:421`, `:433` (a manifest that verifies but is malformed) |
+| A release signed by a wrong or rotated key | verification fails closed against every configured slot; exhausting the slots is an error, not a fallthrough, and the product keeps the formula it had (`scripts/release/render-formulae.sh:137-162`, `:426-433`) | test: `tests/release/render-formulae.test.sh:306` (two wrong keys still fail closed), `:395` (a well-formed key that did not sign it fails as a signature), `:248` (the skipped product keeps its formula) |
+| The trust anchor is swapped from outside the script | the key is a constant overridden only by `--pubkey` and `--pubkey2`; no environment variable reaches it (`scripts/release/render-formulae.sh:39-62`) | test: `tests/release/render-formulae.test.sh:273` (the environment cannot swap the trust anchor) |
+| A compromised product repository publishes a malicious release under a valid signature | the tap verifies that the manifest is the one the product published and that what it interpolates is well formed: a tag carrying Ruby is refused before it reaches the generated formula (`scripts/release/render-formulae.sh:287-317`), and a digest must be one entry of 64 hex characters (`:176-196`). It cannot tell a malicious binary from a good one when both are correctly signed, and the release job of the product holds the signing key (`update.yml:36-38`), so this is a residual risk, stated below | test: `tests/release/render-formulae.test.sh:323` (a release tag carrying Ruby is refused, and the error names the tag rather than the signature); none for the binary itself |
+| One product's broken release removes or holds back another's | each product renders on its own; a failure leaves that product's formula as it was, the rest still commit, and the job fails last so the skip is loud (`scripts/release/render-formulae.sh:422-434`, `update.yml:96-108`, `:191-199`) | test: `tests/release/render-formulae.test.sh:245-248`, `tests/publication/update-workflow.test.sh:129-131` (exit 3 does not abort the step), `:241` (the failure step is last) |
+| A render that empties the tap is committed | the validate step refuses an empty `Formula/` before `brew` is set up, so the guard does not depend on the toolchain (`update.yml:139-144`) | test: `tests/publication/update-workflow.test.sh:155` (an emptied `Formula/` fails validation) |
 
 ### Publication: how a commit reaches `main`
 
 | Threat | Control | Evidence |
 |---|---|---|
-| A malicious or careless formula committed by a human | `main` accepts only signed commits and linear history, and the bot's commits are GitHub-signed; together with the required pull request and checks, and it says who committed, not whether the change was right (`CONTRIBUTING.md:35-38`, `:76-78`). A hand edit to a formula is overwritten within the hour: the renderer rewrites every declared formula from the signed release and commits whatever differs (`scripts/render-formulae.sh:388-412`, `update.yml:110-115`). An edit to the generator itself is not | the ruleset lives on GitHub, not in this tree, and this page cites what `CONTRIBUTING.md` records of it; test: none for the overwrite; `tests/update-workflow.test.sh:218-225` holds the commit path to `createCommitOnBranch` so a refactor to `git push` cannot ship an unsigned commit |
-| A human commit lands without a `Signed-off-by` trailer (the DCO gap) | `dco.yml` runs on pull requests and is a required check; `dco-on-main.yml` reports every human-authored commit that arrived without the trailer, exempting the bot by who pushed rather than by what the commit says (`dco-on-main.yml:36-61`, `scripts/check-dco-on-main.sh:38-47`, `:77-91`). Detection, not prevention: the commit is already on `main` when it speaks | test: `tests/check-dco-on-main.test.sh:72` (an unsigned human commit fails), `:97` (a human using the bot's exact subject is still reported), `:112` (an author field impersonating the bot is still reported) |
+| A malicious or careless formula committed by a human | `main` accepts only signed commits and linear history, and the bot's commits are GitHub-signed; together with the required pull request and checks, and it says who committed, not whether the change was right (`CONTRIBUTING.md:35-38`, `:76-78`). A hand edit to a formula is overwritten within the hour: the renderer rewrites every declared formula from the signed release and commits whatever differs (`scripts/release/render-formulae.sh:388-412`, `update.yml:110-115`). An edit to the generator itself is not | the ruleset lives on GitHub, not in this tree, and this page cites what `CONTRIBUTING.md` records of it; test: none for the overwrite; `tests/publication/update-workflow.test.sh:218-225` holds the commit path to `createCommitOnBranch` so a refactor to `git push` cannot ship an unsigned commit |
+| A human commit lands without a `Signed-off-by` trailer (the DCO gap) | `dco.yml` runs on pull requests and is a required check; `dco-on-main.yml` reports every human-authored commit that arrived without the trailer, exempting the bot by who pushed rather than by what the commit says (`dco-on-main.yml:36-61`, `scripts/governance/check-dco-on-main.sh:38-47`, `:77-91`). Detection, not prevention: the commit is already on `main` when it speaks | test: `tests/governance/check-dco-on-main.test.sh:72` (an unsigned human commit fails), `:97` (a human using the bot's exact subject is still reported), `:112` (an author field impersonating the bot is still reported) |
 | A pull request neutralises a check by replacing its caller with a stub of the same name | none that prevents it; `CODEOWNERS` lists `.github/workflows/` so that required review from Code Owners can be switched on the day a second person gets Write (`.github/CODEOWNERS:4-17`) | measurement: single maintainer, read off `.github/CODEOWNERS:2` |
-| A caller quietly switches the test job off | `workflow-lint` asserts from outside the shell job that every caller of `reusable-shell-ci` passes a `test-command` that runs a suite, and that at least one caller exists (`reusable-workflow-lint.yml:113-156`) | test: `tests/reusable-workflow-lint.test.sh:108` (an empty `test-command` is refused), `:130` (a tree with no caller is refused) |
-| A test exists and no workflow runs it, or a script has no test | one watcher fails when a suite under `tests/` is invoked by no workflow, another when a script under `scripts/` has no suite, each including itself (`scripts/check-test-coverage.sh:22-35`, `tests.yml:31-50`) | test: `tests/ci-runs-every-test.test.sh:59`, `:75`; `tests/check-test-coverage.test.sh` |
+| A caller quietly switches the test job off | `workflow-lint` asserts from outside the shell job that every caller of `reusable-shell-ci` passes a `test-command` that runs a suite, and that at least one caller exists (`reusable-workflow-lint.yml:113-156`) | test: `tests/ci/reusable/reusable-workflow-lint.test.sh:108` (an empty `test-command` is refused), `:130` (a tree with no caller is refused) |
+| A test exists and no workflow runs it, or a script has no test | one watcher fails when a suite under `tests/` is invoked by no workflow, another when a script under `scripts/` has no suite, each including itself (`scripts/quality/check-test-coverage.sh:22-35`, `tests.yml:31-50`) | test: `tests/ci/suites/ci-runs-every-test.test.sh:59`, `:75`; `tests/quality/check-test-coverage.test.sh` |
 
 ### The update job itself
 
 | Threat | Control | Evidence |
 |---|---|---|
-| A stalled update job (the cron stops firing, or every run fails) | a freshness watcher fails when `update.yml` has no successful scheduled run within `max-age-days: 3`, runs twice a day on its own schedule, and watches itself at two days (`freshness.yml:41-42`, `:56-63`, `:84-91`, `reusable-schedule-freshness.yml:71-95`) | test: `tests/reusable-schedule-freshness.test.sh:120` (an 11-day-old run fails the 10-day limit), `:132` (no successful run on record fails) |
-| A hanging `brew` auto-update holds the concurrency group | the update job takes `update-formulae` with `cancel-in-progress: false`, so a hung run would queue every hourly run behind it (`update.yml:59-61`); every job that invokes `brew` carries `timeout-minutes` and `HOMEBREW_NO_AUTO_UPDATE` (`update.yml:76-79`, `tests.yml:82-89`, `audit.yml:27-32`) | test: `tests/brew-jobs-are-bounded.test.sh:138` (every job that runs `brew` is bounded and told not to update), proved on a planted workflow first at `:111` |
+| A stalled update job (the cron stops firing, or every run fails) | a freshness watcher fails when `update.yml` has no successful scheduled run within `max-age-days: 3`, runs twice a day on its own schedule, and watches itself at two days (`freshness.yml:41-42`, `:56-63`, `:84-91`, `reusable-schedule-freshness.yml:71-95`) | test: `tests/ci/reusable/reusable-schedule-freshness.test.sh:120` (an 11-day-old run fails the 10-day limit), `:132` (no successful run on record fails) |
+| A hanging `brew` auto-update holds the concurrency group | the update job takes `update-formulae` with `cancel-in-progress: false`, so a hung run would queue every hourly run behind it (`update.yml:59-61`); every job that invokes `brew` carries `timeout-minutes` and `HOMEBREW_NO_AUTO_UPDATE` (`update.yml:76-79`, `tests.yml:82-89`, `audit.yml:27-32`) | test: `tests/ci/policy/brew-jobs-are-bounded.test.sh:138` (every job that runs `brew` is bounded and told not to update), proved on a planted workflow first at `:111` |
 | A persisted job token in a checkout | `persist-credentials: false` on every checkout; the commit step uses the token from `GH_TOKEN` and nothing here pushes with git | measurement: the two `git grep` counts in the verification section below must be equal; test: none |
 | A third-party action in CI | one: `actions/create-github-app-token` in `update.yml`, pinned to a commit SHA, which receives the app's private key. The others are `actions/checkout`, `actions/setup-go` and `actions/cache`, each pinned to a commit SHA; `brew` is the runner's preinstalled copy (`update.yml:149`, `tests.yml:98`); the update job installs only `python3-cryptography` from Debian's archive (`update.yml:85-88`) | measurement: `git grep uses: .github/workflows` on 2026-09-02; test: none. The tooling-isolation assertion (`reusable-workflow-lint.yml:158-272`) matches `secrets.*` references and also refuses a `uses:` action from any owner other than `actions` or `github` in such a job, so the first-party app-token action passes and a third-party one would not |
 | Dependency confusion on the tap name | the README documents the fully qualified `glyndor/tap/podup` only (`README.md:17`); the tap is deliberately not in homebrew-core, and the formula's URLs point at `github.com/Glyndor/podup` (`Formula/podup.rb:8,14`). A bare `brew install podup` would resolve elsewhere or not at all, and the tap cannot influence that | test: none |
@@ -94,12 +94,12 @@ pushed here by a product and no product holds a credential on this repository
 ## Key rotation
 
 The renderer carries two slots so a rotation can be make-before-break
-(`scripts/render-formulae.sh:17-37`). Phase one: the product publishes a
+(`scripts/release/render-formulae.sh:17-37`). Phase one: the product publishes a
 release still signed with the old key that carries both keys, and this tap adds
 the new key to `RELEASE_PUBKEY2_B64`. Phase two: the product signs with the new
 key. Phase three: the old key is removed here, which leaves the new key alone
 in the first slot. A release signed by either configured key verifies, and a
-release signed by neither fails closed (`tests/render-formulae.test.sh:293`,
+release signed by neither fails closed (`tests/release/render-formulae.test.sh:293`,
 `:299`, `:306`).
 
 Done in the wrong order, the failure is silent by construction. If the product
@@ -109,7 +109,7 @@ and the job goes red (`update.yml:96-108`, `:191-199`). Nothing users see
 changes: `brew upgrade` keeps offering the old release. The freshness watcher
 turns red after three days without a successful scheduled run
 (`freshness.yml:63`). The key constant must be edited by hand in `Glyndor/scoop-bucket` too
-(`scripts/render-formulae.sh`), but `check-render-drift.sh` compares both key
+(`scripts/release/render-formulae.sh`), but `check-render-drift.sh` compares both key
 slots (`RELEASE_PUBKEY_B64` through `RELEASE_PUBKEY2_B64`) along with the
 verification functions, so a key changed in one channel and not the other is
 reported as drift.
@@ -156,12 +156,12 @@ reported as drift.
 git grep -n 'persist-credentials' .github/workflows | wc -l    # equals the next line
 git grep -c 'actions/checkout@' .github/workflows | awk -F: '{s+=$2} END {print s}'   # equals the line above
 git grep -hn '^\s*-\? *uses:' .github/workflows | grep -v 'uses: actions/\|uses: ./.github/workflows/reusable-'   # nothing
-sed -n 17,37p scripts/render-formulae.sh                        # the two key slots
-bash tests/render-formulae.test.sh
-bash tests/update-workflow.test.sh
-bash tests/brew-jobs-are-bounded.test.sh
-bash tests/check-dco-on-main.test.sh
-bash scripts/check-test-coverage.sh
+sed -n 17,37p scripts/release/render-formulae.sh                        # the two key slots
+bash tests/release/render-formulae.test.sh
+bash tests/publication/update-workflow.test.sh
+bash tests/ci/policy/brew-jobs-are-bounded.test.sh
+bash tests/governance/check-dco-on-main.test.sh
+bash scripts/quality/check-test-coverage.sh
 gh ruleset list --repo Glyndor/homebrew-tap                     # the rules on main
 ```
 

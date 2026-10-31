@@ -103,7 +103,7 @@ jobs:
           # broken is exactly what this replaced. Any other non-zero is a failure
           # before any product was reached, and stops the run here.
           rc=0
-          ./scripts/render-formulae.sh || rc=$?
+          ./scripts/release/render-formulae.sh || rc=$?
           case "$rc" in
             0) echo "partial=0" >> "$GITHUB_OUTPUT" ;;
             3) echo "partial=1" >> "$GITHUB_OUTPUT" ;;

@@ -2,7 +2,7 @@ name: Drift
 
 # Compares this repository's copies of the shared reusables against the copies
 # its sibling channels carry. The comparison itself lives in
-# scripts/check-reusable-drift.sh; this file only decides when it runs.
+# scripts/monitoring/check-reusable-drift.sh; this file only decides when it runs.
 #
 # NOT on pull_request, and that is the whole design of this file.
 #
@@ -70,7 +70,7 @@ jobs:
           persist-credentials: false
 
       - name: Compare the reusable copies against the sibling channels
-        run: ./scripts/check-reusable-drift.sh
+        run: ./scripts/monitoring/check-reusable-drift.sh
 
       # The render scripts are not copies of each other -- one emits Ruby, the
       # other JSON -- but they carry the same verification logic, and that half
@@ -78,4 +78,4 @@ jobs:
       # so a red reads as "the verification halves diverged" rather than being
       # folded into the reusable comparison.
       - name: Compare the shared halves of the render scripts
-        run: ./scripts/check-render-drift.sh
+        run: ./scripts/monitoring/check-render-drift.sh

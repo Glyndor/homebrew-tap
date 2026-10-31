@@ -86,7 +86,7 @@ strip_prose() { # $1=file
 		/^[ \t]*#/ { next }
 		{
 			print
-			if ($0 ~ /:[ \t]*[|>][-+0-9]*[ \t]*$/) {
+			if ($0 ~ /:[ \t]*[|>][-+0-9]*[ \t]*(#.*)?$/) {
 				inblock = 1; key = ind
 				if ($0 ~ /^[ \t]*-[ \t]/) key = ind + 2
 			}

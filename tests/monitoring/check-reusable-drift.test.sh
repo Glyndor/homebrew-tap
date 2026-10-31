@@ -185,6 +185,16 @@ rc=$?
 check "a changed # line inside a run: block fails" "1" "$rc"
 check "and the error names the file" "1" "$(says "$out" 'reusable-line-limit.yml')"
 
+# A comment on the header line (`run: | # note`) is valid YAML and the block
+# below it is still script.
+seed
+body "x" "# echo old" | sed 's/^        run: |$/        run: | # the script/' > "$WORK/repo/.github/workflows/reusable-line-limit.yml"
+body "x" "# echo new" | sed 's/^        run: |$/        run: | # the script/' > "$WORK/remote/${SIBLINGS[0]}/reusable-line-limit.yml"
+body "x" "# echo old" | sed 's/^        run: |$/        run: | # the script/' > "$WORK/remote/${SIBLINGS[1]}/reusable-line-limit.yml"
+out="$(run_check)"
+rc=$?
+check "a changed # line under a run: header that carries a comment fails" "1" "$rc"
+
 # A real YAML comment between steps may still differ.
 seed
 body "written here" "echo ok" > "$WORK/repo/.github/workflows/reusable-line-limit.yml"

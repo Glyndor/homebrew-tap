@@ -22,6 +22,7 @@
 # Requires: nothing beyond coreutils and grep.
 set -u
 
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")/../../.." || exit 1
 pass=0; fail=0
 
@@ -89,12 +90,12 @@ printf 'jobs:\n  t:\n    steps:\n      - run: ./tests/wired.test.sh\n' \
 # A comment naming the orphan must NOT count as wiring.
 printf '# see ./tests/orphan.test.sh for the rationale\n' \
 	>> "$probe/.github/workflows/ci.yml"
+# The probe runs the real invoked() and present() above, cut out of this file,
+# not a copy of them: a copy keeps passing when the real detector breaks.
+detector="$(awk '/^invoked\(\) \{/,/^}/; /^present\(\) \{/,/^}/' "$SELF")"
 seen="$( cd "$probe" || exit 1
-	inv="$(grep -rh -v '^[[:space:]]*#' .github/workflows/ \
-		| grep -oE '\./tests/[A-Za-z0-9_./-]+\.test\.sh' \
-		| sed 's|^\./||' | LC_ALL=C sort -u)"
-	pre="$(find tests -name '*.test.sh' -printf '%p\n' | LC_ALL=C sort -u)"
-	LC_ALL=C comm -23 <(printf '%s\n' "$pre") <(printf '%s\n' "$inv") | tr '\n' ' ' )"
+	eval "$detector"
+	LC_ALL=C comm -23 <(present) <(invoked) | tr '\n' ' ' )"
 rm -rf "$probe"
 check "and it reports an unregistered test when there is one" \
 	"tests/orphan.test.sh" "${seen% }"

@@ -55,6 +55,18 @@ while IFS= read -r -d '' f; do
 	# Binary files have no line endings to speak of and no newline to end on.
 	# `grep -I` reports no match for a binary file, which is the cheapest
 	# reliable test available in a shell.
+	# ...but a NUL byte in a file whose name says it is text is not "binary",
+	# it is a defect that would otherwise skip every rule below: `grep -I`
+	# treats the whole file as binary the moment it sees one.
+	case "$f" in
+	*.sh | *.yml | *.yaml | *.md | *.json | *.rb | *.py | *.toml | *.txt)
+		if [ -s "$f" ] && [ "$(tr -d '\000' <"$f" | wc -c)" -ne "$(wc -c <"$f")" ]; then
+			checked=$((checked + 1))
+			report "$f" "charset = utf-8" "contains a NUL byte"
+			continue
+		fi
+		;;
+	esac
 	grep -Iq . "$f" 2>/dev/null || continue
 	[ -s "$f" ] || continue
 	checked=$((checked + 1))

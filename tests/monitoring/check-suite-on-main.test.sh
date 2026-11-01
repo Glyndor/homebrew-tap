@@ -441,6 +441,23 @@ check "R9: push with tied created_at still picks the higher id (reversed)" "1" \
 check "R9: push with tied created_at still reports the higher id's conclusion" "1" \
 	"$(said 'conclusion: failure')"
 
+# --- S0: any conclusion other than success is red ---------------------------
+# timed_out, skipped, neutral, action_required, startup_failure: none is a pass.
+# Only the literal "success" is, and a check written as `= "failure"` would let
+# every other value through as green.
+for concl in timed_out skipped neutral action_required startup_failure; do
+	write_responses "$(push_page \
+		"$(run_obj completed "$concl" 2026-09-19T15:30:00Z 300)" \
+	)"
+	run_env schedule ""
+	check "S0: schedule with newest conclusion '$concl' is red" "1" "$rc"
+	write_responses "$(push_page \
+		"$(push_run_obj b completed "$concl" 2026-09-19T15:22:53Z 200)" \
+	)"
+	run_env push b
+	check "S0: push with conclusion '$concl' is red" "1" "$rc"
+done
+
 # --- S1: schedule with an unsorted page (older success first) --------------
 #
 # On 2026-09-08 a one-item page returned a run from thirteen days

@@ -128,7 +128,13 @@ push_path() { # $1=REPO $2=SHA
 		# head_sha so the API returns only runs for the pushed commit; a
 		# re-run of an older commit cannot push this run past page 30.
 		# The local jq select is the second guard, not the first.
-		page="$(gh api "repos/${repo}/actions/workflows/tests.yml/runs?branch=main&per_page=30&head_sha=${sha}")"
+		# A transient API error (a 502, a dropped connection) on one attempt is not
+		# a verdict: it reads like "no run yet" and is asked again. A failure that
+		# persists runs out the attempts and fails with the timeout message below.
+		page="$(gh api "repos/${repo}/actions/workflows/tests.yml/runs?branch=main&per_page=30&head_sha=${sha}")" || {
+			echo "::warning::gh api failed on attempt $attempt of $max_attempts; asking again" >&2
+			page='{"workflow_runs":[]}'
+		}
 		run="$(printf '%s' "$page" | jq -r --arg sha "$sha" '
 			[ .workflow_runs[]
 			  | select(.head_sha == $sha)

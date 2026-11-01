@@ -62,6 +62,11 @@ idx=$(grep -cz . "$LOG" 2>/dev/null || true)
 idx="${idx:-0}"
 idx=$((idx + 1))
 printf '%s\0' "$*" >> "$LOG"
+# STUB_FAIL_FIRST=N: the first N calls fail like a 502, whatever else is set.
+if [ "$idx" -le "${STUB_FAIL_FIRST:-0}" ]; then
+	echo "gh: HTTP 502" >&2
+	exit 1
+fi
 val=$(awk -v n="$idx" 'NR==n {print; exit}' "$RESP")
 printf '%s' "$val"
 exit "${STUB_EXIT_CODE:-0}"
@@ -292,6 +297,23 @@ check "R1: gh was called exactly once (the run was already completed)" "1" \
 	"$( [ "$(count_log "$WORK/gh.log")" = "1" ] && echo 1 || echo 0)"
 check "R1: sleep was never called (no need to wait)" "1" \
 	"$( [ "$(count_log "$WORK/sleep.log")" = "0" ] && echo 1 || echo 0)"
+
+# --- R1b: a transient gh failure on the push path is asked again ----------
+# One 502 must not end a poll that has 31 attempts left; a failure that never
+# clears must still end red, not green.
+write_responses "$(push_page \
+	"$(push_run_obj b completed success 2026-09-19T15:22:53Z 200)" \
+)" "$(push_page \
+	"$(push_run_obj b completed success 2026-09-19T15:22:53Z 200)" \
+)"
+STUB_FAIL_FIRST=1 run_env push b
+check "R1b: a push poll survives one failing gh call" "0" "$rc"
+check "R1b: and says it is asking again" "1" "$(said 'asking again')"
+write_responses "$(push_page \
+	"$(push_run_obj b completed success 2026-09-19T15:22:53Z 200)" \
+)"
+STUB_FAIL_FIRST=99 run_env push b
+check "R1b: a gh failure that never clears ends red" "1" "$rc"
 
 # --- R2: push with one sleep (run starts in_progress, finishes success) ---
 #

@@ -284,6 +284,10 @@ check "R1: the output names the run for b (id 200), not the one for a (id 100)" 
 	"$(said 'id:         200')"
 check "R1: the output does not name the run for a" "0" \
 	"$(printf '%s' "$out" | grep -c 'id:         100')"
+check "R1: push asks for the main branch" "1" \
+	"$(log_arg_n 1 "$WORK/gh.log" | grep -q 'branch=main' && echo 1 || echo 0)"
+check "R1: push asks for the pushed commit's runs only" "1" \
+	"$(log_arg_n 1 "$WORK/gh.log" | grep -q 'head_sha=b' && echo 1 || echo 0)"
 check "R1: gh was called exactly once (the run was already completed)" "1" \
 	"$( [ "$(count_log "$WORK/gh.log")" = "1" ] && echo 1 || echo 0)"
 check "R1: sleep was never called (no need to wait)" "1" \
@@ -493,6 +497,10 @@ write_responses "$(push_page \
 run_env schedule ""
 check "S4: schedule asks for per_page=30" "1" \
 	"$(log_arg_n 1 "$WORK/gh.log" | grep -q 'per_page=30' && echo 1 || echo 0)"
+# Only main's runs may answer for main. tests.yml also runs on pull requests, so a
+# URL without branch=main would let a red PR run stand in for the branch.
+check "S4: schedule asks for the main branch" "1" \
+	"$(log_arg_n 1 "$WORK/gh.log" | grep -q 'branch=main' && echo 1 || echo 0)"
 
 # --- S5: schedule queries with status=completed ----------------------------
 #

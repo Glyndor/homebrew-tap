@@ -122,7 +122,7 @@ check "every asset gets its own provenance check (2 of 2)" "2" \
 # transport should not follow a plain-http hop in the first place. The unit is
 # drift-compared with the sibling repository, so both carry the same line.
 check "verify_attestation downloads the asset over https-only redirects" "1" \
-	"$(sed -n '/^verify_attestation()/,/^}/p' "$HERE/scripts/release/render-formulae.sh" | grep -c -- '--proto-redir =https')"
+	"$(sed -n '/^verify_attestation()/,/^}/p' "$HERE/scripts/release/render-formulae.sh" | grep -cE -- '--proto-redir =https([[:space:]]|$)')"
 
 # Version precedence: stable beats pre-release, build metadata has no weight,
 # numeric identifiers compare numerically, and a shorter pre-release sorts first.

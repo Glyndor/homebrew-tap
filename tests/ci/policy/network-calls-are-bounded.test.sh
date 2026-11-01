@@ -76,7 +76,9 @@ for path in paths:
 			continue
 		if not CURL_RE.search(line):
 			continue
-		if "--max-time" in line:
+		# The flag followed by its value; the bare substring also matches
+		# `--user-agent '--max-time'`, which bounds nothing.
+		if re.search(r"(?:^|\s)--max-time\s+[0-9$]", line):
 			continue
 		bad += 1
 		print(
@@ -119,6 +121,14 @@ x.sh:15: missing --max-time on curl invocation" \
 	"$(printf '%s\n' "$out" | grep -v '^scanned ')"
 check "a curl with --max-time on a continuation line is still reported" "1" \
 	"$(printf '%s\n' "$out" | grep -c 'x.sh:15: missing --max-time on curl invocation')"
+
+# The flag name used as a value is not a deadline.
+mkdir -p "$WORK/fake"
+# shellcheck disable=SC2016 # the quotes belong to the fixture line
+printf '#!/usr/bin/env bash\ncurl -fsSL --user-agent '"'"'--max-time'"'"' "$url" > out\n' > "$WORK/fake/f.sh"
+rc=0; out="$(audit "$WORK/fake")" || rc=$?
+check "the flag name used as a value is not a deadline" "1" "$rc"
+check "and the script is named" "1" "$(printf '%s\n' "$out" | grep -c 'f.sh:2: missing --max-time')"
 
 # --- the live scripts ------------------------------------------------------
 rc=0; out="$(audit "$HERE/scripts")" || rc=$?

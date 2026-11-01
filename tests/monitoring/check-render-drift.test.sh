@@ -166,10 +166,7 @@ echo "=== drift in one unit, every unit present, is a failure by itself ==="
 # The other drift cases also leave a unit out of the remote file, so they exit 1
 # for being absent; none proves that drift alone ends the run non-zero. Here all
 # six units exist on both sides and exactly one line of hash_of differs.
-sed 's/awk -v a="\$1" .\$2 == a { print \$1 }./awk -v a="$1" '"'"'$2 == a { print $1 ; }'"'"'/' "$work/scripts/release/render-formulae.sh" > "$work/remote-onechange.sh"
-if cmp -s "$work/scripts/release/render-formulae.sh" "$work/remote-onechange.sh"; then
-	sed 's/matches=/matches2=/' "$work/scripts/release/render-formulae.sh" > "$work/remote-onechange.sh"
-fi
+sed 's/matches=/matches2=/' "$work/scripts/release/render-formulae.sh" > "$work/remote-onechange.sh"
 run_with_remote "$work/remote-onechange.sh"
 exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
 expect_eq "$exit_code" "1" "exit 1 when a single unit differs and none is missing"
@@ -489,46 +486,10 @@ expect_not_contains "$err_body" "has drifted" "does not conflate fetch failure w
 
 echo
 echo "=== a download cap relaxed on the remote is drift, named as limits ==="
-# RELEASE_PUBKEY_B64 differs on the remote side; everything else matches.
-# The drift must be reported in release_keys, and the message must name the
-# keys and the rotation -- not just the unit -- because the reader has to act
-# on it: a rotation that landed in only one channel has to land in the other.
-cat > "$work/remote.sh" <<'REMOTE'
-#!/usr/bin/env bash
-set -euo pipefail
-
-RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-MAX_SUMS_BYTES=4096
-MAX_SIG_BYTES=64
-MAX_ASSET_BYTES=999999999999
-
-verify_sha256sums() {
-	rm -f "$work/SHA256SUMS"
-	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
-	python3 - <<'PY'
-import sys
-def load(b64):
-	b64 = b64.strip()
-	return b64
-msg = open(sys.argv[1], "rb").read()
-print("verify", msg)
-PY
-}
-
-hash_of() {
-	local matches
-	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
-	echo "$matches"
-}
-
-render_product() {
-	echo "ruby"
-}
-REMOTE
-run_with_remote "$work/remote.sh"
+# Derived from the baseline so only the cap differs and every unit is present.
+sed 's/^MAX_ASSET_BYTES=.*/MAX_ASSET_BYTES=999999999999/' "$work/scripts/release/render-formulae.sh" > "$work/remote-limits.sh"
+run_with_remote "$work/remote-limits.sh"
 exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
-expect_eq "$exit_code" "1" "exit 1 on key-only drift"
 expect_eq "$exit_code" "1" "exit 1 when a download cap differs"
 expect_contains "$err_body" "limits has drifted" "names the limits unit"
 expect_not_contains "$err_body" "release_keys has drifted" "does not blame the keys"

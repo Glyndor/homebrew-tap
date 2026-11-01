@@ -53,7 +53,8 @@ permissions:
 
 concurrency:
   group: drift-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A scheduled run is never replaced by the next one (see cancel-policy.test.sh).
+  cancel-in-progress: false
 
 jobs:
   drift:
@@ -78,4 +79,7 @@ jobs:
       # so a red reads as "the verification halves diverged" rather than being
       # folded into the reusable comparison.
       - name: Compare the shared halves of the render scripts
+        # Whether or not the reusable comparison above failed: a red there must not
+        # hide the day's render comparison, which is a separate question.
+        if: ${{ !cancelled() }}
         run: ./scripts/monitoring/check-render-drift.sh

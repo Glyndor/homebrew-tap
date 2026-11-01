@@ -46,7 +46,10 @@ declared="$(awk '/^PRODUCTS=\(/ { inside = 1; next }
 	exit 1
 }
 
-rendered="$(find "$root/Formula" -maxdepth 1 -name '*.rb' -printf '%f\n' \
+# Any depth: Homebrew loads formulae from subdirectories of Formula/ too, so a
+# file at Formula/e/evil.rb is a formula this tap would serve, whatever the
+# roster says. It shows up here as "e/evil" and disagrees with PRODUCTS.
+rendered="$(find "$root/Formula" -name '*.rb' -printf '%P\n' \
            | while read -r f; do echo "${f%.rb}"; done | sort -u)"
 
 status=0

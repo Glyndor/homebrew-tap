@@ -57,6 +57,15 @@ T="$(mktap agree alpha beta)"
 rc=0; run "$T" || rc=$?
 check "a tap where PRODUCTS and Formula/ agree passes" "0" "$rc"
 
+# --- a formula in a subdirectory ---------------------------------------------
+# Homebrew loads Formula/<letter>/name.rb as well, so it is part of what the tap
+# serves; the roster does not mention it.
+T="$(mktap nested alpha)"
+mkdir -p "$T/Formula/e"; : > "$T/Formula/e/evil.rb"
+rc=0; run "$T" || rc=$?
+check "a formula in a subdirectory of Formula/ fails" "1" "$rc"
+check "and it is named" "1" "$(said 'e/evil')"
+
 # --- Formula/ is missing a file ---------------------------------------------
 T="$(mktap noformula alpha beta)"
 rm -f "$T/Formula/beta.rb"

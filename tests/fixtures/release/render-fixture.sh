@@ -220,11 +220,13 @@ cat > "$BIN/curl" <<'SH'
 set -euo pipefail
 output=""
 url=""
+max_filesize=""
 for arg in "$@"; do :; done 2>/dev/null || true
 args=("$@")
 for ((i = 0; i < ${#args[@]}; i++)); do
 	case "${args[i]}" in
 		-o)    output="${args[i+1]}" ;;
+		--max-filesize) max_filesize="${args[i+1]}" ;;
 		http*) url="${args[i]}" ;;
 	esac
 done
@@ -245,6 +247,13 @@ fi
 if [ ! -f "$fixture" ]; then
 	echo "curl stub: no fixture for $url (looked at $fixture)" >&2
 	exit 1
+fi
+# Like curl: a file over --max-filesize is refused (exit 63) unless the test
+# plays a server that does not announce its size.
+if [ -n "$max_filesize" ] && [ "${CURL_STUB_IGNORE_MAXFILESIZE:-}" != "1" ] \
+	&& [ "$(stat -c%s "$fixture")" -gt "$max_filesize" ]; then
+	echo "curl stub: maximum file size exceeded for $url" >&2
+	exit 63
 fi
 cp "$fixture" "$output"
 SH

@@ -72,6 +72,22 @@ check "and the error names the file" "1" \
 check "and names the rule it broke" "1" \
 	"$(printf '%s' "$out" | grep -q 'insert_final_newline' && echo 1 || echo 0)"
 
+# --- a NUL byte in a text file ---------------------------------------------
+# grep -I would call the file binary and skip every rule, so a stray NUL next to
+# trailing whitespace and CRLF would pass. It is refused for what it is.
+d="$(sandbox nul)"
+printf 'echo ok  \r\n\0\n' > "$d/offender.sh"
+commit_all "$d"
+out="$(run "$d")"; rc=$?
+check "a text file containing a NUL byte fails" "1" "$rc"
+check "and the error names the file and the NUL" "1" \
+	"$(printf '%s' "$out" | grep -q 'offender.sh.*NUL byte' && echo 1 || echo 0)"
+d="$(sandbox binary)"
+printf '\0\1\2\3' > "$d/blob.bin"
+commit_all "$d"
+out="$(run "$d")"; rc=$?
+check "a real binary file is still left alone" "0" "$rc"
+
 # --- CRLF line endings ----------------------------------------------------
 
 d="$(sandbox crlf)"

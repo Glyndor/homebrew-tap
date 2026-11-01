@@ -46,7 +46,7 @@ cat "${CURL_STUB_FILE:-/dev/null}"
 STUB
 chmod +x "$work/bin/curl"
 
-# Baseline local render script. All four named units are present; the local
+# Baseline local render script. All six named units are present; the local
 # script carries NO comments so the comment-only test has to add them on the
 # remote side.
 cat > "$work/scripts/release/render-formulae.sh" <<'LOCAL'
@@ -160,6 +160,21 @@ exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$wor
 expect_eq "$exit_code" "0" "exit 0 when units are identical"
 expect_contains "$combined" "compared 6 render unit" "success line names compared 6"
 expect_contains "$combined" "verification logic agrees" "success line says logic agrees"
+
+echo
+echo "=== drift in one unit, every unit present, is a failure by itself ==="
+# The other drift cases also leave a unit out of the remote file, so they exit 1
+# for being absent; none proves that drift alone ends the run non-zero. Here all
+# six units exist on both sides and exactly one line of hash_of differs.
+sed 's/awk -v a="\$1" .\$2 == a { print \$1 }./awk -v a="$1" '"'"'$2 == a { print $1 ; }'"'"'/' "$work/scripts/release/render-formulae.sh" > "$work/remote-onechange.sh"
+if cmp -s "$work/scripts/release/render-formulae.sh" "$work/remote-onechange.sh"; then
+	sed 's/matches=/matches2=/' "$work/scripts/release/render-formulae.sh" > "$work/remote-onechange.sh"
+fi
+run_with_remote "$work/remote-onechange.sh"
+exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
+expect_eq "$exit_code" "1" "exit 1 when a single unit differs and none is missing"
+expect_contains "$err_body" "1 of 6 compared render unit(s) have drifted" "counts one drifted unit of six"
+expect_not_contains "$err_body" "could not be found" "and no unit is reported missing"
 
 echo
 echo "=== a change inside verify_sha256sums fails and names that unit ==="

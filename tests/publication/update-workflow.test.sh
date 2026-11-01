@@ -364,6 +364,26 @@ adds_paths="$(jq -r '.variables.changes.additions[].path' "$WORK/gh-new/.stdin" 
 check "the commit payload's additions include the untracked path" "1" \
 	"$(printf '%s' "$adds_paths" | grep -cFx 'Formula/zzz.rb')"
 
+# --- a path git would print quoted --------------------------------------------
+# With the default core.quotePath git lists "Formula/caf\303\251.rb" in quotes, which
+# is not a file: the base64 of it failed inside an argument, was ignored, and an
+# empty file named with literal quotes was committed to main.
+sandbox "$WORK/u" 0 new
+printf 'class Cafe < Formula\nend\n' > "$WORK/u/Formula/café.rb"
+stub_gh "$WORK/gh-utf"
+rc=0
+( cd "$WORK/u" && \
+	PATH="$WORK/gh-utf:$PATH" \
+	STUB_DIR="$WORK/gh-utf" \
+	REPO="Glyndor/homebrew-tap" \
+	GH_TOKEN="dummy" \
+	bash "$COMMIT" ) > "$WORK/out" 2>&1 || rc=$?
+check "a non-ASCII path does not stop the commit step" "0" "$rc"
+check "its path is sent as the file name, without quotes" "1" \
+	"$(jq -r '.variables.changes.additions[].path' "$WORK/gh-utf/.stdin" 2>/dev/null | grep -cFx 'Formula/café.rb')"
+check "and its contents are the file's, not empty" "$(wc -c < "$WORK/u/Formula/café.rb" | tr -d ' ')" \
+	"$(jq -r '.variables.changes.additions[] | select(.path == "Formula/café.rb") | .contents' "$WORK/gh-utf/.stdin" 2>/dev/null | base64 -d | wc -c | tr -d ' ')"
+
 # --- a deletion-only render --------------------------------------------------
 # A deletion-only render is a render whose only effect is to remove a tracked
 # formula from the working tree. The gate at update.yml:117 only counted

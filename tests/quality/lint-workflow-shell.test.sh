@@ -277,6 +277,60 @@ check "and the success line says three" "1" \
 	"$(printf '%s' "$out" | grep -q '^3 embedded' && echo 1 || echo 0)"
 rm -f "$work/.github/workflows/shapes.yml"
 
+# shellcheck disable=SC2016 # the fixtures are literal workflow text
+# --- header shapes that used to be skipped without a word ------------------
+# A list item that opens with its run key, a comment after the block header, and
+# a trailing-comment single line: each is shell the workflow runs, and each was
+# invisible to the extractor, so a violation in them reported "clean".
+for shape in '- run: |' 'run: | # note' ; do
+	rm -f "$work/.github/workflows/"*.yml
+	{
+		printf 'name: shapes\non: [push]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n'
+		case "$shape" in
+			'- run: |') printf '      - run: |\n          rm -rf $UNQUOTED/*\n' ;;
+			*) printf '      - name: n\n        run: | # note\n          rm -rf $UNQUOTED/*\n' ;;
+		esac
+	} >"$work/.github/workflows/shape.yml"
+	out="$(cd "$work" && ./scripts/quality/lint-workflow-shell.sh style 2>&1)"
+	rc=$?
+	check "a violation under '$shape' fails" "1" "$rc"
+	# Failing is not enough: an extractor that finds no block at all also fails.
+	# The rule has to be the one that tripped.
+	check "and it is the shell rule that tripped, under '$shape'" "1" \
+		"$(printf '%s' "$out" | grep -c 'SC2086')"
+done
+rm -f "$work/.github/workflows/"*.yml
+# shellcheck disable=SC2016 # literal workflow text
+printf 'name: s\non: [push]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - run: rm -rf $UNQUOTED/*\n' >"$work/.github/workflows/inline.yml"
+out="$(cd "$work" && ./scripts/quality/lint-workflow-shell.sh style 2>&1)"
+rc=$?
+check "a violation in a '- run: cmd' step fails" "1" "$rc"
+check "and it is the shell rule that tripped" "1" "$(printf '%s' "$out" | grep -c 'SC2086')"
+
+# `>` inside the comment after a literal header must not turn the block into a
+# folded one (which is counted but not linted): the violation below has to trip.
+rm -f "$work/.github/workflows/"*.yml
+# shellcheck disable=SC2016 # literal workflow text
+printf 'name: s\non: [push]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - name: n\n        run: | # run: >\n          rm -rf $UNQUOTED/*\n' >"$work/.github/workflows/commented.yml"
+out="$(cd "$work" && ./scripts/quality/lint-workflow-shell.sh style 2>&1)"
+rc=$?
+check "a '>' in the comment after a literal header does not hide the block" "1" "$rc"
+check "and it is the shell rule that tripped" "1" "$(printf '%s' "$out" | grep -c 'SC2086')"
+rm -f "$work/.github/workflows/"*.yml
+
+# --- shellcheck dying is not "clean" ------------------------------------------
+# A shellcheck that exits non-zero without printing a finding (killed, or its own
+# error) used to leave the failure flag unset and the run reported clean.
+rm -f "$work/.github/workflows/"*.yml
+printf 'name: s\non: [push]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - name: n\n        run: |\n          echo ok\n' >"$work/.github/workflows/ok.yml"
+mkdir -p "$work/fakebin"
+printf '#!/bin/sh\nexit 2\n' >"$work/fakebin/shellcheck"
+chmod +x "$work/fakebin/shellcheck"
+out="$(cd "$work" && PATH="$work/fakebin:$PATH" ./scripts/quality/lint-workflow-shell.sh style 2>&1)"
+rc=$?
+check "a shellcheck that dies without output fails the run" "1" "$rc"
+rm -f "$work/.github/workflows/"*.yml
+
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]

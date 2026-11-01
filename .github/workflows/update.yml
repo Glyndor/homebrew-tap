@@ -225,11 +225,17 @@ jobs:
           # committed. Deletions stay separate: an untracked path can never be
           # a deletion, so the existing `--diff-filter=D` derivation is
           # correct as-is.
-          adds="$( { git diff --name-only --diff-filter=ACMR -- Formula
-                    git ls-files -o --exclude-standard -- Formula; } | while read -r f; do
-            jq -cn --arg path "$f" --arg contents "$(base64 -w0 "$f")" '{path:$path, contents:$contents}'
+          # NUL-separated and unquoted: without -z and core.quotePath=off git
+          # prints a non-ASCII path as "Formula/caf\303\251.rb" in quotes, which
+          # is not a file, and the base64 of it used to be swallowed inside the
+          # --arg below and committed as an empty file. The contents are read
+          # into a variable first so that a failure stops the step.
+          adds="$( { git -c core.quotePath=off diff -z --name-only --diff-filter=ACMR -- Formula
+                    git -c core.quotePath=off ls-files -z -o --exclude-standard -- Formula; } | while IFS= read -r -d '' f; do
+            contents="$(base64 -w0 "$f")" || { echo "::error::cannot read $f" >&2; exit 1; }
+            jq -cn --arg path "$f" --arg contents "$contents" '{path:$path, contents:$contents}'
           done | jq -cs '.')"
-          dels="$(git diff --name-only --diff-filter=D -- Formula | while read -r f; do
+          dels="$(git -c core.quotePath=off diff -z --name-only --diff-filter=D -- Formula | while IFS= read -r -d '' f; do
             jq -cn --arg path "$f" '{path:$path}'
           done | jq -cs '.')"
           gh_api_query=$(jq -n \

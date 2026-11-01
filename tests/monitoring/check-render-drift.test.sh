@@ -4,8 +4,8 @@
 #
 # The contract being tested:
 #
-#   * five named units (verify_sha256sums, py_block, hash_of, release_keys,
-#     verify_attestation) inside the local render script must stay
+#   * six named units (verify_sha256sums, py_block, hash_of, release_keys,
+#     verify_attestation, limits) inside the local render script must stay
 #     byte-identical (after stripping comments and blanks) to the same
 #     units inside the sibling's differently-named render script;
 #   * render_product is excluded on purpose, and a change inside it must not
@@ -55,6 +55,9 @@ set -euo pipefail
 
 RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+MAX_SUMS_BYTES=4096
+MAX_SIG_BYTES=64
+MAX_ASSET_BYTES=104857600
 
 verify_sha256sums() {
 	rm -f "$work/SHA256SUMS"
@@ -155,7 +158,7 @@ cp "$work/scripts/release/render-formulae.sh" "$work/remote.sh"
 run_with_remote "$work/remote.sh"
 exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
 expect_eq "$exit_code" "0" "exit 0 when units are identical"
-expect_contains "$combined" "compared 5 render unit" "success line names compared 5"
+expect_contains "$combined" "compared 6 render unit" "success line names compared 6"
 expect_contains "$combined" "verification logic agrees" "success line says logic agrees"
 
 echo
@@ -252,6 +255,9 @@ set -euo pipefail
 
 RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+MAX_SUMS_BYTES=4096
+MAX_SIG_BYTES=64
+MAX_ASSET_BYTES=104857600
 
 verify_sha256sums() {
 	rm -f "$work/SHA256SUMS"
@@ -286,7 +292,7 @@ REMOTE
 run_with_remote "$work/remote.sh"
 exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
 expect_eq "$exit_code" "0" "exit 0 when only render_product differs"
-expect_contains "$combined" "compared 5 render unit" "still compares 5 units"
+expect_contains "$combined" "compared 6 render unit" "still compares 6 units"
 expect_not_contains "$err_body" "drifted" "no drift message"
 expect_not_contains "$err_body" "render_product" "the excluded unit is not named as a missing unit either"
 
@@ -300,6 +306,9 @@ set -euo pipefail
 
 RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+MAX_SUMS_BYTES=4096
+MAX_SIG_BYTES=64
+MAX_ASSET_BYTES=104857600
 
 verify_sha256sums() {
 	# Inside the function: a remote-only comment
@@ -336,7 +345,7 @@ REMOTE
 run_with_remote "$work/remote.sh"
 exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
 expect_eq "$exit_code" "0" "exit 0 on comment-only diff"
-expect_contains "$combined" "compared 5 render unit" "still compares 5 units"
+expect_contains "$combined" "compared 6 render unit" "still compares 6 units"
 
 echo
 echo "=== a unit missing from the remote file fails and names which unit ==="
@@ -349,6 +358,9 @@ set -euo pipefail
 
 RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+MAX_SUMS_BYTES=4096
+MAX_SIG_BYTES=64
+MAX_ASSET_BYTES=104857600
 
 hash_of() {
 	local matches
@@ -461,6 +473,51 @@ expect_not_contains "$err_body" "verification logic agrees" "does not claim agre
 expect_not_contains "$err_body" "has drifted" "does not conflate fetch failure with drift"
 
 echo
+echo "=== a download cap relaxed on the remote is drift, named as limits ==="
+# RELEASE_PUBKEY_B64 differs on the remote side; everything else matches.
+# The drift must be reported in release_keys, and the message must name the
+# keys and the rotation -- not just the unit -- because the reader has to act
+# on it: a rotation that landed in only one channel has to land in the other.
+cat > "$work/remote.sh" <<'REMOTE'
+#!/usr/bin/env bash
+set -euo pipefail
+
+RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+MAX_SUMS_BYTES=4096
+MAX_SIG_BYTES=64
+MAX_ASSET_BYTES=999999999999
+
+verify_sha256sums() {
+	rm -f "$work/SHA256SUMS"
+	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
+	python3 - <<'PY'
+import sys
+def load(b64):
+	b64 = b64.strip()
+	return b64
+msg = open(sys.argv[1], "rb").read()
+print("verify", msg)
+PY
+}
+
+hash_of() {
+	local matches
+	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
+	echo "$matches"
+}
+
+render_product() {
+	echo "ruby"
+}
+REMOTE
+run_with_remote "$work/remote.sh"
+exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
+expect_eq "$exit_code" "1" "exit 1 on key-only drift"
+expect_eq "$exit_code" "1" "exit 1 when a download cap differs"
+expect_contains "$err_body" "limits has drifted" "names the limits unit"
+expect_not_contains "$err_body" "release_keys has drifted" "does not blame the keys"
+
 echo "=== a different RELEASE_PUBKEY_B64 on the remote is drift, named as a rotation ==="
 # RELEASE_PUBKEY_B64 differs on the remote side; everything else matches.
 # The drift must be reported in release_keys, and the message must name the
@@ -472,6 +529,9 @@ set -euo pipefail
 
 RELEASE_PUBKEY_B64="REMOTE-only-key-cccccccccccccccccccccccccccccc"
 RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+MAX_SUMS_BYTES=4096
+MAX_SIG_BYTES=64
+MAX_ASSET_BYTES=104857600
 
 verify_sha256sums() {
 	rm -f "$work/SHA256SUMS"
@@ -520,6 +580,9 @@ set -euo pipefail
 
 RELEASE_PUBKEY_B64_OLD="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+MAX_SUMS_BYTES=4096
+MAX_SIG_BYTES=64
+MAX_ASSET_BYTES=104857600
 
 verify_sha256sums() {
 	rm -f "$work/SHA256SUMS"

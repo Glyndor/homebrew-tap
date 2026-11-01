@@ -95,6 +95,7 @@ UNITS=(
 	hash_of
 	release_keys
 	verify_attestation
+	limits
 )
 
 # render_product is intentionally excluded by name. It formats to Ruby formulae
@@ -157,6 +158,12 @@ extract_unit() { # $1=file $2=unit
 		verify_attestation)
 			sed -n '/^verify_attestation()/,/^}/p' "$file"
 			;;
+		limits)
+			# The download caps. A cap raised in one channel only is a looser
+			# gate there, and nothing else would notice: the constants are not
+			# inside any function.
+			sed -n '/^MAX_SUMS_BYTES=/,/^MAX_ASSET_BYTES=/p' "$file"
+			;;
 		*)
 			echo "::error::internal: unknown unit '$unit'" >&2
 			return 1
@@ -183,6 +190,9 @@ unit_is_complete() { # $1=last-line $2=unit
 			;;
 		release_keys)
 			[[ "$last" =~ ^RELEASE_PUBKEY2_B64= ]]
+			;;
+		limits)
+			[[ "$last" =~ ^MAX_ASSET_BYTES= ]]
 			;;
 		*)
 			echo "::error::internal: unknown unit '$unit' in unit_is_complete" >&2

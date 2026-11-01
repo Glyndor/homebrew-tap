@@ -82,6 +82,33 @@ for sz in 32 128; do
 		"$(printf '%s' "$out" | grep -c 'malformed release public key')"
 done
 
+# --- the binary has a cap too -------------------------------------------------
+#
+# MAX_ASSET_BYTES bounds what the renderer downloads, twice: curl is told
+# --max-filesize, which refuses an asset whose announced size is over it, and a
+# stat after the download catches a server that announces nothing. The real cap
+# is 100 MiB, so these cases lower it in a copy of the generator. The fixture
+# assets are "asset-" plus their name: 24 bytes for the arm64 one, 25 for the
+# x86_64 one.
+publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
+cap_case() { # $1=cap  $2=1 when the server does not announce a size
+	local d="$WORK/cap$1${2:-}"
+	new_root "$d"
+	generator_with "$d/scripts/release/render-formulae.sh" "$PODUP"
+	sed -i "s/^MAX_ASSET_BYTES=.*/MAX_ASSET_BYTES=$1/" "$d/scripts/release/render-formulae.sh"
+	rc=0
+	out="$( cd "$d" && CURL_STUB_IGNORE_MAXFILESIZE="${2:-}" "$d/scripts/release/render-formulae.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+}
+cap_case 25
+check "an asset exactly at the cap is accepted" "0" "$rc"
+cap_case 24
+check "an asset one byte over the cap is refused by curl" "3" "$rc"
+check "and the refusal is the failed download" "1" "$(printf '%s' "$out" | grep -c 'failed to download')"
+cap_case 24 1
+check "a server that announces no size is caught by the check after the download" "3" "$rc"
+check "and the message names the cap" "1" "$(printf '%s' "$out" | grep -c 'over the 24-byte cap')"
+check "and no formula is written from it" "0" "$(find "$WORK/cap241/Formula" -name '*.rb' | wc -l)"
+
 # A clean signed release for this section: the cases above leave a corrupted one.
 publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
 

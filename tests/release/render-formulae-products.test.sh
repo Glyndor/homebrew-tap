@@ -88,6 +88,16 @@ refused "a Ruby class containing a semicolon" 2 "Podup; File.write(\"$marker\", 
 check "and nothing executed it" "0" "$([ -e "$marker" ] && echo 1 || echo 0)"
 refused "a lowercase class" 2 'podup' 'invalid class name'
 
+# The repository and the asset names are interpolated too.
+for field in 5 6 7 8; do
+	for bad in 'podup-#{exit(73)}' 'a"b' 'a\b' 'a b' 'a/b' '..' '-leading'; do
+		refused "asset name [$bad] in field $field" "$field" "$bad" 'invalid asset name'
+	done
+done
+for bad in 'Glyndor' 'Glyndor/' '/podup' 'Glyndor/pod"up' 'Glyndor/a/b' 'Gl yndor/podup' 'Glyndor/#{x}'; do
+	refused "repository [$bad]" 0 "$bad" 'invalid repository'
+done
+
 # Licence, description and version check are written inside Ruby quotes.
 for field in 3 4 9; do
 	refused "a quote in metadata field $field" "$field" 'text"quoted' 'would end or escape a Ruby string'

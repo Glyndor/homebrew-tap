@@ -510,6 +510,20 @@ render_product() { # $1=table entry
 		echo "::error::the PRODUCTS entry \"$entry\" has an invalid class name \"$cls\""
 		return 1
 	}
+	# The repository and the four asset names are interpolated into urls and
+	# Ruby strings as well. Same reasoning as above: held to what they are,
+	# with "-" meaning "nothing published for this slot".
+	printf '%s' "$repo" | LC_ALL=C grep -qE '^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$' || {
+		echo "::error::the PRODUCTS entry \"$entry\" has an invalid repository \"$repo\""
+		return 1
+	}
+	for field in mac_arm mac_intel linux_arm linux_intel; do
+		[ "${!field}" = "-" ] && continue
+		printf '%s' "${!field}" | LC_ALL=C grep -qE '^[A-Za-z0-9][A-Za-z0-9._-]*$' || {
+			echo "::error::the PRODUCTS entry \"$entry\" has an invalid asset name in $field"
+			return 1
+		}
+	done
 	# The licence, description and version check are written inside Ruby double
 	# quotes without escaping, so a quote, a backslash or an interpolation would
 	# end the string or run code.

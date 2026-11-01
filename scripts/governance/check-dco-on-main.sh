@@ -94,7 +94,11 @@ for c in $commits; do
 			fi ;;
 	esac
 	checked=$((checked + 1))
-	if git log -1 --format='%B' "$c" | grep -q '^Signed-off-by: '; then
+	# A trailer, not a line: a Signed-off-by in the middle of the body is prose,
+	# and so is one without a name and an address. interpret-trailers reads the
+	# block at the end of the message the way git itself does.
+	if git log -1 --format='%B' "$c" | git interpret-trailers --parse \
+		| grep -qE '^Signed-off-by: .+ <[^<>@ ]+@[^<>@ ]+>$'; then
 		echo "ok   $(git log -1 --format='%h %s' "$c")"
 	else
 		missing="$missing $c"

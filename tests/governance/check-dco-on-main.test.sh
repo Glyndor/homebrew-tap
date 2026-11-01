@@ -74,6 +74,25 @@ check "and says the trailer is what is missing" "1" "$(said 'without a Signed-of
 check "and names the author" "1" "$(said 'Jose')"
 check "and says it is detection, not prevention" "1" "$(said 'already on main')"
 
+# --- a line that only looks like the trailer ----------------------------------
+# A Signed-off-by in the middle of the body, followed by more text, is prose; so
+# is one with no address. Neither is the trailer the rule asks for.
+D="$(repo prose-line)"; B="$(base_of "$D")"
+git -C "$D" -c user.name=Jose -c user.email=jose@test.invalid commit -q --allow-empty -m "feat: a thing
+
+Signed-off-by: Someone <someone@test.invalid>
+
+and then the message goes on with another paragraph"
+rc=0; run "$D" "$B" "$(base_of "$D")" || rc=$?
+check "a Signed-off-by line inside the body is not a trailer" "1" "$rc"
+
+D="$(repo no-address)"; B="$(base_of "$D")"
+git -C "$D" -c user.name=Jose -c user.email=jose@test.invalid commit -q --allow-empty -m "feat: a thing
+
+Signed-off-by: nobody"
+rc=0; run "$D" "$B" "$(base_of "$D")" || rc=$?
+check "a Signed-off-by with no address is not a trailer" "1" "$rc"
+
 # --- the bot is exempt ------------------------------------------------------
 D="$(repo bot)"; B="$(base_of "$D")"
 commit "$D" "github-actions[bot]" "41898282+github-actions[bot]@users.noreply.github.com" \

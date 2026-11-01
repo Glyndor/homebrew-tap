@@ -307,6 +307,17 @@ rc=$?
 check "a violation in a '- run: cmd' step fails" "1" "$rc"
 check "and it is the shell rule that tripped" "1" "$(printf '%s' "$out" | grep -c 'SC2086')"
 
+# `>` inside the comment after a literal header must not turn the block into a
+# folded one (which is counted but not linted): the violation below has to trip.
+rm -f "$work/.github/workflows/"*.yml
+# shellcheck disable=SC2016 # literal workflow text
+printf 'name: s\non: [push]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - name: n\n        run: | # run: >\n          rm -rf $UNQUOTED/*\n' >"$work/.github/workflows/commented.yml"
+out="$(cd "$work" && ./scripts/quality/lint-workflow-shell.sh style 2>&1)"
+rc=$?
+check "a '>' in the comment after a literal header does not hide the block" "1" "$rc"
+check "and it is the shell rule that tripped" "1" "$(printf '%s' "$out" | grep -c 'SC2086')"
+rm -f "$work/.github/workflows/"*.yml
+
 # --- shellcheck dying is not "clean" ------------------------------------------
 # A shellcheck that exits non-zero without printing a finding (killed, or its own
 # error) used to leave the failure flag unset and the run reported clean.

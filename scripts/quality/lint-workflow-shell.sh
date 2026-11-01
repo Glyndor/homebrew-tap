@@ -78,7 +78,7 @@ for wf in "$workflows"/*.yml "$workflows"/*.yaml; do
 			# findings for code that never runs. Count the block so
 			# the success line stays honest, and mark the file so a
 			# reader can tell it was deliberately not linted.
-			if ($0 ~ /run:[[:space:]]*>/) {
+			if ($0 ~ /^[[:space:]]*(-[[:space:]]+)?run:[[:space:]]*>/) {
 				print "#!/usr/bin/env bash" > out
 				print "# folded scalar: lines join, shell would differ, not linted" >> out
 				close(out)

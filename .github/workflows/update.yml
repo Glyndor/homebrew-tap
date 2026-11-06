@@ -68,13 +68,17 @@ jobs:
     # updater app's token, minted below only when there is something to commit.
     permissions:
       contents: read
-    # The validate step runs `brew style`, and brew updates itself before
-    # doing anything unless told not to. tests.yml already sets both variables
-    # and a bound for exactly that reason (a `brew style` hung for 45 minutes
-    # on 2026-08-11 with neither); this job ran the same tool with neither.
-    # Measured over the last eight runs, the whole job takes 15 to 24 seconds,
-    # so ten minutes is far above any honest run and far below the six-hour
-    # default a hang would otherwise burn every hour.
+    # The validate step runs `brew style` and `brew audit --strict`, and brew
+    # updates itself before doing anything unless told not to. tests.yml
+    # already sets both variables and a bound for exactly that reason (a
+    # `brew style` hung for 45 minutes on 2026-08-11 with neither); this job
+    # ran the same tool with neither. Measured over the last eight runs before
+    # the audit was added, the whole job takes 15 to 24 seconds; the audit is
+    # measured at 25 to 96 seconds on the macOS runner that runs the same
+    # command, with one outlier at 246. Ten minutes is above that worst honest
+    # run and far below the six-hour default a hang would otherwise burn every
+    # hour. The Linux measurement of the audit is not on record yet, and this
+    # bound is the one it has to fit under.
     timeout-minutes: 10
     env:
       HOMEBREW_NO_AUTO_UPDATE: "1"
@@ -155,10 +159,20 @@ jobs:
           # between it and `brew install`. `brew style` (rubocop) catches
           # formatting and deprecated-API issues.
           #
-          # This is half of the gate of tests.yml and audit.yml, not all of it. `brew audit --strict`
-          # resolves the active spec, which a Linux runner leaves unevaluated
-          # inside the formula's `on_macos` block, so it needs a macOS runner
-          # and runs in audit.yml on the resulting push rather than here.
+          # `brew style` was half of the gate of tests.yml and audit.yml, not all
+          # of it: `brew audit --strict` ran in audit.yml on the push that
+          # followed the commit, so the rule of admission was checked against a
+          # formula `brew install` could already read. The audit runs here now,
+          # before the commit, and a failure here stops the commit.
+          #
+          # The macOS spec is still covered there, on the push and on the daily
+          # cron. This job audits the active spec, which on this Linux runner
+          # is the `on_linux` one, so the formula's `on_macos` block stays
+          # unevaluated here. `brew audit` can audit another operating system
+          # with `--os=`, but this job's Homebrew is frozen by
+          # HOMEBREW_NO_AUTO_UPDATE, and a flag this job cannot prove it
+          # carries is not a flag this job may depend on.
+          #
           # Refuse to commit an empty tap. The guard below fires before brew is
           # set up, which is the only thing that makes it a guard at all: with
           # `shopt -s nullglob` active, an unmatched `Formula/*.rb` resolves
@@ -180,6 +194,42 @@ jobs:
           # the only way this guard can be exercised outside a runner.
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
           brew style "${formulae[@]}"
+
+          # `brew audit` loads a formula through a tap Homebrew has to be told
+          # to trust, and it only accepts a tap it knows about: a tap is a
+          # checkout under Library/Taps. Linking the workspace in is what makes
+          # the re-rendered formulae the ones audited; `brew tap glyndor/tap`
+          # would fetch the published main branch instead and pass while the
+          # render about to be committed is broken. Same tap, same place, same
+          # order as audit.yml.
+          tap_dir="$(brew --repository)/Library/Taps/glyndor/homebrew-tap"
+          mkdir -p "$(dirname "$tap_dir")"
+          ln -s "$GITHUB_WORKSPACE" "$tap_dir"
+
+          # The trust comes after the link, because the tap does not exist for
+          # brew before then, and Homebrew refuses to load a formula from a tap
+          # it was not told to trust ("Refusing to load formula
+          # glyndor/tap/podup from untrusted tap"). The linked workspace is the
+          # tree about to be committed, so trusting it here widens nothing.
+          brew trust glyndor/tap
+
+          # Name every formula explicitly instead of passing `--tap`. Selecting
+          # by tap means a link that silently resolved to nothing audits an
+          # empty set and still exits 0: a green gate that checked no formula,
+          # the same failure as a required check no job emits. The list comes
+          # from the array the empty-tap guard above already proved non-empty.
+          names=()
+          for formula in "${formulae[@]}"; do
+            names+=("glyndor/tap/$(basename "$formula" .rb)")
+          done
+          echo "auditing: ${names[*]}"
+
+          # No `--online`: the URL and homepage reachability checks would make
+          # this gate depend on the network and on GitHub's release endpoints,
+          # and a formula must not go red because a host blipped. The signed
+          # SHA256SUMS the generator verifies is what proves the assets, not a
+          # HEAD request from CI.
+          brew audit --strict "${names[@]}"
 
       # main now has required status checks, and a direct push has none, so
       # the commit below needs a bypass actor. github-actions[bot] cannot be

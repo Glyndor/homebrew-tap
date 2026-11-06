@@ -203,10 +203,14 @@ while IFS= read -r path; do
 	fi
 
 	url="https://raw.githubusercontent.com/$SIBLING_REPO/main/$path"
-	http_code=""
+	# curl is a simple statement of its own, with its status read afterwards,
+	# so the test that reads every curl in scripts/ can parse its arguments.
+	: > "$tmp/code"
+	curl_rc=0
+	curl -fsSL --connect-timeout 10 --max-time 60 -o "$tmp/remote" -w '%{http_code}' "$url" > "$tmp/code" 2> "$tmp/curl.err" || curl_rc=$?
+	http_code="$(cat "$tmp/code")"
 
-	if ! http_code="$(curl -fsSL --connect-timeout 10 --max-time 60 \
-		-o "$tmp/remote" -w '%{http_code}' "$url" 2>"$tmp/curl.err")"; then
+	if [ "$curl_rc" -ne 0 ]; then
 		if [ "$http_code" = "404" ]; then
 			echo "::error::$SIBLING_REPO does not serve $path" >&2
 			echo "  $url" >&2

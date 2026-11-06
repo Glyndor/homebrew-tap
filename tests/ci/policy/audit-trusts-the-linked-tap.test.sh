@@ -32,26 +32,7 @@ check() { # <description> <expected> <actual>
 # Prints "ok" when the audit job's script links, then trusts, then audits.
 # Otherwise prints what is wrong.
 order() { # $1 = workflow file
-	python3 - "$1" <<'PY'
-import sys, yaml
-doc = yaml.safe_load(open(sys.argv[1]))
-script = "\n".join(s.get("run", "") for s in doc["jobs"]["audit"]["steps"])
-lines = [l.strip() for l in script.splitlines() if l.strip() and not l.strip().startswith("#")]
-def first(prefix):
-    for i, l in enumerate(lines):
-        if l.startswith(prefix):
-            return i
-    return None
-link, trust, audit = first("ln -s"), first("brew trust glyndor/tap"), first("brew audit")
-if None in (link, audit):
-    print("the audit step has no link or no audit command")
-elif trust is None:
-    print("the audit step never trusts the tap")
-elif not link < trust < audit:
-    print("the order is not link, trust, audit")
-else:
-    print("ok")
-PY
+	python3 "$HERE/tests/fixtures/ci/audit-obligation.py" "$1" audit
 }
 
 # A workflow whose single run block holds the given lines.
@@ -90,6 +71,39 @@ check "a commented-out trust does not count" \
 
 plant "$WORK/c/good.yml" "$LINK" "brew trust glyndor/tap" "$AUDIT"
 check "the right order passes" "ok" "$(order "$WORK/c/good.yml")"
+
+# Mutate an otherwise valid workflow; each bypass must be rejected on its own.
+python3 - "$WORK/c/good.yml" "$WORK/c" <<'PYCASE'
+import copy, pathlib, sys, yaml
+good = yaml.safe_load(open(sys.argv[1]))
+for mutation in ("exit", "if", "if-true", "step-error", "job-error", "swallowed"):
+    doc = copy.deepcopy(good)
+    job = next(iter(doc["jobs"].values()))
+    step = job["steps"][0]
+    if mutation == "exit":
+        step["run"] = "exit 0\n" + step["run"]
+    elif mutation == "if":
+        step["if"] = False
+    elif mutation == "if-true":
+        step["if"] = "${{ always() }}"
+    elif mutation == "swallowed":
+        step["run"] = step["run"].replace("brew audit --strict glyndor/tap/podup", "brew audit --strict glyndor/tap/podup || true")
+    elif mutation == "step-error":
+        step["continue-on-error"] = True
+    else:
+        job["continue-on-error"] = True
+    pathlib.Path(sys.argv[2], mutation + ".yml").write_text(yaml.safe_dump(doc))
+PYCASE
+for mutation in exit if if-true step-error job-error swallowed; do
+	case "$mutation" in
+		exit) expected="the audit is not reached" ;;
+		if|if-true) expected="the audit step is conditional" ;;
+		step-error) expected="the audit step ignores failure" ;;
+		job-error) expected="the audit job ignores failure" ;;
+		swallowed) expected="the audit failure is swallowed" ;;
+	esac
+	check "$mutation cannot bypass the audit" "$expected" "$(order "$WORK/c/$mutation.yml")"
+done
 
 check "the live audit workflow links, trusts, then audits" "ok" \
 	"$(order "$HERE/.github/workflows/audit.yml")"

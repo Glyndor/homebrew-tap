@@ -31,41 +31,7 @@ check() { # <description> <expected> <actual>
 # in that order and a LATER step creates the commit. Otherwise prints what is
 # wrong.
 order() { # $1 = workflow file
-	python3 - "$1" <<'PY'
-import sys, yaml
-doc = yaml.safe_load(open(sys.argv[1]))
-steps = next(iter(doc["jobs"].values()))["steps"]
-def lines(step):
-    return [l.strip() for l in step.get("run", "").splitlines()
-            if l.strip() and not l.strip().startswith("#")]
-def first(ls, prefix):
-    for i, l in enumerate(ls):
-        if l.startswith(prefix):
-            return i
-    return None
-audit_step = commit_step = None
-for n, s in enumerate(steps):
-    ls = lines(s)
-    if audit_step is None and first(ls, "brew audit") is not None:
-        audit_step = n
-    if commit_step is None and any("createCommitOnBranch" in l for l in ls):
-        commit_step = n
-if audit_step is None:
-    print("no step runs brew audit")
-elif commit_step is None:
-    print("no step creates the commit")
-elif audit_step >= commit_step:
-    print("the audit does not run before the commit")
-else:
-    ls = lines(steps[audit_step])
-    link, trust, audit = first(ls, "ln -s"), first(ls, "brew trust glyndor/tap"), first(ls, "brew audit")
-    if link is None or trust is None or not link < trust < audit:
-        print("the order is not link, trust, audit")
-    elif "--strict" not in ls[audit]:
-        print("the audit is not strict")
-    else:
-        print("ok")
-PY
+	python3 "$HERE/tests/fixtures/ci/audit-obligation.py" "$1" update
 }
 
 plant() { # $1 = file, $2 = audit-step lines (newline separated), $3 = commit step line
@@ -106,6 +72,39 @@ check "a trust after the audit is reported" "the order is not link, trust, audit
 
 plant "$WORK/c/commented.yml" "$(printf '%s\n%s\n%s' "$LINK" "$TRUST" '# brew audit --strict x')" "$COMMIT"
 check "a commented-out audit does not count" "no step runs brew audit" "$(order "$WORK/c/commented.yml")"
+
+# Mutate an otherwise valid workflow; each bypass must be rejected on its own.
+python3 - "$WORK/c/good.yml" "$WORK/c" <<'PYCASE'
+import copy, pathlib, sys, yaml
+good = yaml.safe_load(open(sys.argv[1]))
+for mutation in ("exit", "if", "if-true", "step-error", "job-error", "swallowed"):
+    doc = copy.deepcopy(good)
+    job = next(iter(doc["jobs"].values()))
+    step = job["steps"][0]
+    if mutation == "exit":
+        step["run"] = "exit 0\n" + step["run"]
+    elif mutation == "if":
+        step["if"] = False
+    elif mutation == "if-true":
+        step["if"] = "${{ always() }}"
+    elif mutation == "swallowed":
+        step["run"] = step["run"].replace("brew audit --strict glyndor/tap/podup", "brew audit --strict glyndor/tap/podup || true")
+    elif mutation == "step-error":
+        step["continue-on-error"] = True
+    else:
+        job["continue-on-error"] = True
+    pathlib.Path(sys.argv[2], mutation + ".yml").write_text(yaml.safe_dump(doc))
+PYCASE
+for mutation in exit if if-true step-error job-error swallowed; do
+	case "$mutation" in
+		exit) expected="the audit is not reached" ;;
+		if|if-true) expected="the audit step is conditional" ;;
+		step-error) expected="the audit step ignores failure" ;;
+		job-error) expected="the audit job ignores failure" ;;
+		swallowed) expected="the audit failure is swallowed" ;;
+	esac
+	check "$mutation cannot bypass the audit" "$expected" "$(order "$WORK/c/$mutation.yml")"
+done
 
 check "the live update workflow audits strictly before it commits" "ok" \
 	"$(order "$HERE/.github/workflows/update.yml")"

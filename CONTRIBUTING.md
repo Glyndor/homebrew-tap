@@ -152,12 +152,14 @@ and red immediately after. Stage first, then check.
 | `freshness.yml` | something scheduled stopped happening elsewhere |
 | `dco.yml`, `line-limit.yml`, `workflow-lint.yml` | one rule each |
 | `update.yml` | the hourly regeneration, which commits to `main` |
-| `drift.yml` | this repository's copy of a reusable workflow, or of the renderer's verification logic, no longer agrees with its sibling channels |
+| `drift.yml` | a copy this repository shares with a sibling channel no longer agrees: a reusable workflow, the renderer's verification logic, or one of the scripts and tests the tap and the bucket carry as exact copies |
 | `dco-on-main.yml` | a human commit reached `main` without a `Signed-off-by` trailer; detection after the push, not prevention |
 
 Every reusable lives in `.github/workflows/reusable-*.yml` as a copy kept identical in logic to the
 copies in the sibling channels (`scripts/monitoring/check-reusable-drift.sh` compares
-them). Nothing is pulled remotely.
+them). The scripts and tests listed in `scripts/monitoring/channel-shared-paths.txt` are
+copies kept identical to the bucket's (`scripts/monitoring/check-channel-drift.sh` compares them).
+Nothing is pulled remotely.
 
 **Job ids are load-bearing.** A required status check is named
 `<caller job id> / <inner job name>`, so renaming a job renames its check.

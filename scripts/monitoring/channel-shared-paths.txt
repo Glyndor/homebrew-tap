@@ -1,0 +1,73 @@
+# The files this repository and Glyndor/scoop-bucket carry as exact copies.
+#
+# scripts/monitoring/check-channel-drift.sh reads this file and compares every
+# path listed here with the copy the tap publishes on its main branch. A listed
+# path whose text differs, or that is missing on either side, fails the check.
+#
+# One path per line, relative to the repository root. Whole-line comments and
+# blank lines are ignored. A path naming a file that one of the two
+# repositories does not carry is a failure, not a skipped comparison: a list
+# entry that cannot be compared is a hole in the contract, and a hole that
+# reports green is how the copy stopped being a copy in the first place.
+#
+# WHAT BELONGS HERE
+#
+#   A file that is the same text in both repositories and has to stay the same
+#   text: the shell both channels lint with, the CI policy both channels
+#   publish under, and the tests both channels hold each other to. Thirty-two
+#   files qualify today.
+#
+# WHAT DOES NOT BELONG HERE
+#
+#   The renderers under scripts/release/, which are two implementations of one
+#   idea: they emit Ruby formulae in the tap and JSON manifests here.
+#   check-render-drift.sh compares the units they share, and a byte
+#   comparison of the files would be red forever.
+#
+#   scripts/monitoring/check-suite-on-main.sh, which has three different
+#   implementations, one per channel, and is meant to.
+#
+#   The drift checkers themselves. Each names the repositories it reads, so
+#   the same text in three places would be three wrong files.
+#
+# HOW TO ADD A PATH
+#
+#   Add the file to both repositories, make the two copies identical, and
+#   then add the path here. A path added here before the tap carries the file
+#   makes the check red, which is the check doing its job: the copies are
+#   supposed to exist on both sides before anyone claims they agree.
+#
+#   This file is not listed in itself. It lives in this repository only, and
+#   a path the sibling does not carry cannot be a shared copy.
+scripts/quality/check-doc-anchors.sh
+scripts/quality/check-editorconfig.sh
+scripts/quality/check-test-coverage.sh
+scripts/quality/ci-job-scope.sh
+scripts/quality/lint-workflow-shell.sh
+tests/ci/policy/cancel-policy.test.sh
+tests/ci/policy/documented-test-command.test.sh
+tests/ci/policy/locale-pinned.test.sh
+tests/ci/policy/workflow-shape.test.sh
+tests/ci/reusable/reusable-dco.test.sh
+tests/ci/reusable/reusable-dependabot-freshness.test.sh
+tests/ci/reusable/reusable-empty-diff.test.sh
+tests/ci/reusable/reusable-line-limit.test.sh
+tests/ci/reusable/reusable-schedule-freshness.test.sh
+tests/ci/reusable/reusable-shell-ci.test.sh
+tests/ci/reusable/reusable-workflow-lint.test.sh
+tests/ci/suites/check-suite-completeness.test.sh
+tests/ci/suites/ci-runs-every-test.test.sh
+tests/ci/suites/lint-job-scope.test.sh
+tests/ci/suites/shell-ci-scope.test.sh
+tests/fixtures/monitoring/render-drift-fixture.sh
+tests/monitoring/check-render-drift-drift.test.sh
+tests/monitoring/check-render-drift-missing.test.sh
+tests/monitoring/check-render-drift-network.test.sh
+tests/monitoring/check-render-drift-version.test.sh
+tests/monitoring/check-render-drift.test.sh
+tests/monitoring/check-reusable-drift.test.sh
+tests/quality/check-doc-anchors.test.sh
+tests/quality/check-editorconfig.test.sh
+tests/quality/check-test-coverage.test.sh
+tests/quality/ci-job-scope.test.sh
+tests/quality/lint-workflow-shell.test.sh

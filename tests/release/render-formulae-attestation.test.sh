@@ -145,6 +145,27 @@ check "and it is NOT reported as a failed attestation" "0" \
 check "and no formula is written from it" "0" \
 	"$(find "$WORK/p5/Formula" -name '*.rb' | wc -l)"
 
+# Payload bytes replaced AFTER signing, byte count unchanged. The signature
+# and SHA256SUMS are still valid, so only the digest of the downloaded file
+# can tell: the renderer must compute it and refuse before it verifies
+# provenance or publishes anything.
+publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
+new_root "$WORK/tampered-payload"
+generator_with "$WORK/tampered-payload/scripts/release/render-formulae.sh" "$PODUP"
+run "$WORK/tampered-payload/scripts/release/render-formulae.sh" "$WORK/tampered-payload"
+cp "$WORK/tampered-payload/Formula/podup.rb" "$WORK/payload-before.rb"
+asset_path="$RELEASES/Glyndor__podup/asset_podup-darwin-arm64"
+original_size="$(stat -c%s "$asset_path")"
+printf X | dd of="$asset_path" bs=1 count=1 conv=notrunc status=none
+check "payload tampering preserves its byte count" "$original_size" "$(stat -c%s "$asset_path")"
+rc=0; run "$WORK/tampered-payload/scripts/release/render-formulae.sh" "$WORK/tampered-payload" || rc=$?
+check "post-signature payload tampering is refused" "3" "$rc"
+check "payload refusal names the digest mismatch" "1" \
+	"$(grep -c 'not the .* that SHA256SUMS declares' "$WORK/out" || true)"
+check "payload tampering leaves the published formula byte for byte" "0" \
+	"$(cmp -s "$WORK/payload-before.rb" "$WORK/tampered-payload/Formula/podup.rb"; echo $?)"
+check "payload tampering reports no publication" "0" "$(grep -c '^rendered ' "$WORK/out" || true)"
+
 # The whole render fails closed on any of the above rather than skipping
 # the product and committing partial output. A product whose attestation
 # failed verification must leave Formula/ exactly as it was: an existing
@@ -316,6 +337,13 @@ contains "the newer version is published" "$WORK/rollback/Formula/podup.rb" \
 	'/releases/download/v10.0.0/'
 
 publish Glyndor/podup v1.0.0 podup-darwin-arm64 podup-darwin-x86_64
+# Only the exact value 1 authorizes a rollback: 0, true and an empty string
+# must each still refuse, so a loosened comparison cannot turn the bypass on.
+for bypass in 0 true yes ""; do
+	rc=0
+	ALLOW_RELEASE_DOWNGRADE="$bypass" run "$WORK/rollback/scripts/release/render-formulae.sh" "$WORK/rollback" || rc=$?
+	check "ALLOW_RELEASE_DOWNGRADE='$bypass' still refuses the downgrade" "1" "$rc"
+done
 rc=0
 ALLOW_RELEASE_DOWNGRADE=1 run "$WORK/rollback/scripts/release/render-formulae.sh" "$WORK/rollback" || rc=$?
 check "an explicit manual rollback is allowed" "0" "$rc"

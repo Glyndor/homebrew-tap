@@ -53,7 +53,48 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  scope:
+    runs-on: ubuntu-latest
+    # Only checkout and a local diff; 2 minutes bounds runner/setup stalls.
+    # No hosted measurement yet; the decision itself is exercised by audit-scope.test.sh.
+    timeout-minutes: 2
+    outputs:
+      run_audit: ${{ steps.scope.outputs.run_audit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Decide whether the audit inputs changed
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_audit=true
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            changed="$(mktemp)"
+            trap 'rm -f "$changed"' EXIT
+            # HEAD is the PR merge commit; its first parent is the base tree.
+            # Disable rename detection so both old and new paths are checked.
+            # A failed or empty diff cannot justify skipping a required check.
+            if git diff --no-renames --name-only -z HEAD^1..HEAD -- > "$changed" && [ -s "$changed" ]; then
+              run_audit=false
+              while IFS= read -r -d '' path; do
+                case "$path" in
+                  Formula/*|.github/workflows/audit.yml) run_audit=true; break ;;
+                esac
+              done < "$changed"
+            fi
+          fi
+          echo "run_audit=$run_audit" >> "$GITHUB_OUTPUT"
+
   audit:
+    needs: scope
+    # A skipped required job reports Success. That is intentional when the PR
+    # changed no formula or audit logic: Homebrew rule changes are covered by
+    # the daily cron. The audit reads no repository scripts, so scripts/** is
+    # deliberately absent from the allowlist above. Push/schedule always run.
+    if: needs.scope.outputs.run_audit == 'true'
     name: brew audit
     runs-on: macos-latest
     # The variables below stop brew updating itself; this bounds what is left.

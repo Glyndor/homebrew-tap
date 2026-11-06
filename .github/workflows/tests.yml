@@ -82,6 +82,7 @@ jobs:
         ./tests/ci/reusable/reusable-schedule-freshness.test.sh
         ./tests/ci/reusable/reusable-workflow-lint.test.sh
         ./tests/ci/policy/brew-jobs-are-bounded.test.sh
+        ./tests/ci/policy/audit-scope.test.sh
         ./tests/ci/policy/audit-runs-on-a-schedule.test.sh
         ./tests/ci/policy/audit-trusts-the-linked-tap.test.sh
         ./tests/ci/policy/update-audits-before-commit.test.sh

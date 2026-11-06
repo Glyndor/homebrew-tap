@@ -60,7 +60,7 @@ if [ -L "$root/Formula" ]; then
 	echo "::error::Formula/ is a symlink; the tap must hold its own formulae" >&2
 	exit 1
 fi
-not_regular="$(find "$root/Formula" -mindepth 1 \( -type l -o \( ! -type f ! -type d \) \) -printf '%P\n' | sort)"
+not_regular="$(find "$root/Formula" -mindepth 1 \( -type l -o \( ! -type f ! -type d \) -o \( -type d -iname '*.rb' \) \) -printf '%P\n' | sort)"
 if [ -n "$not_regular" ]; then
 	echo "::error::Formula/ holds a symlink or another entry that is not a regular file or a directory:" >&2
 	printf '%s\n' "$not_regular" | sed 's/^/  /' >&2

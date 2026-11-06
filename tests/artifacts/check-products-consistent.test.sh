@@ -76,6 +76,13 @@ rc=0; run "$T" || rc=$?
 check "a symlink standing in for a formula fails" "1" "$rc"
 check "and it is named as not a regular file" "1" "$(said 'not a regular file or a directory')"
 
+# A directory named like a formula is not a formula either.
+T="$(mktap dirformula alpha)"
+rm -f "$T/Formula/alpha.rb"; mkdir "$T/Formula/alpha.rb"
+rc=0; run "$T" || rc=$?
+check "a directory named like a formula is refused" "1" "$rc"
+check "and it is listed by name" "1" "$(grep -c '^  alpha.rb$' "$WORK/out")"
+
 # A symlinked directory: find does not descend into it, so formulae behind it
 # would be loaded by Homebrew and never seen by the comparison.
 T="$(mktap dirlink alpha)"

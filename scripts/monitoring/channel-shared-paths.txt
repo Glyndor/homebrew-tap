@@ -39,6 +39,7 @@
 #
 #   This file is not listed in itself. It lives in this repository only, and
 #   a path the sibling does not carry cannot be a shared copy.
+scripts/quality/check-action-pins.sh
 scripts/quality/check-doc-anchors.sh
 scripts/quality/check-editorconfig.sh
 scripts/quality/check-test-coverage.sh
@@ -66,6 +67,7 @@ tests/monitoring/check-render-drift-network.test.sh
 tests/monitoring/check-render-drift-version.test.sh
 tests/monitoring/check-render-drift.test.sh
 tests/monitoring/check-reusable-drift.test.sh
+tests/quality/check-action-pins.test.sh
 tests/quality/check-doc-anchors.test.sh
 tests/quality/check-editorconfig.test.sh
 tests/quality/check-test-coverage.test.sh

@@ -55,6 +55,7 @@ jobs:
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/ci/policy/locale-pinned.test.sh
         ./tests/quality/check-test-coverage.test.sh
+        ./tests/quality/check-action-pins.test.sh
         ./tests/quality/check-doc-anchors.test.sh
         ./tests/governance/check-dco-on-main.test.sh
         ./tests/governance/check-issue-templates.test.sh

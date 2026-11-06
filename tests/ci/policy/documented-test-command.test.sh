@@ -56,6 +56,18 @@ out="$(cd "$WORK/t" && PATH="$WORK/bin:$PATH" bash -c "$block" 2>&1)"
 rc=$?
 check "with every suite passing the documented command succeeds" "0" "$rc"
 
+# The completeness check refuses to run without arguments (it prints its usage
+# and exits 2). Run on its own by the loop it would fail every clean tree, so the
+# documented command has to hand it the other test files.
+mkdir -p "$WORK/t/tests/ci/suites"
+printf '#!/usr/bin/env bash\n[ "$#" -gt 0 ] || { echo usage >&2; exit 2; }\necho completeness-got-"$#"\n' \
+	> "$WORK/t/tests/ci/suites/check-suite-completeness.test.sh"
+chmod +x "$WORK/t/tests/ci/suites/check-suite-completeness.test.sh"
+out="$(cd "$WORK/t" && PATH="$WORK/bin:$PATH" bash -c "$block" 2>&1)"
+rc=$?
+check "the completeness check is given the other suites, not run bare" "0" "$rc"
+check "and it received one argument per other suite" "1" "$(printf '%s' "$out" | grep -c 'completeness-got-1$')"
+
 flat="$(cat "$HERE/CONTRIBUTING.md" "$HERE/.github/PULL_REQUEST_TEMPLATE.md" | grep -cE 'tests/\*\.(test\.)?sh|scripts/\*\.sh')"
 check "no flat glob over tests/ or scripts/ is documented" "0" "$flat"
 

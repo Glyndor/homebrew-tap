@@ -139,7 +139,8 @@ https_only() { # $1=argv log; require every effective redirect restriction
 	python3 - "$1" <<'PYARGV'
 import json, sys
 calls = [json.loads(line) for line in open(sys.argv[1])]
-valid = len(calls) == 2
+# The sums file, its signature and the two release assets: four downloads.
+valid = len(calls) == 4
 for args in calls:
     values = [args[i + 1] for i, arg in enumerate(args[:-1]) if arg == "--proto-redir"]
     valid = valid and values == ["=https"]
@@ -160,14 +161,14 @@ p.write_text(text)
 PYCASE
 : > "$CURL_ARGV_LOG"
 rc=0; run "$WORK/redirect/scripts/release/render-formulae.sh" "$WORK/redirect" || rc=$?
-check "the mutated renderer reaches both downloads successfully" "0" "$rc"
+check "the mutated renderer reaches every download successfully" "0" "$rc"
 rc=0; https_only "$CURL_ARGV_LOG" || rc=$?
 check "a weaker flag plus an https-only comment is rejected" "1" "$rc"
 new_root "$WORK/redirect"
 generator_with "$WORK/redirect/scripts/release/render-formulae.sh" "$PODUP"
 : > "$CURL_ARGV_LOG"
 rc=0; run "$WORK/redirect/scripts/release/render-formulae.sh" "$WORK/redirect" || rc=$?
-check "the live renderer downloads both assets" "0" "$rc"
+check "the live renderer makes every download" "0" "$rc"
 rc=0; https_only "$CURL_ARGV_LOG" || rc=$?
 check "every live curl argv restricts redirects to https" "0" "$rc"
 unset CURL_ARGV_LOG

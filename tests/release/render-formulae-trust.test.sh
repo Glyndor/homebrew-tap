@@ -45,6 +45,7 @@ publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
 # Pad the manifest past MAX_SUMS_BYTES (4096). The signature is now stale,
 # but the size check fires before the python verifies it, so the signature
 # path is never reached and the test stays a pure size test.
+# Ignore curl's cap here to exercise the independent check after the transfer.
 # No pipe, no SIGPIPE: `printf 'X\n%.0s' $(seq 1 N)` writes N lines of
 # "X\n" without a pipe, so `set -o pipefail` does not kill it when the
 # producer finishes.
@@ -52,7 +53,7 @@ printf 'a\n%.0s' $(seq 1 5000) > "$RELEASES/Glyndor__podup/SHA256SUMS"
 new_root "$WORK/r6b"
 generator_with "$WORK/r6b/scripts/release/render-formulae.sh" "$PODUP"
 rc=0
-out="$( cd "$WORK/r6b" && "$WORK/r6b/scripts/release/render-formulae.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+out="$( cd "$WORK/r6b" && CURL_STUB_IGNORE_MAXFILESIZE=1 "$WORK/r6b/scripts/release/render-formulae.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
 check "an oversized SHA256SUMS is refused" "3" "$rc"
 check "and the message names the size limit" "1" \
 	"$(printf '%s' "$out" | grep -c 'over the 4096-byte cap')"
@@ -72,7 +73,7 @@ for sz in 32 128; do
 	new_root "$WORK/r6c$sz"
 	generator_with "$WORK/r6c$sz/scripts/release/render-formulae.sh" "$PODUP"
 	rc=0
-	out="$( cd "$WORK/r6c$sz" && "$WORK/r6c$sz/scripts/release/render-formulae.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
+	out="$( cd "$WORK/r6c$sz" && CURL_STUB_IGNORE_MAXFILESIZE=1 "$WORK/r6c$sz/scripts/release/render-formulae.sh" --pubkey "$PUBKEY" 2>&1 )" || rc=$?
 	check "a ${sz}-byte signature is refused" "3" "$rc"
 	check "and is named by its measured size, not as a bad signature ($sz bytes)" "1" \
 		"$(printf '%s' "$out" | grep -c "SHA256SUMS.sig is ${sz} bytes")"
@@ -268,7 +269,7 @@ for size in 4096 4097; do
 	resign "$WORK/tmpsums2" Glyndor/podup
 	new_root "$WORK/cap$size"
 	generator_with "$WORK/cap$size/scripts/release/render-formulae.sh" "$PODUP"
-	rc=0; run "$WORK/cap$size/scripts/release/render-formulae.sh" "$WORK/cap$size" || rc=$?
+	rc=0; CURL_STUB_IGNORE_MAXFILESIZE=1 run "$WORK/cap$size/scripts/release/render-formulae.sh" "$WORK/cap$size" || rc=$?
 	if [ "$size" = 4096 ]; then
 		check "a signed manifest of exactly 4096 bytes is accepted" "0" "$rc"
 	else

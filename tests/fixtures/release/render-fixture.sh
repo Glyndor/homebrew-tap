@@ -212,9 +212,9 @@ chmod +x "$BIN/gh"
 export RELEASES
 export PATH="$BIN:$PATH"
 
-# Curl stub for the asset download. Renders download from the fixture file
-# matching the asset name. The URL is parsed to find the slug/asset pair
-# so the stub does not need to be told where the fixture lives.
+# Curl stub for release metadata and binary downloads. The URL is parsed to
+# find the slug/asset pair; metadata uses the same files as the gh stub so a
+# test's edits and re-signatures are visible through either downloader.
 cat > "$BIN/curl" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -240,6 +240,9 @@ tag="${rest%%/*}"
 asset="${rest#*/}"
 slug="${owner_repo//\//__}"
 fixture="$RELEASES/$slug/asset_${asset}"
+case "$asset" in
+	SHA256SUMS|SHA256SUMS.sig) fixture="$RELEASES/$slug/$asset" ;;
+esac
 if [ "${CURL_STUB_FAIL:-}" = "1" ]; then
 	echo "curl stub: configured to fail for $url" >&2
 	exit 22

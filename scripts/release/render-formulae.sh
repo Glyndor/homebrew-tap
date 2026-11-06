@@ -134,18 +134,23 @@ trap 'rm -rf "$work"' EXIT
 # Download a release's SHA256SUMS(+.sig) and verify the signature, failing closed.
 verify_sha256sums() { # $1=repo $2=tag
 	rm -f "$work/SHA256SUMS" "$work/SHA256SUMS.sig"
-	gh release download "$2" --repo "$1" \
-		--pattern SHA256SUMS --pattern SHA256SUMS.sig --dir "$work" --clobber \
-		|| return 1
-	# Bound the bytes on disk BEFORE the embedded python reads them. The
-	# signature is exactly 64 bytes and a legitimate manifest is a few hundred,
-	# so anything else is by definition neither, and an attacker who can
-	# publish release assets can pick the size of what the renderer transfers
-	# and holds in memory. A size refusal is reported here so it stays a third
-	# thing and is not folded into either of the two python messages: "our
-	# trust anchor is malformed" or "their signature does not verify". The
-	# measured size goes in both messages so an oversized file does not look
-	# like a parse error.
+	local asset limit
+	# Bound each transfer, not just the files the verifier eventually reads.
+	for asset in SHA256SUMS SHA256SUMS.sig; do
+		case "$asset" in
+			SHA256SUMS) limit="$MAX_SUMS_BYTES" ;;
+			SHA256SUMS.sig) limit="$MAX_SIG_BYTES" ;;
+		esac
+		if ! curl -fsSL --proto =https --proto-redir =https --connect-timeout 10 --max-time 120 \
+			--max-filesize "$limit" -o "$work/$asset" \
+			"https://github.com/$1/releases/download/$2/$asset"; then
+			echo "::error::$1 $2: failed to download $asset within the ${limit}-byte cap and 120-second time limit" >&2
+			return 1
+		fi
+	done
+	# Retain disk bounds before Python reads either file, including the exact
+	# Ed25519 signature length, even if the downloader does not enforce its cap.
+	# A size refusal remains distinct from a malformed key or invalid signature.
 	sums_size="$(stat -c%s "$work/SHA256SUMS")"
 	[ "$sums_size" -le "$MAX_SUMS_BYTES" ] || {
 		echo "::error::$1 $2: SHA256SUMS is $sums_size bytes, over the ${MAX_SUMS_BYTES}-byte cap" >&2

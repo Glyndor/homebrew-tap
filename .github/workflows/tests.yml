@@ -49,6 +49,7 @@ jobs:
         ./tests/release/render-formulae-version.test.sh
         ./tests/release/render-formulae-products.test.sh
         ./tests/release/render-formulae-attestation.test.sh
+        ./tests/release/render-formulae-inputs.test.sh
         ./tests/publication/update-workflow.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/ci/policy/locale-pinned.test.sh

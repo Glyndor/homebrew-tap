@@ -25,7 +25,7 @@
 # What it refuses, and what it says in each case:
 #
 #   * an operating system field that does not name this channel's platform
-#   * an operating system field that offers a Linux distribution instead
+#   * an operating system field that names a platform this channel does not serve
 #   * an operating system field that does not ask for the package manager's
 #     version, which is half of what tells one installation from another
 #   * a version field that does not name the install command the README
@@ -55,9 +55,11 @@ artifact_dir="Formula"
 # for a file that was never published.
 foreign_methods="install.sh install.ps1"
 
-# The distributions that are not this channel's platform. A template that
-# offers one is offering the reader a system they do not have.
-other_platforms="Ubuntu Debian Fedora openSUSE SUSE Arch Alpine Gentoo"
+# The distributions that are not a platform this channel serves. This tap
+# serves Linux too (see README.md), so the list is empty: a distribution named
+# next to macOS is not wrong here, and refusing it would forbid the answer a
+# Homebrew-on-Linux user has to give.
+other_platforms=""
 
 template="$root/.github/ISSUE_TEMPLATE/bug_report.yml"
 readme="$root/README.md"
@@ -148,14 +150,14 @@ holds_install_command() { # $1=text
 }
 
 if [ -n "$os_field" ]; then
-	if ! printf '%s\n' "$os_field" | grep -qF "$platform"; then
-		error "the operating system field does not name $platform, the platform this channel installs on"
+	if ! printf '%s\n' "$os_field" | grep -qiF "$platform"; then
+		error "the operating system field does not name $platform, a platform this channel serves"
 	fi
-	if [ -n "$manager" ] && ! printf '%s\n' "$os_field" | grep -qF "$manager"; then
+	if [ -n "$manager" ] && ! printf '%s\n' "$os_field" | grep -qiF "$manager"; then
 		error "the operating system field does not ask for the $manager version"
 	fi
 	for other in $other_platforms; do
-		if printf '%s\n' "$os_field" | grep -qwF "$other"; then
+		if printf '%s\n' "$os_field" | grep -qiwF "$other"; then
 			error "the operating system field names $other, which is not the platform this channel installs on"
 		fi
 	done

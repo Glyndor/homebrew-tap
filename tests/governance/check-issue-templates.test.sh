@@ -36,7 +36,7 @@ check() { # <description> <expected> <actual>
 
 run() { # $1=tree -> rc in $rc, output in $out
 	rc=0
-	out="$("$CHECK" "$1" 2>&1)" || rc=$?
+	out="$(bash "$CHECK" "$1" 2>&1)" || rc=$?
 }
 
 said() { printf '%s' "$out" | grep -qF "$1" && echo 1 || echo 0; }
@@ -157,8 +157,9 @@ body:
       required: true
 YAML
 
-# The platform is named and a distribution is offered next to it.
-cat > "$WORK/mixed-os-template.yml" <<'YAML'
+# The platform is named and a distribution is offered next to it. This tap
+# serves Linux too, so that is not wrong here.
+cat > "$WORK/linux-example-template.yml" <<'YAML'
 name: Bug report
 description: Report a bug or unexpected behavior
 body:
@@ -167,7 +168,7 @@ body:
     attributes:
       label: Operating system
       description: macOS version and architecture, plus your Homebrew version (`brew --version`).
-      placeholder: e.g. macOS 15 Apple Silicon, Ubuntu 24.04
+      placeholder: e.g. macOS 15 Apple Silicon, Ubuntu 24.04 (Linux via this tap)
     validations:
       required: true
   - type: input
@@ -226,6 +227,29 @@ body:
       required: true
 YAML
 
+# The manager is named in a different case.
+cat > "$WORK/manager-case-template.yml" <<'YAML'
+name: Bug report
+description: Report a bug or unexpected behavior
+body:
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: macOS version and architecture, plus your Brew version.
+      placeholder: e.g. macOS 15 Apple Silicon, macOS 14 Intel
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Project version and how you installed it.
+      placeholder: e.g. 5.16.0 (brew install glyndor/tap/podup)
+    validations:
+      required: true
+YAML
+
 # The template has no operating system field at all.
 cat > "$WORK/no-os-template.yml" <<'YAML'
 name: Bug report
@@ -280,10 +304,13 @@ check "a version field that names install.sh is refused" "1" "$rc"
 check "and names the method that does not exist here" "1" "$(said 'install.sh')"
 check "and does not blame the operating system field" "0" "$(said 'does not name macOS')"
 
-D="$(fixture mixed-os "$WORK/mixed-os-template.yml" "$WORK/good-readme.md")"
+D="$(fixture linux-example "$WORK/linux-example-template.yml" "$WORK/good-readme.md")"
 run "$D"
-check "a distribution offered next to the platform is refused" "1" "$rc"
-check "and names the distribution" "1" "$(said 'Ubuntu')"
+check "a distribution named next to the platform is accepted, because this tap serves Linux too" "0" "$rc"
+
+D="$(fixture manager-case "$WORK/manager-case-template.yml" "$WORK/good-readme.md")"
+run "$D"
+check "a manager written in another case is accepted" "0" "$rc"
 
 D="$(fixture no-manager "$WORK/no-manager-template.yml" "$WORK/good-readme.md")"
 run "$D"

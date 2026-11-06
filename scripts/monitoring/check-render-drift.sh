@@ -18,7 +18,7 @@
 #
 # WHAT IS COMPARED
 #
-#   Five named units inside the script:
+#   Eight named units inside the script:
 #
 #       verify_sha256sums  the function that fetches SHA256SUMS + .sig and
 #                         verifies the Ed25519 signature against the
@@ -44,6 +44,21 @@
 #                         the matching old signed SHA256SUMS. The
 #                         attestation is what binds the binary to the tag.
 #                         This is shared logic and belongs in the contract.
+#       release_order     the function that compares the candidate version
+#                         with the version the channel already serves, using
+#                         SemVer precedence, and refuses a rollback unless
+#                         ALLOW_RELEASE_DOWNGRADE=1 says so. A genuinely signed
+#                         older release marked latest again would move the
+#                         channel backwards, and the two channels have to
+#                         refuse the same releases or one of them publishes
+#                         what the other will not serve.
+#       version_guard     the function that holds the release tag to a plain
+#                         version before it is interpolated into the generated
+#                         artifact. The tag is the only field that arrives
+#                         from outside the repository without a signature of
+#                         its own, and a tag carrying a quote closes the string
+#                         it is written into and appends code that runs on
+#                         every install.
 #
 #   render_product is EXCLUDED by name, with the reason given below. The two
 #   repositories render to different formats, so the function legitimately
@@ -96,6 +111,8 @@ UNITS=(
 	release_keys
 	verify_attestation
 	limits
+	release_order
+	version_guard
 )
 
 # render_product is intentionally excluded by name. It formats to Ruby formulae
@@ -158,6 +175,18 @@ extract_unit() { # $1=file $2=unit
 		verify_attestation)
 			sed -n '/^verify_attestation()/,/^}/p' "$file"
 			;;
+		release_order)
+			# The SemVer comparison and the rollback refusal, as one unit: a
+			# comparison that lands in one channel only would let that channel
+			# publish a release the other one refuses, or refuse one it
+			# publishes.
+			sed -n '/^release_order()/,/^}/p' "$file"
+			;;
+		version_guard)
+			# The character set the release tag is held to before it is
+			# interpolated into the generated artifact.
+			sed -n '/^version_guard()/,/^}/p' "$file"
+			;;
 		limits)
 			# The download caps. A cap raised in one channel only is a looser
 			# gate there, and nothing else would notice: the constants are not
@@ -182,7 +211,7 @@ extract_unit() { # $1=file $2=unit
 unit_is_complete() { # $1=last-line $2=unit
 	local last="$1" unit="$2"
 	case "$unit" in
-		verify_sha256sums|hash_of|verify_attestation)
+		verify_sha256sums|hash_of|verify_attestation|release_order|version_guard)
 			[[ "$last" =~ ^}[[:space:]]*$ ]]
 			;;
 		py_block)

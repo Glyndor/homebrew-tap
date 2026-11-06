@@ -426,16 +426,109 @@ asset_expr() { # $1=arm asset  $2=intel asset
 	fi
 }
 
-# Compare the served URL version with the candidate using SemVer precedence:
-# numeric major/minor/patch; pre-release < stable; numeric pre-release identifiers
-# < text (ASCII), compared left to right; build metadata is ignored. rc1 is text.
-release_order() { # $1=formula path $2=repo $3=candidate; prints lower|equal|higher
-	python3 - "$1" "$2" "$3" <<'PYVERSION'
+# Hold the release tag to a plain version before it is interpolated into
+# generated code.
+#
+# The tag is the only field here that comes from outside this repository and
+# carries no signature of its own. SHA256SUMS is verified, and the digests it
+# gives are checked to be 64 hex characters before use -- but the tag travels
+# beside that signature, not inside it, and it lands in the artifact that is
+# published.
+#
+# A tag carrying a quote, a backslash, a space or any other character outside
+# the set below can close the string it is written into and append text that
+# runs on every install. Whoever can publish a release in a product repository
+# would get code execution on every machine installing from this channel.
+#
+# So the version is held to the same standard as the digest: a fixed
+# character set, checked before it is interpolated. Real tags are v5.1.0,
+# v3.7.1 -- digits, dots, and the pre-release and build punctuation semver
+# allows. Nothing else.
+#
+# The two channels must accept and refuse the same tags, so this function is
+# compared between them: a tag refused here and published there is a release
+# one channel will not serve and the other will.
+version_guard() { # $1=repo $2=tag $3=version
+	case "$3" in
+		"" | *[!0-9A-Za-z.+-]* | .* | *.)
+			echo "::error::$1: the release tag \"$2\" is not a plain version; refusing to interpolate it into generated code" >&2
+			return 1
+			;;
+	esac
+	case "$3" in
+		[0-9]*) ;;
+		*)
+			echo "::error::$1: the release tag \"$2\" does not start with a digit after stripping a leading v" >&2
+			return 1
+			;;
+	esac
+}
+
+# Read the version this repository already serves, from the active url lines of
+# the formula on disk. "-" means nothing is served yet.
+#
+# Only the active `url "..."` lines count: the renderer always writes that
+# form, so a commented-out line or a url(...) call is not the served version,
+# and a formula with no active url is an error.
+#
+# This is NOT part of the drift contract: reading the served version out of a
+# Ruby formula and out of a JSON manifest are different operations, and only
+# the decision they feed is shared.
+served_version() { # $1=repo $2=formula name
+	local repo="$1" path="$root/Formula/$2.rb"
+	if [ ! -f "$path" ]; then
+		printf '%s\n' "-"
+		return 0
+	fi
+	python3 - "$path" "$repo" <<'SERVED'
 import re, sys
 from pathlib import Path
 
-path, repo, candidate = sys.argv[1:]
+path, repo = sys.argv[1:]
+try:
+    text = Path(path).read_text()
+except OSError as error:
+    sys.exit(f"::error::{repo}: cannot read served formula: {error}")
+versions = set(re.findall(r'^[ \t]*url "https://github.com/' + re.escape(repo) + r'/releases/download/v?([^/]+)/', text, re.M))
+if len(versions) != 1:
+    sys.exit(f"::error::{repo}: cannot determine a unique served version from {path}")
+print(versions.pop())
+SERVED
+}
+
+# Compare the served version with the candidate using SemVer precedence:
+# numeric major/minor/patch; pre-release < stable; numeric pre-release identifiers
+# < text (ASCII), compared left to right; build metadata is ignored. rc1 is text.
+#
+# $1 = the repository, named in the error message
+# $2 = the candidate version
+# $3 = the product whose served version is compared
+#
+# The served version is read through served_version, which is the one part of
+# this that differs between the channels: a Ruby formula and a JSON manifest
+# do not hold it the same way. Everything after that -- the comparison and the
+# refusal -- is shared, and the two channels must agree on it, or a release
+# refused here is published there.
+#
+# Prints lower, equal or higher. A candidate below the served version is a
+# rollback: a genuinely signed older release marked latest again would move
+# the channel backwards, so it is refused unless ALLOW_RELEASE_DOWNGRADE=1,
+# which the workflow never sets. Signature, digest and provenance checks stay
+# on either way.
+#
+# The candidate is validated as SemVer before the served version is compared,
+# so a first publication of an invalid version is refused with an error that
+# names it. Published, it would make the next valid release abort on a served
+# version that cannot be parsed.
+release_order() { # $1=repo $2=candidate $3=product
+	local repo="$1" candidate="$2" served order
+	served="$(served_version "$repo" "$3")" || return 1
+	order="$(python3 - "$served" "$candidate" "$repo" <<'SEMVER'
+import re, sys
+
+served, candidate, repo = sys.argv[1:]
 pattern = r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+
 
 def precedence(version):
     match = re.fullmatch(pattern, version)
@@ -448,25 +541,24 @@ def precedence(version):
     return (int(major), int(minor), int(patch), pre is None,
             tuple((0, int(item)) if item.isdigit() else (1, item) for item in identifiers))
 
+
 new = precedence(candidate)
-if path == "-":
-    print()
-    print("none")
+if served == "-":
+    print("higher")
     sys.exit(0)
-try:
-    text = Path(path).read_text()
-except OSError as error:
-    sys.exit(f"::error::{repo}: cannot read served formula: {error}")
-# Only the active `url "..."` lines count: the renderer always writes that
-# form, so a commented-out line or a url(...) call is not the served version.
-versions = set(re.findall(r'^[ \t]*url "https://github.com/' + re.escape(repo) + r'/releases/download/v?([^/]+)/', text, re.M))
-if len(versions) != 1:
-    sys.exit(f"::error::{repo}: cannot determine a unique served version from {path}")
-served = versions.pop()
 old = precedence(served)
-print(served)
 print("lower" if new < old else "higher" if new > old else "equal")
-PYVERSION
+SEMVER
+	)" || return 1
+	if [ "$order" = "lower" ]; then
+		if [ "${ALLOW_RELEASE_DOWNGRADE:-}" = "1" ]; then
+			echo "::warning::$repo: ALLOW_RELEASE_DOWNGRADE=1 permits rollback from served $served to candidate $candidate" >&2
+		else
+			echo "::error::$repo: refusing release downgrade from served $served to candidate $candidate" >&2
+			return 1
+		fi
+	fi
+	printf '%s\n' "$order"
 }
 
 # Render one product's formula. Returns non-zero without touching any file when
@@ -564,19 +656,9 @@ render_product() { # $1=table entry
 	# character set, checked before it is interpolated. Real tags are v5.1.0,
 	# v3.7.1 -- digits, dots, and the pre-release and build punctuation semver
 	# allows. Nothing else.
-	case "$version" in
-		"" | *[!0-9A-Za-z.+-]* | .* | *.)
-			echo "::error::$repo: the release tag \"$tag\" is not a plain version; refusing to interpolate it into generated code" >&2
-			return 1
-			;;
-	esac
-	case "$version" in
-		[0-9]*) ;;
-		*)
-			echo "::error::$repo: the release tag \"$tag\" does not start with a digit after stripping a leading v" >&2
-			return 1
-			;;
-	esac
+	# The guard itself is shared with the sibling channel: the two must
+	# accept and refuse the same tags.
+	version_guard "$repo" "$tag" "$version" || return 1
 
 	verify_sha256sums "$repo" "$tag" || {
 		echo "::error::$repo $tag: SHA256SUMS is missing, oversized, or does not verify against the org release key" >&2
@@ -624,20 +706,7 @@ render_product() { # $1=table entry
 	# The candidate is validated even when nothing is served yet: a first
 	# publication of an invalid version would otherwise make the next valid
 	# release abort on a served version that cannot be parsed.
-	local comparison served order served_path
-	served_path="-"
-	[ -f "$root/Formula/$formula.rb" ] && served_path="$root/Formula/$formula.rb"
-	comparison="$(release_order "$served_path" "$repo" "$version")" || exit 1
-	served="${comparison%%$'\n'*}"
-	order="${comparison##*$'\n'}"
-	if [ "$order" = "lower" ]; then
-		if [ "${ALLOW_RELEASE_DOWNGRADE:-}" = "1" ]; then
-			echo "::warning::$repo: ALLOW_RELEASE_DOWNGRADE=1 permits rollback from served $served to candidate $version" >&2
-		else
-			echo "::error::$repo: refusing release downgrade from served $served to candidate $version" >&2
-			exit 1
-		fi
-	fi
+	release_order "$repo" "$version" "$formula" >/dev/null || exit 1
 
 	# Build only the blocks the product actually ships, one platform at a time.
 	# Two platforms with the same shape is what makes this a function rather

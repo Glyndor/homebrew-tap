@@ -1,25 +1,24 @@
 #!/usr/bin/env bash
 #
-# Tests for scripts/monitoring/check-render-drift.sh.
+# Tests for scripts/monitoring/check-render-drift.sh: the named units are
+# extracted, compared and counted.
 #
 # The contract being tested:
 #
-#   * six named units (verify_sha256sums, py_block, hash_of, release_keys,
-#     verify_attestation, limits) inside the local render script must stay
-#     byte-identical (after stripping comments and blanks) to the same
-#     units inside the sibling's differently-named render script;
+#   * every named unit inside the local render script must stay
+#     byte-identical (after stripping comments and blanks) to the same unit
+#     inside the sibling's differently-named render script;
 #   * render_product is excluded on purpose, and a change inside it must not
 #     turn the check red;
 #   * comment-only changes are tolerated (comments legitimately describe each
 #     repository);
-#   * a unit renamed on the remote side fails loudly with the unit's name;
-#   * a network failure is reported as a fetch failure, not as drift;
 #   * the script refuses to pass having compared nothing;
-#   * the two RELEASE_PUBKEY_B64 declarations on each side must agree; a
-#     rotation that lands in only one channel is reported as drift, with a
-#     message that names the keys and the rotation;
 #   * an unknown unit name passed to unit_is_complete is refused rather than
 #     silently treated as complete.
+#
+# The cases that pin a change to one unit, the cases that pin a unit that is
+# not there, the fetch-failure case and the two version units live in the
+# sibling files next to this one.
 #
 # Network is stubbed: a fake `curl` reads $CURL_STUB_FILE and prints it (or
 # fails, if $CURL_STUB_FAIL is set). Nothing here reaches GitHub.
@@ -27,568 +26,44 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-script="$here/../../scripts/monitoring/check-render-drift.sh"
-
-work="$(mktemp -d)"
-trap 'rm -rf "$work"' EXIT
-
-mkdir -p "$work/bin" "$work/scripts" "$work/scripts/monitoring" "$work/scripts/release"
-
-# Fake curl. If CURL_STUB_FAIL is set, exit 22 (HTTP 4xx is what -f maps to).
-# Otherwise print CURL_STUB_FILE, which the caller has populated.
-cat > "$work/bin/curl" <<'STUB'
-#!/usr/bin/env bash
-if [ "${CURL_STUB_FAIL:-}" = "1" ]; then
-	echo "curl: stubbed network failure to GitHub" >&2
-	exit 22
-fi
-cat "${CURL_STUB_FILE:-/dev/null}"
-STUB
-chmod +x "$work/bin/curl"
-
-# Baseline local render script. All six named units are present; the local
-# script carries NO comments so the comment-only test has to add them on the
-# remote side.
-cat > "$work/scripts/release/render-formulae.sh" <<'LOCAL'
-#!/usr/bin/env bash
-set -euo pipefail
-
-RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-MAX_SUMS_BYTES=4096
-MAX_SIG_BYTES=64
-MAX_ASSET_BYTES=104857600
-
-verify_sha256sums() {
-	rm -f "$work/SHA256SUMS"
-	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
-	python3 - <<'PY'
-import sys
-def load(b64):
-	b64 = b64.strip()
-	return b64
-msg = open(sys.argv[1], "rb").read()
-print("verify", msg)
-PY
-}
-
-hash_of() {
-	local matches
-	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
-	echo "$matches"
-}
-
-verify_attestation() {
-	gh attestation verify "$1" --repo "$2" --source-ref "$3"
-}
-
-render_product() {
-	echo "ruby"
-}
-LOCAL
-
+# The fixture lives one folder up and holds the stub, the synthetic render
+# script and the helpers. The linter cannot follow a sourced path built at
+# run time.
+# shellcheck disable=SC1091
+. "$here/../fixtures/monitoring/render-drift-fixture.sh"
+# The linter cannot follow a sourced path built at run time, and the fixture
+# is where the counters and the read-back of the last run live. The disable
+# is on the source line alone; the variables are re-declared here so nothing
+# downstream has to be excused for reading them.
 pass=0
 fail=0
-
-record_pass() { pass=$((pass + 1)); echo "  pass: $1"; }
-record_fail() { fail=$((fail + 1)); echo "  FAIL: $1${2:-}"; }
-
-expect_eq() { # $1 actual $2 expected $3 desc
-	if [ "$1" = "$2" ]; then
-		record_pass "$3 (got $1)"
-	else
-		record_fail "$3" " (expected $2, got $1)"
-	fi
-}
-
-expect_contains() { # $1 haystack $2 needle $3 desc
-	if printf '%s\n' "$1" | grep -qF -- "$2"; then
-		record_pass "$3"
-	else
-		record_fail "$3" " (no match for: $2)"
-	fi
-}
-
-expect_not_contains() { # $1 haystack $2 needle $3 desc
-	if ! printf '%s\n' "$1" | grep -qF -- "$2"; then
-		record_pass "$3"
-	else
-		record_fail "$3" " (unexpectedly contained: $2)"
-	fi
-}
-
-expect_compare_count_gt_zero() { # $1 output $2 desc
-	local n
-	n=$(printf '%s\n' "$1" | grep -oE 'compared [0-9]+' | head -1 | grep -oE '[0-9]+' || true)
-	if [ -n "$n" ] && [ "$n" -gt 0 ]; then
-		record_pass "$2 (count=$n)"
-	else
-		record_fail "$2" " (no 'compared N' line with N > 0)"
-	fi
-}
-
-# Run the check with the local temp repo and the given remote fixture file.
-run_with_remote() { # $1 = remote file path
-	cp "$1" "$work/remote"
-	set +e
-	CURL_STUB_FILE="$work/remote" PATH="$work/bin:$PATH" \
-		bash "$script" "$work" >"$work/out" 2>"$work/err"
-	echo $? >"$work/exit"
-	set -e
-}
-
-# Run the check with curl failing entirely.
-run_with_curl_fail() {
-	set +e
-	CURL_STUB_FAIL=1 PATH="$work/bin:$PATH" \
-		bash "$script" "$work" >"$work/out" 2>"$work/err"
-	echo $? >"$work/exit"
-	set -e
-}
-
-# Read back the most recent run.
-exit_code=$(cat "$work/exit" 2>/dev/null || echo 999)
-out_body=$(cat "$work/out" 2>/dev/null || true)
-err_body=$(cat "$work/err" 2>/dev/null || true)
-combined="$out_body$err_body"
+exit_code=0
+err_body=""
+combined=""
 
 echo
 echo "=== identical units pass and success line reports the compared count ==="
-cp "$work/scripts/release/render-formulae.sh" "$work/remote.sh"
-run_with_remote "$work/remote.sh"
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
+run_with_remote "$(remote_asis)"
 expect_eq "$exit_code" "0" "exit 0 when units are identical"
-expect_contains "$combined" "compared 6 render unit" "success line names compared 6"
+expect_contains "$combined" "compared 8 render unit" "success line names compared 8"
 expect_contains "$combined" "verification logic agrees" "success line says logic agrees"
-
-echo
-echo "=== drift in one unit, every unit present, is a failure by itself ==="
-# The other drift cases also leave a unit out of the remote file, so they exit 1
-# for being absent; none proves that drift alone ends the run non-zero. Here all
-# six units exist on both sides and exactly one line of hash_of differs.
-sed 's/matches=/matches2=/' "$work/scripts/release/render-formulae.sh" > "$work/remote-onechange.sh"
-run_with_remote "$work/remote-onechange.sh"
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
-expect_eq "$exit_code" "1" "exit 1 when a single unit differs and none is missing"
-expect_contains "$err_body" "1 of 6 compared render unit(s) have drifted" "counts one drifted unit of six"
-expect_not_contains "$err_body" "could not be found" "and no unit is reported missing"
-
-echo
-echo "=== a change inside verify_sha256sums fails and names that unit ==="
-# Change lives in the shell prelude, BEFORE <<'PY', so py_block itself is
-# unaffected: only verify_sha256sums should drift.
-cat > "$work/remote.sh" <<'REMOTE'
-#!/usr/bin/env bash
-set -euo pipefail
-
-verify_sha256sums() {
-	rm -f "$work/SHA256SUMS"
-	gh release download "$2" --repo "$1" --pattern SHA256SUMS --pattern SHA256SUMS.sig --dir "$work"
-	python3 - <<'PY'
-import sys
-def load(b64):
-	b64 = b64.strip()
-	return b64
-msg = open(sys.argv[1], "rb").read()
-print("verify", msg)
-PY
-}
-
-hash_of() {
-	local matches
-	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
-	echo "$matches"
-}
-
-verify_attestation() {
-	gh attestation verify "$1" --repo "$2" --source-ref "$3"
-}
-
-render_product() {
-	echo "ruby"
-}
-REMOTE
-run_with_remote "$work/remote.sh"
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
-expect_eq "$exit_code" "1" "exit 1 on drift in verify_sha256sums"
-expect_contains "$err_body" "verify_sha256sums has drifted" "names verify_sha256sums"
-expect_not_contains "$err_body" "py_block has drifted" "does not falsely name py_block"
-expect_not_contains "$err_body" "hash_of has drifted" "does not falsely name hash_of"
-expect_not_contains "$err_body" "verify_attestation has drifted" "does not falsely name verify_attestation"
-
-echo
-echo "=== a change inside the python block fails and names that unit ==="
-# This change is INSIDE <<'PY'...PY. The py_block comparison must report drift.
-cat > "$work/remote.sh" <<'REMOTE'
-#!/usr/bin/env bash
-set -euo pipefail
-
-verify_sha256sums() {
-	rm -f "$work/SHA256SUMS"
-	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
-	python3 - <<'PY'
-import sys
-def load(b64):
-	b64 = b64.strip()
-	b64 = b64.lower()
-	return b64
-msg = open(sys.argv[1], "rb").read()
-print("verify", msg)
-PY
-}
-
-hash_of() {
-	local matches
-	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
-	echo "$matches"
-}
-
-verify_attestation() {
-	gh attestation verify "$1" --repo "$2" --source-ref "$3"
-}
-
-render_product() {
-	echo "ruby"
-}
-REMOTE
-run_with_remote "$work/remote.sh"
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
-expect_eq "$exit_code" "1" "exit 1 on drift in py_block"
-expect_contains "$err_body" "py_block has drifted" "names py_block"
-expect_not_contains "$err_body" "verify_attestation has drifted" "does not falsely name verify_attestation"
 
 echo
 echo "=== a change inside render_product passes, because that unit is excluded ==="
 # render_product is the unit that legitimately differs across the two repos.
-# The check must stay green and still report 4 compared units.
-cat > "$work/remote.sh" <<'REMOTE'
-#!/usr/bin/env bash
-set -euo pipefail
-
-RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-MAX_SUMS_BYTES=4096
-MAX_SIG_BYTES=64
-MAX_ASSET_BYTES=104857600
-
-verify_sha256sums() {
-	rm -f "$work/SHA256SUMS"
-	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
-	python3 - <<'PY'
-import sys
-def load(b64):
-	b64 = b64.strip()
-	return b64
-msg = open(sys.argv[1], "rb").read()
-print("verify", msg)
-PY
-}
-
-hash_of() {
-	local matches
-	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
-	echo "$matches"
-}
-
-verify_attestation() {
-	gh attestation verify "$1" --repo "$2" --source-ref "$3"
-}
-
-render_product() {
-	# This is TOTALLY different. It must NOT be compared.
-	echo "json"
-	echo "completely"
-	echo "different"
-}
-REMOTE
-run_with_remote "$work/remote.sh"
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
+# The check must stay green and still report every unit compared.
+run_with_remote "$(remote_with 's/echo "ruby"/echo "json"/')"
 expect_eq "$exit_code" "0" "exit 0 when only render_product differs"
-expect_contains "$combined" "compared 6 render unit" "still compares 6 units"
+expect_contains "$combined" "compared 8 render unit" "still compares 8 units"
 expect_not_contains "$err_body" "drifted" "no drift message"
 expect_not_contains "$err_body" "render_product" "the excluded unit is not named as a missing unit either"
 
 echo
 echo "=== a comment-only change inside a compared unit passes ==="
 # Same logic, extra comments on the remote side. Stripping must absorb them.
-cat > "$work/remote.sh" <<'REMOTE'
-#!/usr/bin/env bash
-# This entire header comment is on the remote side only.
-set -euo pipefail
-
-RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-MAX_SUMS_BYTES=4096
-MAX_SIG_BYTES=64
-MAX_ASSET_BYTES=104857600
-
-verify_sha256sums() {
-	# Inside the function: a remote-only comment
-	rm -f "$work/SHA256SUMS"
-	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
-	python3 - <<'PY'
-import sys
-# Comment inside the python block, remote-only.
-def load(b64):
-	b64 = b64.strip()
-	return b64
-msg = open(sys.argv[1], "rb").read()
-print("verify", msg)
-PY
-	# Trailing comment in the function, remote-only.
-}
-
-hash_of() {
-	# Remote-only comment in hash_of.
-	local matches
-	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
-	echo "$matches"
-}
-
-verify_attestation() {
-	# Remote-only comment in verify_attestation.
-	gh attestation verify "$1" --repo "$2" --source-ref "$3"
-}
-
-render_product() {
-	echo "ruby"
-}
-REMOTE
-run_with_remote "$work/remote.sh"
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
+run_with_remote "$(remote_with_comment '^hash_of\(\) \{$')"
 expect_eq "$exit_code" "0" "exit 0 on comment-only diff"
-expect_contains "$combined" "compared 6 render unit" "still compares 6 units"
-
-echo
-echo "=== a unit missing from the remote file fails and names which unit ==="
-# verify_sha256sums is gone on the remote side. release_keys and hash_of are
-# still present so the absent count is exactly one and the message names that
-# one without naming the others.
-cat > "$work/remote.sh" <<'REMOTE'
-#!/usr/bin/env bash
-set -euo pipefail
-
-RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-MAX_SUMS_BYTES=4096
-MAX_SIG_BYTES=64
-MAX_ASSET_BYTES=104857600
-
-hash_of() {
-	local matches
-	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
-	echo "$matches"
-}
-
-verify_attestation() {
-	gh attestation verify "$1" --repo "$2" --source-ref "$3"
-}
-
-render_product() {
-	echo "ruby"
-}
-REMOTE
-run_with_remote "$work/remote.sh"
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
-expect_eq "$exit_code" "1" "exit 1 when a unit is missing on the remote"
-expect_contains "$err_body" "verify_sha256sums could not be found" "names the missing unit"
-expect_contains "$err_body" "scripts/release/render-manifests.sh" "points at the remote file path"
-
-echo
-echo "=== a change inside verify_attestation fails and names that unit ==="
-# verify_attestation is a function the drift script must compare: a change
-# inside it that lands only on one side is the exact failure mode a
-# provenance-verification edit would introduce.
-cat > "$work/remote.sh" <<'REMOTE'
-#!/usr/bin/env bash
-set -euo pipefail
-
-verify_sha256sums() {
-	rm -f "$work/SHA256SUMS"
-	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
-	python3 - <<'PY'
-import sys
-def load(b64):
-	b64 = b64.strip()
-	return b64
-msg = open(sys.argv[1], "rb").read()
-print("verify", msg)
-PY
-}
-
-hash_of() {
-	local matches
-	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
-	echo "$matches"
-}
-
-verify_attestation() {
-	gh attestation verify "$1" --repo "$2" --source-ref "$3" --deny-self-hosted-runners
-}
-
-render_product() {
-	echo "ruby"
-}
-REMOTE
-run_with_remote "$work/remote.sh"
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
-expect_eq "$exit_code" "1" "exit 1 on drift in verify_attestation"
-expect_contains "$err_body" "verify_attestation has drifted" "names verify_attestation"
-expect_not_contains "$err_body" "verify_sha256sums has drifted" "does not falsely name verify_sha256sums"
-expect_not_contains "$err_body" "py_block has drifted" "does not falsely name py_block"
-expect_not_contains "$err_body" "hash_of has drifted" "does not falsely name hash_of"
-
-echo
-echo "=== verify_attestation missing on the remote side is reported by name ==="
-# The new unit is gone on the remote side. The drift script must name it the
-# same way it names the older units when they are missing.
-cat > "$work/remote.sh" <<'REMOTE'
-#!/usr/bin/env bash
-set -euo pipefail
-
-verify_sha256sums() {
-	rm -f "$work/SHA256SUMS"
-	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
-	python3 - <<'PY'
-import sys
-def load(b64):
-	b64 = b64.strip()
-	return b64
-msg = open(sys.argv[1], "rb").read()
-print("verify", msg)
-PY
-}
-
-hash_of() {
-	local matches
-	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
-	echo "$matches"
-}
-
-render_product() {
-	echo "ruby"
-}
-REMOTE
-run_with_remote "$work/remote.sh"
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
-expect_eq "$exit_code" "1" "exit 1 when verify_attestation is missing on the remote"
-expect_contains "$err_body" "verify_attestation could not be found" "names the missing unit"
-
-echo
-echo "=== a curl failure produces the fetch message, not the drift message ==="
-run_with_curl_fail
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
-expect_eq "$exit_code" "1" "exit 1 on curl failure"
-expect_contains "$err_body" "fetch failure, not drift" "uses the fetch-failure wording"
-expect_contains "$err_body" "could not fetch" "says the fetch failed"
-expect_not_contains "$err_body" "verification logic agrees" "does not claim agreement"
-expect_not_contains "$err_body" "has drifted" "does not conflate fetch failure with drift"
-
-echo
-echo "=== a download cap relaxed on the remote is drift, named as limits ==="
-# Derived from the baseline so only the cap differs and every unit is present.
-sed 's/^MAX_ASSET_BYTES=.*/MAX_ASSET_BYTES=999999999999/' "$work/scripts/release/render-formulae.sh" > "$work/remote-limits.sh"
-run_with_remote "$work/remote-limits.sh"
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
-expect_eq "$exit_code" "1" "exit 1 when a download cap differs"
-expect_contains "$err_body" "limits has drifted" "names the limits unit"
-expect_not_contains "$err_body" "release_keys has drifted" "does not blame the keys"
-
-echo "=== a different RELEASE_PUBKEY_B64 on the remote is drift, named as a rotation ==="
-# RELEASE_PUBKEY_B64 differs on the remote side; everything else matches.
-# The drift must be reported in release_keys, and the message must name the
-# keys and the rotation -- not just the unit -- because the reader has to act
-# on it: a rotation that landed in only one channel has to land in the other.
-cat > "$work/remote.sh" <<'REMOTE'
-#!/usr/bin/env bash
-set -euo pipefail
-
-RELEASE_PUBKEY_B64="REMOTE-only-key-cccccccccccccccccccccccccccccc"
-RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-MAX_SUMS_BYTES=4096
-MAX_SIG_BYTES=64
-MAX_ASSET_BYTES=104857600
-
-verify_sha256sums() {
-	rm -f "$work/SHA256SUMS"
-	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
-	python3 - <<'PY'
-import sys
-def load(b64):
-	b64 = b64.strip()
-	return b64
-msg = open(sys.argv[1], "rb").read()
-print("verify", msg)
-PY
-}
-
-hash_of() {
-	local matches
-	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
-	echo "$matches"
-}
-
-render_product() {
-	echo "ruby"
-}
-REMOTE
-run_with_remote "$work/remote.sh"
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
-expect_eq "$exit_code" "1" "exit 1 on key-only drift"
-expect_contains "$err_body" "release_keys has drifted" "names the release_keys unit"
-expect_contains "$err_body" "RELEASE_PUBKEY_B64" "the diff itself shows RELEASE_PUBKEY_B64"
-expect_contains "$err_body" "trust different release keys" "the message explains the meaning of the mismatch"
-expect_contains "$err_body" "rotation has to land in both" "the message tells the reader what to do"
-expect_not_contains "$err_body" "verify_sha256sums has drifted" "does not falsely name the other units"
-expect_not_contains "$err_body" "py_block has drifted" "does not falsely name the other units"
-expect_not_contains "$err_body" "hash_of has drifted" "does not falsely name the other units"
-
-echo
-echo "=== a renamed key declaration on the remote is absent, not drift ==="
-# The opening marker (RELEASE_PUBKEY_B64=) is gone from the remote. The
-# extraction returns nothing, so the unit is reported as missing rather than
-# compared as drift. This is the same distinction the script already keeps
-# for the function-style units: a renamed unit is a contract break, not a
-# diff.
-cat > "$work/remote.sh" <<'REMOTE'
-#!/usr/bin/env bash
-set -euo pipefail
-
-RELEASE_PUBKEY_B64_OLD="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-MAX_SUMS_BYTES=4096
-MAX_SIG_BYTES=64
-MAX_ASSET_BYTES=104857600
-
-verify_sha256sums() {
-	rm -f "$work/SHA256SUMS"
-	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
-	python3 - <<'PY'
-import sys
-def load(b64):
-	b64 = b64.strip()
-	return b64
-msg = open(sys.argv[1], "rb").read()
-print("verify", msg)
-PY
-}
-
-hash_of() {
-	local matches
-	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
-	echo "$matches"
-}
-
-render_product() {
-	echo "ruby"
-}
-REMOTE
-run_with_remote "$work/remote.sh"
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
-expect_eq "$exit_code" "1" "exit 1 when a key declaration is renamed on the remote"
-expect_contains "$err_body" "release_keys could not be found" "names release_keys as missing"
-expect_not_contains "$err_body" "release_keys has drifted" "does not call a missing unit a drift"
-expect_not_contains "$err_body" "trust different release keys" "does not invoke the rotation message either"
+expect_contains "$combined" "compared 8 render unit" "still compares 8 units"
 
 echo
 echo "=== unit_is_complete refuses an unknown unit ==="
@@ -597,7 +72,7 @@ echo "=== unit_is_complete refuses an unknown unit ==="
 # unit_is_complete, any unit name not listed there would be declared complete.
 # That meant a partial extraction of an unwired unit would be accepted as a
 # whole one. Source the function in isolation and call it directly.
-if bash -c "$(sed -n '/^unit_is_complete()/,/^}/p' "$script")
+if bash -c "$(sed -n '/^unit_is_complete()/,/^}/p' "$SCRIPT")
 	unit_is_complete 'anything' 'totally-unknown-unit-name'"; then
 	record_fail "unit_is_complete refuses an unknown unit" " (returned 0)"
 else
@@ -606,8 +81,7 @@ fi
 
 echo
 echo "=== the compared count is greater than zero on success ==="
-run_with_remote "$work/scripts/release/render-formulae.sh"
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
+run_with_remote "$(remote_asis)"
 expect_eq "$exit_code" "0" "exit 0 on identical run"
 expect_compare_count_gt_zero "$combined" "the compared count reported on success is > 0"
 
@@ -626,24 +100,14 @@ echo "=== a local file with none of the units fails rather than comparing nothin
 # the run red. That guard is a backstop for a future edit that empties the
 # unit list, where nothing would be absent because nothing was looked for. It
 # is correct to keep and it is not independently testable from out here.
-cp "$work/scripts/release/render-formulae.sh" "$work/local-backup.sh"
-: > "$work/scripts/release/render-formulae.sh"
-printf '#!/usr/bin/env bash\nset -euo pipefail\necho "no units at all"\n' \
-	> "$work/scripts/release/render-formulae.sh"
-cp "$work/local-backup.sh" "$work/remote.sh"
-run_with_remote "$work/remote.sh"
-exit_code=$(cat "$work/exit"); out_body=$(cat "$work/out"); err_body=$(cat "$work/err"); combined="$out_body$err_body"
+local_without_units
+run_with_remote "$(remote_asis)"
 expect_eq "$exit_code" "1" "a local file carrying no units fails"
 expect_not_contains "$combined" "the verification logic agrees" \
 	"and does not print the success line"
-cp "$work/local-backup.sh" "$work/scripts/release/render-formulae.sh"
+restore_local
 
 echo
-echo "--- summary ---"
-echo "passed: $pass"
-echo "failed: $fail"
+echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
-
-if [ "$fail" -ne 0 ]; then
-	exit 1
-fi
+[ "$fail" -eq 0 ]

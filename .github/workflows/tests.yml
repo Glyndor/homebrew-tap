@@ -68,6 +68,10 @@ jobs:
         ./tests/monitoring/check-reusable-drift.test.sh
         ./tests/ci/policy/workflow-shape.test.sh
         ./tests/monitoring/check-render-drift.test.sh
+        ./tests/monitoring/check-render-drift-drift.test.sh
+        ./tests/monitoring/check-render-drift-missing.test.sh
+        ./tests/monitoring/check-render-drift-network.test.sh
+        ./tests/monitoring/check-render-drift-version.test.sh
         ./tests/ci/reusable/reusable-dependabot-freshness.test.sh
         ./tests/ci/reusable/reusable-schedule-freshness.test.sh
         ./tests/ci/reusable/reusable-workflow-lint.test.sh

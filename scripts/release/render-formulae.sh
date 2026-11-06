@@ -369,6 +369,15 @@ hash_of() { # $1=asset
 	printf '%s\n' "$digest"
 }
 
+digest_case_guard() { # $1=repo $2=tag $3=asset $4=digest
+	case "$4" in
+		*[A-F]*)
+			echo "::error::$1 $2: the verified SHA256SUMS has digest $4 for $3 in uppercase; the renderer compares it with the lowercase digest of the download, so it is refused" >&2
+			return 1
+			;;
+	esac
+}
+
 # Build one `on_macos` / `on_linux` block from a platform's pair of assets, or
 # nothing at all when the product publishes neither. The result lands in
 # $os_blocks rather than on stdout: this has to be able to FAIL, and a command
@@ -609,6 +618,13 @@ render_product() { # $1=table entry
 		echo "::error::the PRODUCTS entry \"$entry\" has an invalid repository \"$repo\""
 		return 1
 	}
+	case "$repo" in
+		Glyndor/*) ;;
+		*)
+			echo "::error::the PRODUCTS entry \"$entry\" names the repository \"$repo\", which is outside the Glyndor organization"
+			return 1
+			;;
+	esac
 	for field in mac_arm mac_intel linux_arm linux_intel; do
 		[ "${!field}" = "-" ] && continue
 		printf '%s' "${!field}" | LC_ALL=C grep -qE '^[A-Za-z0-9][A-Za-z0-9._-]*$' || {
@@ -632,6 +648,15 @@ render_product() { # $1=table entry
 		echo "::error::$repo: could not read the latest release"
 		return 1
 	}
+
+	case "$tag" in
+		v*) ;;
+		*)
+			echo "::error::$repo: the release tag \"$tag\" does not start with \"v\"; the formula version is the tag without that prefix and the download URL keeps the whole tag, so a release without it renders a url the sibling channel refuses" >&2
+			return 1
+			;;
+	esac
+
 	version="${tag#v}"
 
 	# The tag is the only field here that comes from outside this repository and
@@ -665,6 +690,11 @@ render_product() { # $1=table entry
 		return 1
 	}
 
+	if LC_ALL=C grep -q $'\r' "$work/SHA256SUMS"; then
+		echo "::error::$repo $tag: the verified SHA256SUMS uses CRLF line endings; every asset name carries a trailing carriage return, so none of them can be matched" >&2
+		return 1
+	fi
+
 	# "-" means the product publishes nothing for that slot, so the formula
 	# omits it. An EMPTY field is still rejected above: an empty field between
 	# two pipes is what a dropped column looks like, and confusing "not
@@ -695,6 +725,7 @@ render_product() { # $1=table entry
 			echo "::error::$repo $tag: the verified SHA256SUMS does not list $verify_asset" >&2
 			return 1
 		}
+		digest_case_guard "$repo" "$tag" "$verify_asset" "$verify_sha" || return 1
 		verify_attestation "$repo" "$tag" "$verify_asset" "$verify_sha" || {
 			echo "::error::$repo $tag: $verify_asset build provenance is missing, names another tag, or was not signed by the release workflow" >&2
 			return 1

@@ -74,7 +74,20 @@ T="$(mktap symlink alpha)"
 rm -f "$T/Formula/alpha.rb"; ln -s "$WORK/outside.rb" "$T/Formula/alpha.rb"
 rc=0; run "$T" || rc=$?
 check "a symlink standing in for a formula fails" "1" "$rc"
-check "and it is named as not a regular file" "1" "$(said 'not a regular file')"
+check "and it is named as not a regular file" "1" "$(said 'not a regular file or a directory')"
+
+# A symlinked directory: find does not descend into it, so formulae behind it
+# would be loaded by Homebrew and never seen by the comparison.
+T="$(mktap dirlink alpha)"
+mkdir -p "$WORK/elsewhere"; : > "$WORK/elsewhere/evil.rb"
+ln -s "$WORK/elsewhere" "$T/Formula/e"
+rc=0; run "$T" || rc=$?
+check "a symlinked directory under Formula/ fails" "1" "$rc"
+check "and the link is listed by name" "1" "$(grep -c '^  e$' "$WORK/out")"
+T="$(mktap rootlink alpha)"
+mv "$T/Formula" "$WORK/real-formula"; ln -s "$WORK/real-formula" "$T/Formula"
+rc=0; run "$T" || rc=$?
+check "a symlinked Formula/ fails" "1" "$rc"
 
 # macOS does not tell Evil.RB from evil.rb, so the extension is matched
 # without regard to case.

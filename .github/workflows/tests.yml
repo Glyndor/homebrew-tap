@@ -80,6 +80,7 @@ jobs:
         ./tests/ci/policy/brew-jobs-are-bounded.test.sh
         ./tests/ci/policy/audit-runs-on-a-schedule.test.sh
         ./tests/ci/policy/audit-trusts-the-linked-tap.test.sh
+        ./tests/ci/policy/update-audits-before-commit.test.sh
         ./tests/ci/policy/jobs-are-bounded.test.sh
         ./tests/ci/policy/network-calls-are-bounded.test.sh
         ./tests/monitoring/check-suite-on-main.test.sh

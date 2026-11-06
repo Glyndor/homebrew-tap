@@ -35,7 +35,8 @@ body:
     id: os
     attributes:
       label: Operating system
-      placeholder: e.g. Ubuntu 24.04, Debian 13, Fedora 42
+      description: macOS version and architecture, plus your Homebrew version (`brew --version`).
+      placeholder: e.g. macOS 15 Apple Silicon, macOS 14 Intel
     validations:
       required: true
   - type: input
@@ -43,7 +44,7 @@ body:
     attributes:
       label: Version
       description: Project version and how you installed it.
-      placeholder: v0.3.1 (install.sh)
+      placeholder: e.g. 5.16.0 (brew install glyndor/tap/podup)
     validations:
       required: true
   - type: textarea

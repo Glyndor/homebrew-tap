@@ -121,8 +121,57 @@ check "every asset gets its own provenance check (2 of 2)" "2" \
 # The digest is checked afterwards, so a tampered body is caught, but the
 # transport should not follow a plain-http hop in the first place. The unit is
 # drift-compared with the sibling repository, so both carry the same line.
-check "verify_attestation downloads the asset over https-only redirects" "1" \
-	"$(sed -n '/^verify_attestation()/,/^}/p' "$HERE/scripts/release/render-formulae.sh" | grep -cE -- '--proto-redir =https([[:space:]]|$)')"
+# Record argv at the process boundary; prose beside a weakened flag cannot
+# satisfy the check. Keep the fixture's download behaviour unchanged.
+mv "$BIN/curl" "$BIN/curl-fixture"
+cat > "$BIN/curl" <<'STUB'
+#!/usr/bin/env bash
+python3 - "$CURL_ARGV_LOG" "$@" <<'PYARGV'
+import json, sys
+with open(sys.argv[1], "a") as log:
+    log.write(json.dumps(sys.argv[2:]) + "\n")
+PYARGV
+exec "$(dirname "$0")/curl-fixture" "$@"
+STUB
+chmod +x "$BIN/curl"
+export CURL_ARGV_LOG="$WORK/curl.argv"
+https_only() { # $1=argv log; require every effective redirect restriction
+	python3 - "$1" <<'PYARGV'
+import json, sys
+calls = [json.loads(line) for line in open(sys.argv[1])]
+valid = len(calls) == 2
+for args in calls:
+    values = [args[i + 1] for i, arg in enumerate(args[:-1]) if arg == "--proto-redir"]
+    valid = valid and values == ["=https"]
+sys.exit(0 if valid else 1)
+PYARGV
+}
+new_root "$WORK/redirect"
+generator_with "$WORK/redirect/scripts/release/render-formulae.sh" "$PODUP"
+python3 - "$WORK/redirect/scripts/release/render-formulae.sh" <<'PYCASE'
+from pathlib import Path
+import re, sys
+p = Path(sys.argv[1])
+text = p.read_text()
+text, count = re.subn(r"curl -fsSL --proto-redir =\w+", "curl -fsSL --proto-redir =all", text)
+assert count == 1
+text = text.replace("verify_attestation() {", "verify_attestation() {\n# --proto-redir =https")
+p.write_text(text)
+PYCASE
+: > "$CURL_ARGV_LOG"
+rc=0; run "$WORK/redirect/scripts/release/render-formulae.sh" "$WORK/redirect" || rc=$?
+check "the mutated renderer reaches both downloads successfully" "0" "$rc"
+rc=0; https_only "$CURL_ARGV_LOG" || rc=$?
+check "a weaker flag plus an https-only comment is rejected" "1" "$rc"
+new_root "$WORK/redirect"
+generator_with "$WORK/redirect/scripts/release/render-formulae.sh" "$PODUP"
+: > "$CURL_ARGV_LOG"
+rc=0; run "$WORK/redirect/scripts/release/render-formulae.sh" "$WORK/redirect" || rc=$?
+check "the live renderer downloads both assets" "0" "$rc"
+rc=0; https_only "$CURL_ARGV_LOG" || rc=$?
+check "every live curl argv restricts redirects to https" "0" "$rc"
+unset CURL_ARGV_LOG
+mv "$BIN/curl-fixture" "$BIN/curl"
 
 # Version precedence: stable beats pre-release, build metadata has no weight,
 # numeric identifiers compare numerically, and a shorter pre-release sorts first.

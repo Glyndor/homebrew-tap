@@ -13,7 +13,7 @@
 # bound for weeks. A rule in prose is followed where somebody remembered it.
 # This test reads every workflow and refuses a job that invokes `brew` without
 # `timeout-minutes` and without `HOMEBREW_NO_AUTO_UPDATE` reachable from the
-# job (job `env:` or workflow `env:`).
+# step after merging workflow, job and step `env:`. An empty override disables it.
 #
 # Comments are not invocations: a job whose only mention of brew is in a `#`
 # line is not held to the rule, so the planted fixture below has to be a real
@@ -60,20 +60,19 @@ for path in sorted(glob.glob(os.path.join(root, "*.yml"))):
 	for job_id, job in (doc.get("jobs") or {}).items():
 		if not isinstance(job, dict):
 			continue
-		runs = [s.get("run", "") for s in (job.get("steps") or []) if isinstance(s, dict)]
-		# Strip comment lines before looking for brew, so a `# brew ...` note
-		# in a run block does not put the job under the rule.
-		code = "\n".join(
-			l for r in runs for l in str(r).splitlines() if not l.lstrip().startswith("#")
-		)
-		if not re.search(r"(^|[\s;&|(])brew\s", code):
+		brew_steps = [s for s in (job.get("steps") or []) if isinstance(s, dict) and re.search(
+			r"(^|[\s;&|(])brew\s", "\n".join(l for l in str(s.get("run", "")).splitlines()
+				if not l.lstrip().startswith("#")))]
+		if not brew_steps:
 			continue
 		env = dict(top_env)
 		env.update(job.get("env") or {})
+		# A step can clear a value inherited from either enclosing scope.
+		effective = [dict(env, **(s.get("env") or {})) for s in brew_steps]
 		missing = []
 		if "timeout-minutes" not in job:
 			missing.append("timeout-minutes")
-		if "HOMEBREW_NO_AUTO_UPDATE" not in env:
+		if any(not e.get("HOMEBREW_NO_AUTO_UPDATE") for e in effective):
 			missing.append("HOMEBREW_NO_AUTO_UPDATE")
 		if missing:
 			bad += 1
@@ -132,6 +131,21 @@ jobs:
 EOF
 rc=0; audit "$WORK/toplevel" >/dev/null || rc=$?
 check "a workflow-level env satisfies the variable half" "0" "$rc"
+
+# A step override wins over the workflow and job environment.
+python3 - "$WORK/toplevel/top.yml" <<'PYCASE'
+import sys, yaml
+p = sys.argv[1]
+doc = yaml.safe_load(open(p))
+job = doc["jobs"]["style"]
+job["env"] = {"HOMEBREW_NO_AUTO_UPDATE": "1"}
+job["steps"][0]["env"] = {"HOMEBREW_NO_AUTO_UPDATE": ""}
+open(p, "w").write(yaml.safe_dump(doc))
+PYCASE
+rc=0; out="$(audit "$WORK/toplevel")" || rc=$?
+check "an empty step override disables the inherited variable" "1" "$rc"
+check "the empty override names the missing variable" "1" \
+	"$(printf '%s\n' "$out" | grep -c 'missing HOMEBREW_NO_AUTO_UPDATE')"
 
 # --- the live workflows -----------------------------------------------------
 rc=0; out="$(audit "$HERE/.github/workflows")" || rc=$?

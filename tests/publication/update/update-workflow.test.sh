@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Execute the update workflow's shipped shell against isolated repositories.
 set -euo pipefail
-HERE_FIXTURE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../fixtures/publication" && pwd)"
+HERE_FIXTURE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../fixtures/publication" && pwd)"
 # shellcheck disable=SC1091
 . "$HERE_FIXTURE/update-fixture.sh"
 pass=0

@@ -47,6 +47,23 @@ plant() { # $1 = file, rest = script lines
 	} > "$file"
 }
 
+# A valid sequence in scope must not satisfy the audit job's own contract.
+cat > "$WORK/scope-decoy.yml" <<'YAML'
+jobs:
+  scope:
+    steps:
+      - run: |
+          ln -s "$GITHUB_WORKSPACE" "$tap_dir"
+          brew trust glyndor/tap
+          brew audit --strict glyndor/tap/podup
+  audit:
+    needs: scope
+    steps:
+      - run: brew audit --strict glyndor/tap/podup
+YAML
+check "scope cannot supply the audit job's missing link and trust" \
+	"the audit step has no link or no audit command" "$(order "$WORK/scope-decoy.yml")"
+
 # The controls: each wrong shape is reported, so the live check below can fail.
 mkdir -p "$WORK/c"
 # shellcheck disable=SC2016 # the text is written into a script, not expanded here

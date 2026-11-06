@@ -70,6 +70,7 @@ jobs:
         ./tests/quality/check-editorconfig.test.sh
         ./tests/monitoring/check-reusable-drift.test.sh
         ./tests/ci/policy/workflow-shape.test.sh
+        ./tests/ci/policy/freshness-pr-scope.test.sh
         ./tests/monitoring/check-render-drift.test.sh
         ./tests/monitoring/check-render-drift-drift.test.sh
         ./tests/monitoring/check-render-drift-missing.test.sh

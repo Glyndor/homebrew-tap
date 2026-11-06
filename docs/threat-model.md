@@ -78,7 +78,7 @@ pushed here by a product and no product holds a credential on this repository
 | A tampered or substituted release asset (a binary swapped after publication, or a `SHA256SUMS` rewritten to match it) | the checksum never comes from the asset; it is read from a `SHA256SUMS` whose detached Ed25519 signature verified first, and `brew` refuses a download whose bytes do not match the pinned digest (`scripts/release/render-formulae.sh#verify_sha256sums`, `scripts/release/render-formulae.sh#verify_attestation`) | test: `tests/release/render-formulae.test.sh#an unverifiable signature skips the product`; `tests/release/render-formulae.test.sh#an asset missing from the manifest skips the product`; `tests/release/render-formulae-trust.test.sh#an asset listed twice is rejected`; `tests/release/render-formulae-trust.test.sh#a non-hexadecimal checksum is rejected`; `tests/release/render-formulae-trust.test.sh#a short digest is rejected` (a manifest that verifies but is malformed) |
 | A release signed by a wrong or rotated key | verification fails closed against every configured slot; exhausting the slots is an error, not a fallthrough, and the product keeps the formula it had (`scripts/release/render-formulae.sh#verify_sha256sums`, `scripts/release/render-formulae.sh#render_product`) | test: `tests/release/render-formulae-trust.test.sh#two wrong keys still fail closed`; `tests/release/render-formulae-trust.test.sh#a well-formed key that did not sign it fails as a signature`; `tests/release/render-formulae.test.sh#the skipped product keeps the formula it had` |
 | The trust anchor is swapped from outside the script | the key is a constant overridden only by `--pubkey` and `--pubkey2`; no environment variable reaches it (`scripts/release/render-formulae.sh#RELEASE_PUBKEY_B64`) | test: `tests/release/render-formulae-trust.test.sh#the environment cannot swap the trust anchor` |
-| A compromised product repository publishes a malicious release under a valid signature | the tap verifies that the manifest is the one the product published and that what it interpolates is well formed: a tag carrying Ruby is refused before it reaches the generated formula (`scripts/release/render-formulae.sh#render_product`), and a digest must be one entry of 64 hex characters (`scripts/release/render-formulae.sh#hash_of`). It cannot tell a malicious binary from a good one when both are correctly signed, and the release job of the product holds the signing key whose public half is `scripts/release/render-formulae.sh#RELEASE_PUBKEY_B64`, so this is a residual risk, stated below | test: `tests/release/render-formulae-version.test.sh#a release tag carrying Ruby is refused`; `tests/release/render-formulae-version.test.sh#and the error names the tag rather than the signature`; none for the binary itself |
+| A compromised product repository publishes a malicious release under a valid signature | the tap verifies that the manifest is the one the product published and that what it interpolates is well formed: a tag carrying Ruby is refused before it reaches the generated formula (`scripts/release/render-formulae.sh#version_guard`), and a digest must be one entry of 64 hex characters (`scripts/release/render-formulae.sh#hash_of`). It cannot tell a malicious binary from a good one when both are correctly signed, and the release job of the product holds the signing key whose public half is `scripts/release/render-formulae.sh#RELEASE_PUBKEY_B64`, so this is a residual risk, stated below | test: `tests/release/render-formulae-version.test.sh#a release tag carrying Ruby is refused`; `tests/release/render-formulae-version.test.sh#and the error names the tag rather than the signature`; none for the binary itself |
 | One product's broken release removes or holds back another's | each product renders on its own; a failure leaves that product's formula as it was, the rest still commit, and the job fails last so the skip is loud (`scripts/release/render-formulae.sh#render_product`, `.github/workflows/update.yml#Render formulae from the latest signed releases`, `.github/workflows/update.yml#Fail if any product was skipped`) | test: `tests/publication/update-workflow.test.sh#exit 3 does NOT abort the step`; `tests/publication/update-workflow.test.sh#the failure step is last, after the commit` |
 | A render that empties the tap is committed | the validate step refuses an empty `Formula/` before `brew` is set up, so the guard does not depend on the toolchain (`.github/workflows/update.yml#Validate the re-rendered formulae`) | test: `tests/publication/update-workflow.test.sh#an emptied Formula/ fails validation` |
 
@@ -86,7 +86,8 @@ The manifest signature authenticates `SHA256SUMS`, not the tag returned by the
 release lookup. Before writing, `scripts/release/render-formulae.sh#verify_attestation`
 downloads **every** declared asset, compares its SHA-256 with the signed
 manifest, and requires provenance for `refs/tags/$tag` from
-`$repo/.github/workflows/release.yml`. The version character check prevents Ruby
+`$repo/.github/workflows/release.yml`. The version character check
+(`scripts/release/render-formulae.sh#version_guard`) prevents Ruby
 interpolation; the provenance check binds the asset to the requested tag.
 Neither proves that trusted build inputs are benign.
 `scripts/release/render-formulae.sh#release_order` then refuses a candidate
@@ -140,8 +141,10 @@ turns red after three days without a successful scheduled run
 -- its renderer is `scripts/release/render-manifests.sh` there, not this one --
 but `check-render-drift.sh` compares both key
 slots (`scripts/monitoring/check-render-drift.sh#UNITS`) along with the
-verification functions, so a key changed in one channel and not the other is
-reported as drift.
+verification functions, the SemVer comparison
+(`scripts/release/render-formulae.sh#release_order`) and the tag guard
+(`scripts/release/render-formulae.sh#version_guard`), so a key, a comparison
+or a guard changed in one channel and not the other is reported as drift.
 
 ## Residual risks
 

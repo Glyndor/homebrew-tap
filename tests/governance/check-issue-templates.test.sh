@@ -67,16 +67,12 @@ body:
       label: Operating system
       description: macOS version and architecture, plus your Homebrew version (`brew --version`).
       placeholder: e.g. macOS 15 Apple Silicon, macOS 14 Intel
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (brew install glyndor/tap/podup)
-    validations:
-      required: true
 YAML
 
 cat > "$WORK/good-readme.md" <<'MARKDOWN'
@@ -100,16 +96,12 @@ body:
     attributes:
       label: Operating system
       placeholder: e.g. Ubuntu 24.04, Debian 13, Fedora 42
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: v0.3.1 (install.sh)
-    validations:
-      required: true
 YAML
 
 # Only the operating system field is wrong: another channel's distributions.
@@ -122,16 +114,12 @@ body:
     attributes:
       label: Operating system
       placeholder: e.g. Ubuntu 24.04, Debian 13, Fedora 42
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (brew install glyndor/tap/podup)
-    validations:
-      required: true
 YAML
 
 # Only the version field is wrong: an install method this channel does not have.
@@ -145,16 +133,12 @@ body:
       label: Operating system
       description: macOS version and architecture, plus your Homebrew version (`brew --version`).
       placeholder: e.g. macOS 15 Apple Silicon, macOS 14 Intel
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: v0.3.1 (install.sh)
-    validations:
-      required: true
 YAML
 
 # The platform is named and a distribution is offered next to it. This tap
@@ -169,16 +153,12 @@ body:
       label: Operating system
       description: macOS version and architecture, plus your Homebrew version (`brew --version`).
       placeholder: e.g. macOS 15 Apple Silicon, Ubuntu 24.04 (Linux via this tap)
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (brew install glyndor/tap/podup)
-    validations:
-      required: true
 YAML
 
 # The platform is named, but the package manager's version is not asked for.
@@ -192,16 +172,12 @@ body:
       label: Operating system
       description: macOS version and architecture.
       placeholder: e.g. macOS 15 Apple Silicon, macOS 14 Intel
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (brew install glyndor/tap/podup)
-    validations:
-      required: true
 YAML
 
 # The version field names a command that starts like the README's one.
@@ -215,16 +191,12 @@ body:
       label: Operating system
       description: macOS version and architecture, plus your Homebrew version (`brew --version`).
       placeholder: e.g. macOS 15 Apple Silicon, macOS 14 Intel
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (brew install glyndor/tap/podup-nightly)
-    validations:
-      required: true
 YAML
 
 # The manager is named in a different case.
@@ -238,16 +210,12 @@ body:
       label: Operating system
       description: macOS version and architecture, plus your Brew version.
       placeholder: e.g. macOS 15 Apple Silicon, macOS 14 Intel
-    validations:
-      required: true
   - type: input
     id: version
     attributes:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (brew install glyndor/tap/podup)
-    validations:
-      required: true
 YAML
 
 # The template has no operating system field at all.
@@ -261,8 +229,6 @@ body:
       label: Version
       description: Project version and how you installed it.
       placeholder: e.g. 5.16.0 (brew install glyndor/tap/podup)
-    validations:
-      required: true
 YAML
 
 # A README that documents no install command.

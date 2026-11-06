@@ -1,8 +1,11 @@
 name: Drift
 
 # Compares this repository's copies of the shared reusables against the copies
-# its sibling channels carry. The comparison itself lives in
-# scripts/monitoring/check-reusable-drift.sh; this file only decides when it runs.
+# its sibling channels carry, and the scripts and tests it shares with the
+# bucket against the bucket's copies. The comparisons live in
+# scripts/monitoring/check-reusable-drift.sh and
+# scripts/monitoring/check-channel-drift.sh; this file only decides when they
+# run.
 #
 # NOT on pull_request, and that is the whole design of this file.
 #
@@ -60,7 +63,8 @@ jobs:
   drift:
     name: reusable drift
     runs-on: ubuntu-latest
-    # Measured around 10 seconds. The job makes fifteen sequential network
+    # Measured around 10 seconds for the fifteen reusable fetches, and the
+    # thirty-two shared-file fetches add about nine. The job makes sequential network
     # fetches, and each one is bounded where it is issued rather than here:
     # the scripts pass their own deadline, so this ceiling catches a job that
     # wedges outside them rather than a single slow fetch.
@@ -72,6 +76,15 @@ jobs:
 
       - name: Compare the reusable copies against the sibling channels
         run: ./scripts/monitoring/check-reusable-drift.sh
+
+      # The files this repository and the bucket carry as exact copies: the same
+      # shell, the same CI policy, the same tests. The list of them lives in
+      # scripts/monitoring/channel-shared-paths.txt. Its own step for the same
+      # reason the render comparison is one: a red reusable comparison must not
+      # hide the day's copy comparison, and the two answer different questions.
+      - name: Compare the shared scripts and tests against the bucket's copies
+        if: ${{ !cancelled() }}
+        run: ./scripts/monitoring/check-channel-drift.sh
 
       # The render scripts are not copies of each other -- one emits Ruby, the
       # other JSON -- but they carry the same verification logic, and that half

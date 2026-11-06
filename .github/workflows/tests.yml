@@ -36,11 +36,12 @@ jobs:
   shell:
     uses: ./.github/workflows/reusable-shell-ci.yml
     with:
-      # Only prose the suite does not read. README.md is read by
-      # check-products-consistent, so it is not listed;
-      # tests/ci/suites/shell-ci-scope.test.sh fails if this list grows to a file the
-      # suite reads.
-      skip-suite-paths: docs/*.md
+      # No path is listed, so nothing is ever skipped. The suite reads every
+      # document under docs/ through scripts/quality/check-doc-anchors.sh, so a
+      # pull request that touches nothing but prose is exactly the one that can
+      # break a reference; README.md is read by check-products-consistent for
+      # the same reason. tests/ci/suites/shell-ci-scope.test.sh fails if this
+      # list grows to a file the suite reads.
       test-command: >-
         ./tests/ci/suites/check-suite-completeness.test.sh
         ./tests/release/render-formulae.test.sh
@@ -52,6 +53,7 @@ jobs:
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/ci/policy/locale-pinned.test.sh
         ./tests/quality/check-test-coverage.test.sh
+        ./tests/quality/check-doc-anchors.test.sh
         ./tests/governance/check-dco-on-main.test.sh
         ./tests/governance/check-issue-templates.test.sh
         ./tests/ci/suites/ci-runs-every-test.test.sh

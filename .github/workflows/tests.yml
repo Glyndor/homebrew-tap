@@ -46,6 +46,7 @@ jobs:
         ./tests/ci/suites/check-suite-completeness.test.sh
         ./tests/release/render-formulae.test.sh
         ./tests/release/render-formulae-trust.test.sh
+        ./tests/release/render-formulae-transfer-limits.test.sh
         ./tests/release/render-formulae-version.test.sh
         ./tests/release/render-formulae-products.test.sh
         ./tests/release/render-formulae-attestation.test.sh

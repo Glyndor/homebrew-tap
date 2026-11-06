@@ -61,6 +61,8 @@ jobs:
         ./tests/ci/reusable/reusable-line-limit.test.sh
         ./tests/ci/reusable/reusable-shell-ci.test.sh
         ./tests/ci/suites/shell-ci-scope.test.sh
+        ./tests/quality/ci-job-scope.test.sh
+        ./tests/ci/suites/lint-job-scope.test.sh
         ./tests/ci/policy/cancel-policy.test.sh
         ./tests/ci/reusable/reusable-empty-diff.test.sh
         ./tests/ci/reusable/reusable-dco.test.sh

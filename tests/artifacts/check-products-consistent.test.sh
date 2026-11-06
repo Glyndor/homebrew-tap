@@ -66,6 +66,24 @@ rc=0; run "$T" || rc=$?
 check "a formula in a subdirectory of Formula/ fails" "1" "$rc"
 check "and it is named" "1" "$(said 'e/evil')"
 
+# --- an entry named like a formula that is not a regular file ----------------
+# A symlink at Formula/alpha.rb carries the right name, so a name comparison
+# passes while the tap would serve whatever it points at. The bucket refuses the
+# same shape; the tap has to as well.
+T="$(mktap symlink alpha)"
+rm -f "$T/Formula/alpha.rb"; ln -s "$WORK/outside.rb" "$T/Formula/alpha.rb"
+rc=0; run "$T" || rc=$?
+check "a symlink standing in for a formula fails" "1" "$rc"
+check "and it is named as not a regular file" "1" "$(said 'not a regular file')"
+
+# macOS does not tell Evil.RB from evil.rb, so the extension is matched
+# without regard to case.
+T="$(mktap upper alpha)"
+: > "$T/Formula/EVIL.RB"
+rc=0; run "$T" || rc=$?
+check "an upper-case extension is still read as a formula" "1" "$rc"
+check "and it is named" "1" "$(said 'EVIL')"
+
 # --- Formula/ is missing a file ---------------------------------------------
 T="$(mktap noformula alpha beta)"
 rm -f "$T/Formula/beta.rb"

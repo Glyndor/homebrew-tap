@@ -49,7 +49,18 @@ declared="$(awk '/^PRODUCTS=\(/ { inside = 1; next }
 # Any depth: Homebrew loads formulae from subdirectories of Formula/ too, so a
 # file at Formula/e/evil.rb is a formula this tap would serve, whatever the
 # roster says. It shows up here as "e/evil" and disagrees with PRODUCTS.
-rendered="$(find "$root/Formula" -name '*.rb' -printf '%P\n' \
+#
+# Only regular files count, and the name is matched without regard to case:
+# Homebrew runs on macOS, whose default file system does not tell Evil.RB from
+# evil.rb, and a symlink named like a formula would pass a name comparison
+# while serving whatever it points at.
+not_regular="$(find "$root/Formula" -iname '*.rb' ! -type f -printf '%P\n' | sort)"
+if [ -n "$not_regular" ]; then
+	echo "::error::Formula/ holds an entry named like a formula that is not a regular file:" >&2
+	printf '%s\n' "$not_regular" | sed 's/^/  /' >&2
+	exit 1
+fi
+rendered="$(find "$root/Formula" -type f -iname '*.rb' -printf '%P\n' \
            | while read -r f; do echo "${f%.rb}"; done | sort -u)"
 
 status=0

@@ -51,7 +51,7 @@ jobs:
         ./tests/release/render-formulae-products.test.sh
         ./tests/release/render-formulae-attestation.test.sh
         ./tests/release/render-formulae-inputs.test.sh
-        ./tests/publication/update-workflow.test.sh
+        ./tests/publication/update/update-workflow.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/ci/policy/locale-pinned.test.sh
         ./tests/quality/check-test-coverage.test.sh
@@ -83,9 +83,9 @@ jobs:
         ./tests/ci/reusable/reusable-workflow-lint.test.sh
         ./tests/ci/policy/brew-jobs-are-bounded.test.sh
         ./tests/ci/policy/audit-scope.test.sh
-        ./tests/ci/policy/audit-runs-on-a-schedule.test.sh
-        ./tests/ci/policy/audit-trusts-the-linked-tap.test.sh
-        ./tests/ci/policy/update-audits-before-commit.test.sh
+        ./tests/publication/audit/audit-runs-on-a-schedule.test.sh
+        ./tests/publication/audit/audit-trusts-the-linked-tap.test.sh
+        ./tests/publication/update/update-audits-before-commit.test.sh
         ./tests/ci/policy/jobs-are-bounded.test.sh
         ./tests/ci/policy/network-calls-are-bounded.test.sh
         ./tests/monitoring/check-suite-on-main.test.sh

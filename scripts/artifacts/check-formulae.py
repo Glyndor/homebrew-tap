@@ -294,6 +294,13 @@ def shown(text):
 for path in sys.argv[3:]:
     relative = os.path.relpath(path, repo_root)
     product = os.path.splitext(os.path.basename(path))[0]
+    # The same definition check-products-consistent.sh holds: a formula is
+    # Formula/<name>.rb, directly in Formula/, with a lowercase extension.
+    # Homebrew loads the others too, so one is refused, not read as <name>.
+    inside = os.path.relpath(path, os.path.join(repo_root, "Formula"))
+    if not re.fullmatch(r"[^/]+\.rb", inside):
+        records.append((relative, "a formula is Formula/<name>.rb, directly in Formula/ and with a lowercase extension"))
+        continue
     if os.path.islink(path):
         records.append((relative, "the formula is a symlink; the tap must hold its own formulae"))
         continue

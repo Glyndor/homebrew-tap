@@ -104,6 +104,23 @@ T="$(mktree no-roster)"; printf '#!/usr/bin/env bash\n' > "$T/scripts/release/re
 rc=0; gate "$T" || rc=$?
 check "a renderer with no roster is an error" "1" "$rc"
 
+# --- one definition of a formula file, shared with check-products-consistent ---
+T="$(mktree subdir)"; mkdir "$T/Formula/e"; cp "$T/Formula/podup.rb" "$T/Formula/e/podup.rb"
+rc=0; gate "$T" || rc=$?
+check "a copy of a valid formula in a subdirectory is refused" "1" "$rc"
+check "and the message says where a formula lives" "1" "$(said 'directly in Formula/')"
+
+T="$(mktree upper)"; mv "$T/Formula/podup.rb" "$T/Formula/podup.RB"
+rc=0; gate "$T" || rc=$?
+check "a valid formula with an upper-case extension is refused" "1" "$rc"
+
+D="$(mktree defsab)"; mkdir "$D/Formula/e"; cp "$D/Formula/podup.rb" "$D/Formula/e/podup.rb"
+sed 's/if not re.fullmatch(r"\[^\/\]+\\.rb", inside):/if False:/' "$HERE/scripts/artifacts/check-formulae.py" > "$D/scripts/artifacts/check-formulae.py"
+check "the definition control changed the check" "1" \
+	"$(cmp -s "$HERE/scripts/artifacts/check-formulae.py" "$D/scripts/artifacts/check-formulae.py" && echo 0 || echo 1)"
+rc=0; gate "$D" || rc=$?
+check "without the definition, the subdirectory copy passes" "0" "$rc"
+
 # --- the control: the verdict removed -----------------------------------------
 # found = check_formula(...) replaced by an empty list. If the edit changed
 # nothing the flip below would prove nothing, so the difference is required.

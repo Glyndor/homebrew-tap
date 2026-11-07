@@ -65,6 +65,7 @@ mkdir -p "$T/Formula/e"; : > "$T/Formula/e/evil.rb"
 rc=0; run "$T" || rc=$?
 check "a formula in a subdirectory of Formula/ fails" "1" "$rc"
 check "and it is named" "1" "$(said 'e/evil')"
+check "and the message states the one definition of a formula file" "1" "$(said 'directly in Formula/')"
 
 # --- an entry named like a formula that is not a regular file ----------------
 # A symlink at Formula/alpha.rb carries the right name, so a name comparison
@@ -103,6 +104,7 @@ T="$(mktap upper alpha)"
 rc=0; run "$T" || rc=$?
 check "an upper-case extension is still read as a formula" "1" "$rc"
 check "and it is named" "1" "$(said 'EVIL')"
+check "and the same definition is stated" "1" "$(said 'lowercase extension')"
 
 # --- Formula/ is missing a file ---------------------------------------------
 T="$(mktap noformula alpha beta)"

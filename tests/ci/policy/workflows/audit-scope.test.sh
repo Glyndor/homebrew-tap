@@ -2,7 +2,7 @@
 # Execute the real scope block in disposable git repositories, not a copy of
 # its decision logic. No Homebrew or network is needed. PyYAML is installed by CI.
 set -euo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 python3 - "$HERE" <<'PY'
 import os
 from pathlib import Path

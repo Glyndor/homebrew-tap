@@ -45,10 +45,10 @@ scripts/quality/check-editorconfig.sh
 scripts/quality/check-test-coverage.sh
 scripts/quality/ci-job-scope.sh
 scripts/quality/lint-workflow-shell.sh
-tests/ci/policy/cancel-policy.test.sh
-tests/ci/policy/documented-test-command.test.sh
-tests/ci/policy/locale-pinned.test.sh
-tests/ci/policy/workflow-shape.test.sh
+tests/ci/policy/rules/cancel-policy.test.sh
+tests/ci/docs/documented-test-command.test.sh
+tests/ci/policy/rules/locale-pinned.test.sh
+tests/ci/policy/workflows/workflow-shape.test.sh
 tests/ci/reusable/reusable-dco.test.sh
 tests/ci/reusable/reusable-dependabot-freshness.test.sh
 tests/ci/reusable/reusable-empty-diff.test.sh

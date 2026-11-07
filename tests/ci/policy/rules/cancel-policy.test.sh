@@ -10,7 +10,7 @@
 # publication with `cancel-in-progress: false`, are not in scope.
 set -uo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 pass=0
 fail=0
 check() { # <description> <expected> <actual>

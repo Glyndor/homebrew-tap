@@ -23,7 +23,7 @@
 # Requires: python3.
 set -euo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 WORKFLOWS="$HERE/.github/workflows"
 
 pass=0

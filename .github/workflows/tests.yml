@@ -56,7 +56,7 @@ jobs:
         ./tests/artifacts/check-formulae.test.sh
         ./tests/artifacts/check-formulae/check-formulae-roster.test.sh
         ./tests/artifacts/check-version-monotonic.test.sh
-        ./tests/ci/policy/locale-pinned.test.sh
+        ./tests/ci/policy/rules/locale-pinned.test.sh
         ./tests/quality/check-test-coverage.test.sh
         ./tests/quality/check-action-pins.test.sh
         ./tests/quality/check-doc-anchors.test.sh
@@ -69,15 +69,15 @@ jobs:
         ./tests/ci/suites/shell-ci-scope.test.sh
         ./tests/quality/ci-job-scope.test.sh
         ./tests/ci/suites/lint-job-scope.test.sh
-        ./tests/ci/policy/cancel-policy.test.sh
+        ./tests/ci/policy/rules/cancel-policy.test.sh
         ./tests/ci/reusable/reusable-empty-diff.test.sh
         ./tests/ci/reusable/reusable-dco.test.sh
         ./tests/quality/check-editorconfig.test.sh
         ./tests/monitoring/check-reusable-drift.test.sh
         ./tests/monitoring/check-channel-drift.test.sh
-        ./tests/ci/policy/workflow-shape.test.sh
-        ./tests/ci/policy/workflow-publish-triggers.test.sh
-        ./tests/ci/policy/freshness-pr-scope.test.sh
+        ./tests/ci/policy/workflows/workflow-shape.test.sh
+        ./tests/ci/policy/workflows/workflow-publish-triggers.test.sh
+        ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
         ./tests/monitoring/check-render-drift.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-drift.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-missing.test.sh
@@ -88,22 +88,22 @@ jobs:
         ./tests/ci/reusable/reusable-schedule-freshness.test.sh
         ./tests/ci/reusable/reusable-workflow-lint.test.sh
         ./tests/ci/reusable/reusable-workflow-lint-install.test.sh
-        ./tests/ci/policy/brew-jobs-are-bounded.test.sh
-        ./tests/ci/policy/audit-scope.test.sh
+        ./tests/ci/policy/rules/brew-jobs-are-bounded.test.sh
+        ./tests/ci/policy/workflows/audit-scope.test.sh
         ./tests/publication/audit/audit-runs-on-a-schedule.test.sh
         ./tests/publication/audit/audit-trusts-the-linked-tap.test.sh
         ./tests/publication/update/update-audits-before-commit.test.sh
-        ./tests/ci/policy/jobs-are-bounded.test.sh
-        ./tests/ci/policy/network-calls-are-bounded.test.sh
+        ./tests/ci/policy/rules/jobs-are-bounded.test.sh
+        ./tests/ci/policy/rules/network-calls-are-bounded.test.sh
         ./tests/monitoring/check-suite-on-main.test.sh
-        ./tests/ci/policy/documented-test-command.test.sh
+        ./tests/ci/docs/documented-test-command.test.sh
       # shellcheck: tests/quality/lint-workflow-shell.test.sh plants a violation and
       # requires the linter to report it, so it needs the linter. The gate
       # itself runs in the shellcheck job against the pinned binary; this one
       # asserts behaviour, which does not turn on the exact version.
-      # python3-yaml: tests/ci/policy/brew-jobs-are-bounded.test.sh parses the workflows
+      # python3-yaml: tests/ci/policy/rules/brew-jobs-are-bounded.test.sh parses the workflows
       # rather than grepping them, so a job's env and bound are read from the
-      # job they belong to. tests/ci/policy/jobs-are-bounded.test.sh reads the same way
+      # job they belong to. tests/ci/policy/rules/jobs-are-bounded.test.sh reads the same way
       # for the timeout-minutes rule.
       # python3-yaml also serves tests/ci/reusable/reusable-workflow-lint.test.sh, whose
       # tooling-isolation step imports it exactly as the workflow-lint job does.

@@ -5,7 +5,7 @@
 #
 # scripts/quality/check-test-coverage.sh watches that each script has a test. Nothing
 # watched that the test RUNS. That gap was live when this was written:
-# tests/ci/policy/locale-pinned.test.sh had been added, passed locally, and no workflow
+# tests/ci/policy/rules/locale-pinned.test.sh had been added, passed locally, and no workflow
 # called it -- a guard against unpinned collation that CI never executed.
 #
 # An unregistered test is worse than a missing one. A missing test is caught by

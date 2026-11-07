@@ -29,12 +29,8 @@ on:
   # hourly update, so a scheduled run reads a `main` that already carries the
   # morning's render.
   #
-  # No freshness watcher for this cron yet, deliberately.
-  # reusable-schedule-freshness fails when the workflow it names has no
-  # successful scheduled run, and on the day a cron lands there is none, so the
-  # watcher would open red for a reason that is not a fault. freshness.yml
-  # carries the same note about its own schedule; add this one there once two
-  # firings are on record.
+  # freshness.yml watches this cron (freshness-audit), so a scheduled run
+  # that stops firing turns that workflow red.
   schedule:
     - cron: "19 9 * * *"
   pull_request:

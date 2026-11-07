@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 # Guard two workflow properties that nothing else checks.
 #
-# This repository requires no status check, by design: update.yml commits
-# straight to main and the organisation forbids Actions from opening pull
-# requests, so a required check would refuse the bot's own push. The apt
-# channel does have them, and its copy of this file guards their names too;
-# here there is one rule to guard.
+# The apt channel's copy of this file also guards the names of its required
+# checks; the properties guarded here are about triggers, not about which
+# checks the ruleset requires.
 #
 # .github/workflows/drift.yml runs on schedule and workflow_dispatch, and
 # on nothing else. The header explains why: pull_request would deadlock

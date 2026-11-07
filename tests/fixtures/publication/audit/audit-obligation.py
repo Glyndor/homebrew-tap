@@ -34,6 +34,14 @@ def obligation(job, step):
 		(root / "Formula").mkdir()
 		(root / "Formula/probe.rb").touch()
 		(root / "bin").mkdir()
+		# update.yml validates the formulae before it reaches brew. That check has
+		# its own suite (tests/artifacts/check-formulae.test.sh); here it is a
+		# no-op, because this probe only follows the order of link, trust and
+		# audit and a probe formula would not satisfy the real check.
+		(root / "scripts/artifacts").mkdir(parents=True)
+		stub = root / "scripts/artifacts/check-formulae.sh"
+		stub.write_text("#!/usr/bin/env bash\nexit 0\n")
+		stub.chmod(0o755)
 		(root / "homebrew").mkdir()
 		brew = root / "bin/brew"
 		brew.write_text("""#!/usr/bin/env bash

@@ -56,9 +56,9 @@ rc=0; gate "$T" || rc=$?
 check "the committed formula is accepted" "0" "$rc"
 
 CASES=(
-	"another repository|s.replace('Glyndor/podup/releases', 'Glyndor/other-product/releases', 1)|releases/download"
+	"another repository|s.replace('Glyndor/podup/releases', 'Glyndor/other-product/releases', 1)|the url names the repository Glyndor/other-product"
 	"a second tag|__import__('re').sub(r'/v[0-9][^/]*/podup-linux-arm64', '/v0.0.1/podup-linux-arm64', s)|tag"
-	"an asset the row does not declare|s.replace('podup-linux-arm64\"', 'podup-linux-riscv\"', 1)|asset"
+	"an asset the row does not declare|s.replace('podup-linux-arm64\"', 'podup-linux-riscv\"', 1)|the url names the asset podup-linux-riscv"
 	"an upper-case digest|__import__('re').sub(r'(sha256 .)([0-9a-f]{64})', lambda m: m.group(1) + m.group(2).upper(), s, count=1)|sha256"
 	"a short digest|__import__('re').sub(r'(sha256 .)[0-9a-f]{64}', r'\g<1>e73e3a0f', s, count=1)|sha256"
 	"a post_install block|s.replace('  def install', '  def post_install\n    system \"sh\", \"-c\", \"id\"\n  end\n\n  def install')|post_install"
@@ -69,10 +69,11 @@ CASES=(
 	"a backtick command|s.replace('bin.install asset', '\`id\`; bin.install asset')|\`"
 )
 for entry in "${CASES[@]}"; do
-	IFS='|' read -r label expr _ <<<"$entry"
+	IFS='|' read -r label expr text <<<"$entry"
 	T="$(mktree "bad-$(echo "$label" | tr -c 'a-z\n' _)")"; plant "$T" "$expr"
 	rc=0; gate "$T" || rc=$?
 	check "$label is refused" "1" "$rc"
+	check "  and the error says why ($text)" "1" "$(said "$text")"
 	check "  and the error names Formula/podup.rb" "1" "$(said 'podup.rb')"
 done
 

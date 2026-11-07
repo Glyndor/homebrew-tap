@@ -32,7 +32,7 @@ check() { # <description> <expected> <actual>
 # Prints "ok" when the audit job's script links, then trusts, then audits.
 # Otherwise prints what is wrong.
 order() { # $1 = workflow file
-	python3 "$HERE/tests/fixtures/ci/audit-obligation.py" "$1" audit
+	python3 "$HERE/tests/fixtures/publication/audit/audit-obligation.py" "$1" audit
 }
 
 # A workflow whose single run block holds the given lines.

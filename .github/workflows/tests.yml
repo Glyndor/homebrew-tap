@@ -80,6 +80,7 @@ jobs:
         ./tests/monitoring/check-render-drift-drift.test.sh
         ./tests/monitoring/check-render-drift-missing.test.sh
         ./tests/monitoring/check-render-drift-network.test.sh
+        ./tests/monitoring/check-render-drift-digest-case.test.sh
         ./tests/monitoring/check-render-drift-version.test.sh
         ./tests/ci/reusable/reusable-dependabot-freshness.test.sh
         ./tests/ci/reusable/reusable-schedule-freshness.test.sh

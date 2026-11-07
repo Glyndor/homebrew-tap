@@ -39,7 +39,7 @@ echo "=== drift in one unit, every unit present, is a failure by itself ==="
 # the units exist on both sides and exactly one line of hash_of differs.
 run_with_remote "$(remote_with 's/matches=/matches2=/')"
 expect_eq "$exit_code" "1" "exit 1 when a single unit differs and none is missing"
-expect_contains "$err_body" "1 of 8 compared render unit(s) have drifted" "counts one drifted unit of eight"
+expect_contains "$err_body" "1 of 9 compared render unit(s) have drifted" "counts one drifted unit of nine"
 expect_not_contains "$err_body" "could not be found" "and no unit is reported missing"
 
 echo

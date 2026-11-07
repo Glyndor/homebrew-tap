@@ -66,6 +66,15 @@ if [ -n "$not_regular" ]; then
 	printf '%s\n' "$not_regular" | sed 's/^/  /' >&2
 	exit 1
 fi
+# The same definition check-formulae.sh holds: a formula is Formula/<name>.rb,
+# directly in Formula/, with a lowercase extension. Homebrew loads the others
+# too, so one is named here instead of being read as some other product.
+odd="$(find "$root/Formula" -type f -iname '*.rb' -printf '%P\n' | grep -Ev '^[^/]+\.rb$' | LC_ALL=C sort || true)"
+if [ -n "$odd" ]; then
+	echo "::error::Formula/ holds a file that is not Formula/<name>.rb (directly in Formula/, lowercase extension):" >&2
+	printf '%s\n' "$odd" | sed 's/^/  /' >&2
+	exit 1
+fi
 rendered="$(find "$root/Formula" -type f -iname '*.rb' -printf '%P\n' \
            | while read -r f; do echo "${f%.rb}"; done | sort -u)"
 

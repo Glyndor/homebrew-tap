@@ -54,6 +54,7 @@ jobs:
         ./tests/publication/update/update-workflow.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/artifacts/check-formulae.test.sh
+        ./tests/artifacts/check-formulae/check-formulae-roster.test.sh
         ./tests/artifacts/check-version-monotonic.test.sh
         ./tests/ci/policy/locale-pinned.test.sh
         ./tests/quality/check-test-coverage.test.sh

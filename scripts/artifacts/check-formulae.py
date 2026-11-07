@@ -18,6 +18,14 @@ ROSTER = "scripts/release/render-formulae.sh"
 VERSION_RE = re.compile(r"^[0-9](?:[0-9A-Za-z.+-]*[0-9A-Za-z.+-])?$")
 DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 URL_RE = re.compile(r"^https://github\.com/([^/]+/[^/]+)/releases/download/([^/]+)/([^/]+)$")
+# The shapes render-formulae.sh holds each roster field to before it writes
+# anything. A row the generator refuses must not pass this gate either: the
+# repository is interpolated into homepage and download urls, and a repository
+# outside the organization is the case the threat model says is closed.
+SHAPES = (("formula", re.compile(r"[a-z0-9][a-z0-9._+@-]*"), "an invalid formula name"),
+          ("cls", re.compile(r"[A-Z][A-Za-z0-9]*"), "an invalid class name"),
+          ("repo", re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*"), "an invalid repository"))
+ASSET_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 # Statements the generator never writes, and what each of them would do. Named
 # so the message says what the statement is, not only that it is not allowed.
 RUNS = ("system", "exec", "post_install", "pre_install", "post_upgrade", "livecheck")
@@ -154,6 +162,14 @@ def build_row(raw, number):
         return None, ["the PRODUCTS roster in %s line %d has %d fields, not %d" % (ROSTER, number, len(values), len(FIELDS))]
     row = dict(zip(FIELDS, values))
     problems = []
+    for name, shape, what in SHAPES:
+        if not shape.fullmatch(row[name]):
+            problems.append("the PRODUCTS row for %s has %s \"%s\"" % (row["formula"], what, row[name]))
+    if not row["repo"].startswith("Glyndor/"):
+        problems.append("the PRODUCTS row for %s names the repository \"%s\", which is outside the Glyndor organization" % (row["formula"], row["repo"]))
+    for name in ("mac_arm", "mac_intel", "linux_arm", "linux_intel"):
+        if row[name] != "-" and not ASSET_RE.fullmatch(row[name]):
+            problems.append("the PRODUCTS row for %s has an invalid asset name in %s" % (row["formula"], name))
     for name in ("licence", "desc", "version_check"):
         value = row[name]
         if not value or any(bad in value for bad in ('"', "\\", "#{", "#$", "#@")):

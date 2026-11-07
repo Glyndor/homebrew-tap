@@ -113,6 +113,7 @@ UNITS=(
 	limits
 	release_order
 	version_guard
+	digest_case_guard
 )
 
 # render_product is intentionally excluded by name. It formats to Ruby formulae
@@ -187,6 +188,13 @@ extract_unit() { # $1=file $2=unit
 			# interpolated into the generated artifact.
 			sed -n '/^version_guard()/,/^}/p' "$file"
 			;;
+		digest_case_guard)
+			# The refusal of an upper-case digest in the verified SHA256SUMS.
+			# The renderer compares it with the lowercase digest of the
+			# download, so a channel that loses the guard publishes a release
+			# the other one refuses.
+			sed -n '/^digest_case_guard()/,/^}/p' "$file"
+			;;
 		limits)
 			# The download caps. A cap raised in one channel only is a looser
 			# gate there, and nothing else would notice: the constants are not
@@ -211,7 +219,7 @@ extract_unit() { # $1=file $2=unit
 unit_is_complete() { # $1=last-line $2=unit
 	local last="$1" unit="$2"
 	case "$unit" in
-		verify_sha256sums|hash_of|verify_attestation|release_order|version_guard)
+		verify_sha256sums|hash_of|verify_attestation|release_order|version_guard|digest_case_guard)
 			[[ "$last" =~ ^}[[:space:]]*$ ]]
 			;;
 		py_block)

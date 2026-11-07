@@ -64,6 +64,7 @@ tests/fixtures/monitoring/render-drift-fixture.sh
 tests/monitoring/check-render-drift-drift.test.sh
 tests/monitoring/check-render-drift-missing.test.sh
 tests/monitoring/check-render-drift-network.test.sh
+tests/monitoring/check-render-drift-digest-case.test.sh
 tests/monitoring/check-render-drift-version.test.sh
 tests/monitoring/check-render-drift.test.sh
 tests/monitoring/check-reusable-drift.test.sh

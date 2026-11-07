@@ -101,8 +101,8 @@ chmod +x "$WORK/bin/curl"
 # --- the synthetic render script the check reads ----------------------------
 #
 # Every named unit the check compares is present: verify_sha256sums, py_block,
-# hash_of, release_keys, verify_attestation, limits, release_order and
-# version_guard. The script carries NO comments, so the comment-only case has
+# hash_of, release_keys, verify_attestation, limits, release_order,
+# version_guard and digest_case_guard. The script carries NO comments, so the comment-only case has
 # to add them on the remote side.
 mkdir -p "$WORK/$(dirname "$LOCAL_FILE")"
 
@@ -151,6 +151,14 @@ SEMVER
 version_guard() {
 	case "$3" in
 		"" | *[!0-9A-Za-z.+-]* | .* | *.)
+			return 1
+			;;
+	esac
+}
+
+digest_case_guard() {
+	case "$4" in
+		*[A-F]*)
 			return 1
 			;;
 	esac

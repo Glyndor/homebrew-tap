@@ -45,7 +45,7 @@ echo "=== this repository's render script agrees with an untouched copy of itsel
 real_local >/dev/null
 run_with_remote "$(remote_asis)"
 expect_eq "$exit_code" "0" "exit 0 when the two copies are the same script"
-expect_contains "$combined" "compared 8 render unit" "and all eight units were compared"
+expect_contains "$combined" "compared 9 render unit" "and all nine units were compared"
 
 echo
 echo "=== a comparison that never reports a rollback is drift, named as release_order ==="
@@ -59,7 +59,7 @@ run_with_remote "$(remote_replacing \
 	'print("higher")')"
 expect_eq "$exit_code" "1" "exit 1 when the comparison is sabotaged in one channel"
 expect_contains "$err_body" "release_order has drifted" "names the release_order unit"
-expect_contains "$err_body" "1 of 8 compared render unit(s) have drifted" "counts one drifted unit of eight"
+expect_contains "$err_body" "1 of 9 compared render unit(s) have drifted" "counts one drifted unit of nine"
 expect_not_contains "$err_body" "could not be found" "and no unit is reported missing"
 
 echo
@@ -74,7 +74,7 @@ run_with_remote "$(remote_replacing \
 	$'"" | .* | *.)')"
 expect_eq "$exit_code" "1" "exit 1 when the tag guard is sabotaged in one channel"
 expect_contains "$err_body" "version_guard has drifted" "names the version_guard unit"
-expect_contains "$err_body" "1 of 8 compared render unit(s) have drifted" "counts one drifted unit of eight"
+expect_contains "$err_body" "1 of 9 compared render unit(s) have drifted" "counts one drifted unit of nine"
 expect_not_contains "$err_body" "could not be found" "and no unit is reported missing"
 
 echo

@@ -22,7 +22,7 @@ set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-. "$here/../fixtures/monitoring/render-drift-fixture.sh"
+. "$here/../../fixtures/monitoring/render-drift-fixture.sh"
 # The linter cannot follow a sourced path built at run time, and the fixture
 # is where the counters and the read-back of the last run live. The disable
 # is on the source line alone; the variables are re-declared here so nothing

@@ -64,7 +64,7 @@ for wf in "$workflows"/*.yml "$workflows"/*.yaml; do
 	# no further than the `run:` key itself, which is how YAML block scalars
 	# end.
 	awk -v dir="$work" -v tag="$name" '
-		function close_block() { if (out != "") { close(out); out = "" } }
+		function close_block() { if (out != "") { if (folded) print fold > out; close(out); out = ""; folded = 0 } }
 		# `- run: |` (a list item opening with its run key) and a comment after
 		# the header (`run: | # note`) are the same block scalar; the key column
 		# is where `run:` itself starts, which is what the body must exceed.
@@ -72,28 +72,23 @@ for wf in "$workflows"/*.yml "$workflows"/*.yaml; do
 			close_block()
 			key = match($0, /run:/) - 1
 			out = sprintf("%s/%s@%d.sh", dir, tag, NR)
-			# A folded scalar (`>` family) joins its body lines with
-			# spaces, so the shell the workflow would run is not the
-			# shell it looks like; shellchecking it would surface
-			# findings for code that never runs. Count the block so
-			# the success line stays honest, and mark the file so a
-			# reader can tell it was deliberately not linted.
-			if ($0 ~ /^[[:space:]]*(-[[:space:]]+)?run:[[:space:]]*>/) {
-				print "#!/usr/bin/env bash" > out
-				print "# folded scalar: lines join, shell would differ, not linted" >> out
-				close(out)
-				out = ""
-				next
-			}
+			# A folded scalar (`>` family) joins its body lines with spaces,
+			# so the shell the runner executes is the joined text, not the
+			# lines as written. The body is collected and written folded, so
+			# what is linted is what runs: a blank line stays a newline and
+			# any other line joins to the previous one with a space.
+			folded = ($0 ~ /run:[[:space:]]*>/)
+			fold = ""
 			print "#!/usr/bin/env bash" > out
 			body = -1
 			next
 		}
 		out != "" {
-			if ($0 ~ /^[[:space:]]*$/) { print "" > out; next }
+			if ($0 ~ /^[[:space:]]*$/) { if (folded) fold = fold "\n"; else print "" > out; next }
 			here = match($0, /[^ ]/) - 1
 			if (here <= key) { close_block(); next }
 			if (body < 0) body = here
+			if (folded) { text = substr($0, body + 1); fold = (fold == "" || fold ~ /\n$/) ? fold text : fold " " text; next }
 			print substr($0, body + 1) > out
 			next
 		}

@@ -30,7 +30,7 @@ check() { # <description> <expected> <actual>
 mktree() { # $1=name -> a tree with the real check, renderer and formula
 	local t="$WORK/$1"
 	mkdir -p "$t/scripts/artifacts" "$t/scripts/release" "$t/Formula"
-	cp "$HERE/scripts/artifacts/check-formulae.sh" "$t/scripts/artifacts/"
+	cp "$HERE/scripts/artifacts/check-formulae.sh" "$HERE/scripts/artifacts/check-formulae.py" "$t/scripts/artifacts/"
 	cp "$HERE/scripts/release/render-formulae.sh" "$t/scripts/release/"
 	cp "$HERE/Formula/podup.rb" "$t/Formula/podup.rb"
 	echo "$t"
@@ -67,7 +67,7 @@ CASES=(
 	"a backtick command|s.replace('bin.install asset', '\`id\`; bin.install asset')|\`"
 )
 for entry in "${CASES[@]}"; do
-	IFS='|' read -r label expr word <<<"$entry"
+	IFS='|' read -r label expr _ <<<"$entry"
 	T="$(mktree "bad-$(echo "$label" | tr -c 'a-z\n' _)")"; plant "$T" "$expr"
 	rc=0; gate "$T" || rc=$?
 	check "$label is refused" "1" "$rc"
@@ -81,6 +81,14 @@ check "a formula no roster row declares is refused" "1" "$rc"
 T="$(mktree nested)"; mkdir -p "$T/Formula/p"; cp "$T/Formula/podup.rb" "$T/Formula/p/extra.rb"
 rc=0; gate "$T" || rc=$?
 check "a formula one folder down is checked too" "1" "$rc"
+
+# A file name is attacker-controlled text. One carrying a newline and a tab
+# must not forge an "ok" record for itself nor hide its own error.
+T="$(mktree forged)"; cp "$T/Formula/podup.rb" "$T/Formula/ghost.rb"
+cp "$T/Formula/podup.rb" "$T/Formula/$(printf 'x.rb\nok\tpodup.rb')"
+rc=0; gate "$T" || rc=$?
+check "a file name that forges an ok record is refused" "1" "$rc"
+check "  and its name is printed escaped" "1" "$(said 'x.rb\nok\tpodup.rb')"
 
 T="$(mktree link)"; rm "$T/Formula/podup.rb"; ln -s /etc/hostname "$T/Formula/podup.rb"
 rc=0; gate "$T" || rc=$?
@@ -98,13 +106,12 @@ check "a renderer with no roster is an error" "1" "$rc"
 # found = check_formula(...) replaced by an empty list. If the edit changed
 # nothing the flip below would prove nothing, so the difference is required.
 S="$(mktree sabotaged)"
-sed 's/found = check_formula(path, row)/found = []/' "$HERE/scripts/artifacts/check-formulae.sh" \
-	> "$S/scripts/artifacts/check-formulae.sh"
-chmod +x "$S/scripts/artifacts/check-formulae.sh"
+sed 's/found = check_formula(path, row)/found = []/' "$HERE/scripts/artifacts/check-formulae.py" \
+	> "$S/scripts/artifacts/check-formulae.py"
 check "the sabotage changed the check" "1" \
-	"$(cmp -s "$HERE/scripts/artifacts/check-formulae.sh" "$S/scripts/artifacts/check-formulae.sh" && echo 0 || echo 1)"
+	"$(cmp -s "$HERE/scripts/artifacts/check-formulae.py" "$S/scripts/artifacts/check-formulae.py" && echo 0 || echo 1)"
 for entry in "${CASES[@]}"; do
-	IFS='|' read -r label expr word <<<"$entry"
+	IFS='|' read -r label expr _ <<<"$entry"
 	cp "$HERE/Formula/podup.rb" "$S/Formula/podup.rb"; plant "$S" "$expr"
 	rc=0; gate "$S" || rc=$?
 	check "without the verdict, $label passes (the refusal was the check's)" "0" "$rc"

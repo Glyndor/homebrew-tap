@@ -75,7 +75,7 @@ sandbox() { # $1=path $2=generator exit code $3=writes? (yes|no|empty|del|del-mu
 	# the real roster (the stub generator below declares the same PRODUCTS), and
 	# the step is exercised with the code that ships.
 	cp "$HERE/Formula/podup.rb" "$dir/Formula/podup.rb"
-	cp "$HERE/scripts/artifacts/check-formulae.sh" "$dir/scripts/artifacts/"
+	cp "$HERE/scripts/artifacts/check-formulae.sh" "$HERE/scripts/artifacts/check-formulae.py" "$dir/scripts/artifacts/"
 	# `del-multi` adds a second tracked formula so a deletion can leave the
 	# channel with one left, exercising the deletion-only-but-survivor path
 	# without also tripping the empty-channel refusal.

@@ -54,6 +54,7 @@ jobs:
         ./tests/publication/update/update-workflow.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/artifacts/check-formulae.test.sh
+        ./tests/artifacts/check-version-monotonic.test.sh
         ./tests/ci/policy/locale-pinned.test.sh
         ./tests/quality/check-test-coverage.test.sh
         ./tests/quality/check-action-pins.test.sh
@@ -146,6 +147,17 @@ jobs:
           # a required status check, and a new one would not be required until
           # the ruleset changed. This step rides inside a check that already is.
           ./scripts/artifacts/check-formulae.sh
+
+      - name: A formula never goes back to an older release
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          # The renderer refuses a rollback, a hand edit does not. The base is
+          # fetched on its own: the checkout is shallow and has no history.
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          ./scripts/artifacts/check-version-monotonic.sh "$BASE_SHA"
 
   formulae:
     name: brew style

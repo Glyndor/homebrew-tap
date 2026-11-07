@@ -64,6 +64,8 @@ CASES=(
 	"a post_install block|s.replace('  def install', '  def post_install\n    system \"sh\", \"-c\", \"id\"\n  end\n\n  def install')|post_install"
 	"a depends_on line|s.replace('  on_macos do', '  depends_on \"curl\"\n\n  on_macos do', 1)|depends_on"
 	"a resource block|s.replace('  def install', '  resource \"x\" do\n    url \"https://x.example/x.tgz\"\n  end\n\n  def install')|resource"
+	"a comment that opens no block, then a swapped asset|s.replace('    on_intel do', '    # do\n    on_intel do', 1).replace('podup-darwin-x86_64\"\n', 'podup-linux-x86_64\"\n', 1)|slot"
+	"CRLF line endings|s.replace('\n', '\r\n')|CRLF"
 	"a backtick command|s.replace('bin.install asset', '\`id\`; bin.install asset')|\`"
 )
 for entry in "${CASES[@]}"; do

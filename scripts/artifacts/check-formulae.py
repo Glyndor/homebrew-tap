@@ -117,7 +117,7 @@ class Reader(object):
 def read_roster(path):
     """The rows of the PRODUCTS table, and the problems reading it."""
     try:
-        with open(path, encoding="utf-8") as handle:
+        with open(path, encoding="utf-8", newline="") as handle:
             lines = handle.read().splitlines()
     except OSError as error:
         return [], ["cannot read the PRODUCTS roster in %s: %s" % (ROSTER, error)]
@@ -208,7 +208,7 @@ def check_formula(path, row):
     """Every way this formula can disagree with the roster row."""
     problems = []
     try:
-        with open(path, encoding="utf-8") as handle:
+        with open(path, encoding="utf-8", newline="") as handle:
             text = handle.read()
     except OSError as error:
         return ["cannot read the formula: %s" % error]
@@ -230,6 +230,8 @@ def check_formula(path, row):
     tags = []
     for number, line in enumerate(text.split("\n"), 1):
         stripped = line.strip()
+        if stripped.startswith("#"):
+            continue  # a comment opens and closes no block
         if stripped.endswith(" do"):
             context.append(stripped[:-3])
             continue
@@ -255,7 +257,9 @@ def check_formula(path, row):
         if asset not in row["assets"]:
             add(problems, number, "url", "the url names the asset %s; the roster row declares %s" % (asset, ", ".join(row["assets"])))
         slot = tuple(context[-2:])
-        if slot in row["slots"] and asset != row["slots"][slot]:
+        if slot not in row["slots"]:
+            add(problems, number, "url", "the url sits in %s, which is not one of the platform blocks the generator writes" % (" / ".join(context) or "no block"))
+        elif asset != row["slots"][slot]:
             add(problems, number, "url", "the %s/%s block names the asset %s; the roster row declares %s for that slot" % (slot[0], slot[1], asset, row["slots"][slot]))
         if not tag.startswith("v") or not VERSION_RE.match(tag[1:]):
             add(problems, number, "url", "the tag %s is not the plain version the generator emits" % tag)

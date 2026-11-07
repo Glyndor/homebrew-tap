@@ -10,7 +10,7 @@
 # Usage: check-version-monotonic.sh <base commit> [formula directory]
 #
 # Compares Formula/**/*.rb in the working tree with the same files at the base
-# commit, with the SemVer precedence release_order uses in render-manifests.sh:
+# commit, with the SemVer precedence release_order uses in render-formulae.sh:
 # pre-release below stable, numeric identifiers below text, build metadata
 # ignored. An equal version passes; a formula new in the tree passes; a version
 # that is not SemVer, in either side, is an error, so the gate cannot be

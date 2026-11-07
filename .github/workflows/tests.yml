@@ -45,12 +45,12 @@ jobs:
       test-command: >-
         ./tests/ci/suites/check-suite-completeness.test.sh
         ./tests/release/render-formulae.test.sh
-        ./tests/release/render-formulae-trust.test.sh
-        ./tests/release/render-formulae-transfer-limits.test.sh
-        ./tests/release/render-formulae-version.test.sh
-        ./tests/release/render-formulae-products.test.sh
-        ./tests/release/render-formulae-attestation.test.sh
-        ./tests/release/render-formulae-inputs.test.sh
+        ./tests/release/render-formulae/render-formulae-trust.test.sh
+        ./tests/release/render-formulae/render-formulae-transfer-limits.test.sh
+        ./tests/release/render-formulae/render-formulae-version.test.sh
+        ./tests/release/render-formulae/render-formulae-products.test.sh
+        ./tests/release/render-formulae/render-formulae-attestation.test.sh
+        ./tests/release/render-formulae/render-formulae-inputs.test.sh
         ./tests/publication/update/update-workflow.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/ci/policy/locale-pinned.test.sh

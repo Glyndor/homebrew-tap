@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-HERE_FIXTURE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../fixtures/release" && pwd)"
+HERE_FIXTURE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../fixtures/release" && pwd)"
 # The linter cannot follow a sourced path built at run time, and the fixture
 # is where check() and the counters live. The disable is on the source line
 # alone; the counters are re-declared here so nothing downstream has to be

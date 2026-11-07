@@ -22,7 +22,7 @@
 # Requires: nothing beyond coreutils and grep.
 set -u
 
-cd "$(dirname "$0")/../../.." || exit 1
+cd "$(dirname "$0")/../../../.." || exit 1
 pass=0; fail=0
 
 check() { # <description> <expected> <actual>

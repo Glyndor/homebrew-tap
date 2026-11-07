@@ -38,7 +38,8 @@ present = "pull_request" in on
 pr = on.get("pull_request")
 need = {".github/workflows/freshness.yml",
         ".github/workflows/reusable-dependabot-freshness.yml",
-        ".github/workflows/reusable-schedule-freshness.yml"}
+        ".github/workflows/reusable-schedule-freshness.yml",
+        "scripts/monitoring/check-suite-on-main.sh"}
 if not present:
     print("ok")  # no pull_request trigger at all is also fine
 elif not isinstance(pr, dict) or "paths" not in pr:
@@ -56,17 +57,20 @@ plant() { # $1 = file, rest = the pull_request block lines
 	local f="$1"; shift
 	{ printf 'on:\n'; printf '  %s\n' "$@"; printf 'jobs: {}\n'; } > "$f"
 }
-FULL=('pull_request:' '  paths:' '    - .github/workflows/freshness.yml' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml')
+FULL=('pull_request:' '  paths:' '    - .github/workflows/freshness.yml' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - scripts/monitoring/check-suite-on-main.sh')
 
 plant "$WORK/c/good.yml" "${FULL[@]}"
-check "the three files and nothing else pass" "ok" "$(scope "$WORK/c/good.yml")"
+check "the four files and nothing else pass" "ok" "$(scope "$WORK/c/good.yml")"
 plant "$WORK/c/unfiltered.yml" 'pull_request:'
 check "an unfiltered pull_request trigger is reported" "the pull_request trigger has no paths filter" "$(scope "$WORK/c/unfiltered.yml")"
-plant "$WORK/c/noself.yml" 'pull_request:' '  paths:' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml'
+plant "$WORK/c/noself.yml" 'pull_request:' '  paths:' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - scripts/monitoring/check-suite-on-main.sh'
 check "a filter that leaves out the workflow itself is reported" \
 	"paths missing: ['.github/workflows/freshness.yml']; paths not allowed: []" "$(scope "$WORK/c/noself.yml")"
+plant "$WORK/c/noscript.yml" 'pull_request:' '  paths:' '    - .github/workflows/freshness.yml' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml'
+check "a filter that leaves out the script the suite job runs is reported" \
+	"paths missing: ['scripts/monitoring/check-suite-on-main.sh']; paths not allowed: []" "$(scope "$WORK/c/noscript.yml")"
 plant "$WORK/c/wide.yml" "${FULL[@]}" '    - README.md'
-check "a filter wider than the three files is reported" \
+check "a filter wider than the four files is reported" \
 	"paths missing: []; paths not allowed: ['README.md']" "$(scope "$WORK/c/wide.yml")"
 
 check "the live freshness workflow passes" "ok" "$(scope "$HERE/.github/workflows/freshness.yml")"

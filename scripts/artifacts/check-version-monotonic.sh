@@ -21,7 +21,7 @@ base="${1:?usage: check-version-monotonic.sh <base commit> [formula directory]}"
 dir="${2:-Formula}"
 
 python3 -I - "$base" "$dir" <<'PY'
-import re, subprocess, sys
+import os, re, subprocess, sys
 
 base, directory = sys.argv[1:]
 PATTERN = (r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
@@ -64,8 +64,14 @@ def version_of(text, where):
 
 
 git("rev-parse", "--verify", f"{base}^{{commit}}")
+# A pathspec is read from the working directory, so a run from a subfolder saw
+# no formula at all and approved every rollback. Everything below is relative
+# to the root of the repository.
+os.chdir(git("rev-parse", "--show-toplevel").strip())
 names = [n for n in git("ls-tree", "-r", "--name-only", base, "--", directory + "/").split("\n")
          if n.lower().endswith(".rb")]
+if not names:
+    fail(f"no formula under {directory}/ at {base}: nothing was compared, and a gate that compares nothing approves everything")
 for name in names:
     try:
         with open(name, encoding="utf-8") as handle:

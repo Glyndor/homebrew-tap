@@ -189,6 +189,24 @@ jobs:
             exit 1
           fi
 
+          # The CONTENT of every formula, against the roster row the generator
+          # renders from: the same repository, the same tag on every url, the
+          # assets that row declares, and no statement the generator does not
+          # write. `brew style` and `brew audit --strict` read a formula as
+          # Ruby and as a Homebrew recipe, and neither of them knows what the
+          # product's release looked like, so both accept a formula that is
+          # well formed and wrong: a url naming another Glyndor repository, a
+          # second tag in the same formula, a `post_install` block that runs
+          # on every install. There is no pull request between this commit and
+          # `brew install`, so this is the last reader of the formula's
+          # meaning. Glyndor/scoop-bucket refuses the same shapes for its
+          # manifests.
+          #
+          # It runs before brew is set up, like the empty-tap guard above: the
+          # check needs no toolchain, and a formula that says the wrong thing
+          # should not reach the point where a runner is installed to find out.
+          ./scripts/artifacts/check-formulae.sh
+
           # Set brew up only once the inputs are known good: checking them needs
           # no brew, and failing before installing a toolchain is both faster and
           # the only way this guard can be exercised outside a runner.

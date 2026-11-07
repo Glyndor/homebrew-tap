@@ -18,7 +18,7 @@
 #
 # WHAT IS COMPARED
 #
-#   Eight named units inside the script:
+#   Nine named units inside the script:
 #
 #       verify_sha256sums  the function that fetches SHA256SUMS + .sig and
 #                         verifies the Ed25519 signature against the
@@ -44,6 +44,10 @@
 #                         the matching old signed SHA256SUMS. The
 #                         attestation is what binds the binary to the tag.
 #                         This is shared logic and belongs in the contract.
+#       limits            the MAX_SUMS_BYTES, MAX_SIG_BYTES and MAX_ASSET_BYTES
+#                         caps on what a download may carry, so a hostile or
+#                         runaway release cannot turn the render into an
+#                         unbounded transfer
 #       release_order     the function that compares the candidate version
 #                         with the version the channel already serves, using
 #                         SemVer precedence, and refuses a rollback unless
@@ -59,6 +63,9 @@
 #                         its own, and a tag carrying a quote closes the string
 #                         it is written into and appends code that runs on
 #                         every install.
+#       digest_case_guard the function that refuses an upper-case digest in the
+#                         verified SHA256SUMS, because the renderer compares it
+#                         with the lowercase digest of the download
 #
 #   render_product is EXCLUDED by name, with the reason given below. The two
 #   repositories render to different formats, so the function legitimately

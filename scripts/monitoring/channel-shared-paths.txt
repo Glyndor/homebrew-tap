@@ -61,11 +61,11 @@ tests/ci/suites/ci-runs-every-test.test.sh
 tests/ci/suites/lint-job-scope.test.sh
 tests/ci/suites/shell-ci-scope.test.sh
 tests/fixtures/monitoring/render-drift-fixture.sh
-tests/monitoring/check-render-drift-drift.test.sh
-tests/monitoring/check-render-drift-missing.test.sh
-tests/monitoring/check-render-drift-network.test.sh
-tests/monitoring/check-render-drift-digest-case.test.sh
-tests/monitoring/check-render-drift-version.test.sh
+tests/monitoring/check-render-drift/check-render-drift-drift.test.sh
+tests/monitoring/check-render-drift/check-render-drift-missing.test.sh
+tests/monitoring/check-render-drift/check-render-drift-network.test.sh
+tests/monitoring/check-render-drift/check-render-drift-digest-case.test.sh
+tests/monitoring/check-render-drift/check-render-drift-version.test.sh
 tests/monitoring/check-render-drift.test.sh
 tests/monitoring/check-reusable-drift.test.sh
 tests/quality/check-action-pins.test.sh

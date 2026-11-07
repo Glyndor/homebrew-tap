@@ -20,7 +20,7 @@ set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-. "$here/../fixtures/monitoring/render-drift-fixture.sh"
+. "$here/../../fixtures/monitoring/render-drift-fixture.sh"
 pass=0
 fail=0
 exit_code=0

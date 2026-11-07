@@ -31,7 +31,7 @@ check() { # <description> <expected> <actual>
 # in that order and a LATER step creates the commit. Otherwise prints what is
 # wrong.
 order() { # $1 = workflow file
-	python3 "$HERE/tests/fixtures/ci/audit-obligation.py" "$1" update
+	python3 "$HERE/tests/fixtures/publication/audit/audit-obligation.py" "$1" update
 }
 
 plant() { # $1 = file, $2 = audit-step lines (newline separated), $3 = commit step line

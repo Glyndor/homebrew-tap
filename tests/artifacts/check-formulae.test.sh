@@ -57,10 +57,10 @@ check "the committed formula is accepted" "0" "$rc"
 
 CASES=(
 	"another repository|s.replace('Glyndor/podup/releases', 'Glyndor/other-product/releases', 1)|releases/download"
-	"a second tag|s.replace('/v5.16.0/podup-linux-arm64', '/v5.15.0/podup-linux-arm64')|tag"
+	"a second tag|__import__('re').sub(r'/v[0-9][^/]*/podup-linux-arm64', '/v0.0.1/podup-linux-arm64', s)|tag"
 	"an asset the row does not declare|s.replace('podup-linux-arm64\"', 'podup-linux-riscv\"', 1)|asset"
-	"an upper-case digest|s.replace('e73e3a0f', 'E73E3A0F')|sha256"
-	"a short digest|s.replace('e73e3a0f76f23d940052b353e43bceff8917d3bdcda8ca600d69ce5dcb107aba', 'e73e3a0f')|sha256"
+	"an upper-case digest|__import__('re').sub(r'(sha256 .)([0-9a-f]{64})', lambda m: m.group(1) + m.group(2).upper(), s, count=1)|sha256"
+	"a short digest|__import__('re').sub(r'(sha256 .)[0-9a-f]{64}', r'\g<1>e73e3a0f', s, count=1)|sha256"
 	"a post_install block|s.replace('  def install', '  def post_install\n    system \"sh\", \"-c\", \"id\"\n  end\n\n  def install')|post_install"
 	"a depends_on line|s.replace('  on_macos do', '  depends_on \"curl\"\n\n  on_macos do', 1)|depends_on"
 	"a resource block|s.replace('  def install', '  resource \"x\" do\n    url \"https://x.example/x.tgz\"\n  end\n\n  def install')|resource"

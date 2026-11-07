@@ -14,7 +14,7 @@
 #
 #   A file that is the same text in both repositories and has to stay the same
 #   text: the shell both channels lint with, the CI policy both channels
-#   publish under, and the tests both channels hold each other to. Thirty-two
+#   publish under, and the tests both channels hold each other to. Thirty-five
 #   files qualify today.
 #
 # WHAT DOES NOT BELONG HERE

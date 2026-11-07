@@ -81,6 +81,16 @@ pushed here by a product and no product holds a credential on this repository
 | A compromised product repository publishes a malicious release under a valid signature | the tap verifies that the manifest is the one the product published and that what it interpolates is well formed: a tag carrying Ruby is refused before it reaches the generated formula (`scripts/release/render-formulae.sh#version_guard`), and a digest must be one entry of 64 hex characters (`scripts/release/render-formulae.sh#hash_of`). It cannot tell a malicious binary from a good one when both are correctly signed, and the release job of the product holds the signing key whose public half is `scripts/release/render-formulae.sh#RELEASE_PUBKEY_B64`, so this is a residual risk, stated below | test: `tests/release/render-formulae/render-formulae-version.test.sh#a release tag carrying Ruby is refused`; `tests/release/render-formulae/render-formulae-version.test.sh#and the error names the tag rather than the signature`; none for the binary itself |
 | One product's broken release removes or holds back another's | each product renders on its own; a failure leaves that product's formula as it was, the rest still commit, and the job fails last so the skip is loud (`scripts/release/render-formulae.sh#render_product`, `.github/workflows/update.yml#Render formulae from the latest signed releases`, `.github/workflows/update.yml#Fail if any product was skipped`) | test: `tests/publication/update/update-workflow.test.sh#exit 3 does NOT abort the step`; `tests/publication/update/update-workflow.test.sh#the failure step is last, after the commit` |
 | A render that empties the tap is committed | the validate step refuses an empty `Formula/` before `brew` is set up, so the guard does not depend on the toolchain (`.github/workflows/update.yml#Validate the re-rendered formulae`) | test: `tests/publication/update/update-workflow.test.sh#an emptied Formula/ fails validation` |
+| A formula names a url of another Glyndor repository, a second tag inside the same formula, an asset the roster does not declare, or a statement the generator does not write | the content of every formula is compared with what the generator emits for the product its roster row declares: the repository, the tag on every url, the assets, the shape of the digests, and the statements themselves (`scripts/artifacts/check-formulae.sh#check-formulae`). It runs before the commit lands (`.github/workflows/update.yml#Validate the re-rendered formulae`) and on every push and pull request (`.github/workflows/tests.yml#products`); a roster with no rows, or a formula no row declares, is an error rather than a vacuous pass | `tests/artifacts/check-formulae.test.sh` plants each violation, a comment that tries to move the block stack, CRLF and a forged file name, and reruns them against a copy of the check with its verdict removed |
+
+`brew style` and `brew audit --strict` read a formula as Ruby and as a Homebrew
+recipe. Neither of them knows what the product's release looked like, so both
+accept a formula that is well formed and wrong. The content check closes that
+gap for the things a release decides -- the repository, the tag, the assets --
+and refuses the statements the generator does not write, which is what stops a
+hand edit from adding code that runs on every install. It does not bind a
+digest to any bytes: a well-formed digest of the wrong binary still passes,
+and the signature over `SHA256SUMS` is what says otherwise.
 
 The manifest signature authenticates `SHA256SUMS`, not the tag returned by the
 release lookup. Before writing, `scripts/release/render-formulae.sh#verify_attestation`
@@ -211,6 +221,7 @@ git grep -c 'actions/checkout@' .github/workflows | awk -F: '{s+=$2} END {print 
 git grep -hn '^\s*-\? *uses:' .github/workflows | grep -v 'uses: actions/\|uses: ./.github/workflows/reusable-'   # nothing
 grep -n 'RELEASE_PUBKEY' scripts/release/render-formulae.sh     # the two key slots
 bash scripts/quality/check-doc-anchors.sh                      # every reference above resolves
+bash scripts/artifacts/check-formulae.sh                       # what the formulae may say
 bash tests/release/render-formulae.test.sh
 bash tests/publication/update/update-workflow.test.sh
 bash tests/ci/policy/brew-jobs-are-bounded.test.sh

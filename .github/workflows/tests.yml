@@ -53,6 +53,7 @@ jobs:
         ./tests/release/render-formulae/render-formulae-inputs.test.sh
         ./tests/publication/update/update-workflow.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
+        ./tests/artifacts/check-formulae.test.sh
         ./tests/ci/policy/locale-pinned.test.sh
         ./tests/quality/check-test-coverage.test.sh
         ./tests/quality/check-action-pins.test.sh
@@ -123,6 +124,27 @@ jobs:
           # real CI run, which meant it had never been watched fail.
           # tests/artifacts/check-products-consistent.test.sh covers it.
           ./scripts/artifacts/check-products-consistent.sh
+
+      - name: Every formula must match what the generator emits
+        run: |
+          set -euo pipefail
+          # The CONTENT of every formula, not only its name: the repository and
+          # the tag its urls name, the assets it installs, the shape of its
+          # digests, and the statements it is allowed to make. `brew style` and
+          # `brew audit --strict` read a formula as Ruby and as a Homebrew
+          # recipe, and neither of them knows what the product's release looked
+          # like, so both accept a formula that is well formed and wrong: a url
+          # naming another Glyndor repository, a second tag in the same
+          # formula, a `post_install` block that runs on every install. The
+          # roster in scripts/release/render-formulae.sh is the only place a
+          # product is declared, and this check reads it rather than keeping a
+          # second list. Glyndor/scoop-bucket refuses the same shapes for its
+          # manifests.
+          #
+          # A step here rather than a new job: a job id is part of the name of
+          # a required status check, and a new one would not be required until
+          # the ruleset changed. This step rides inside a check that already is.
+          ./scripts/artifacts/check-formulae.sh
 
   formulae:
     name: brew style

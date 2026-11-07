@@ -69,8 +69,13 @@ PY
 # stub generator whose behaviour each case chooses.
 sandbox() { # $1=path $2=generator exit code $3=writes? (yes|no|empty|del|del-multi)
 	local dir="$1" code="$2" mode="$3"
-	rm -rf "$dir"; mkdir -p "$dir/scripts" "$dir/scripts/release" "$dir/Formula"
-	printf 'class Podup < Formula\nend\n' > "$dir/Formula/podup.rb"
+	rm -rf "$dir"; mkdir -p "$dir/scripts" "$dir/scripts/release" "$dir/scripts/artifacts" "$dir/Formula"
+	# The validate step runs scripts/artifacts/check-formulae.sh before brew, so
+	# the sandbox carries the real check, the committed formula it accepts and
+	# the real roster (the stub generator below declares the same PRODUCTS), and
+	# the step is exercised with the code that ships.
+	cp "$HERE/Formula/podup.rb" "$dir/Formula/podup.rb"
+	cp "$HERE/scripts/artifacts/check-formulae.sh" "$HERE/scripts/artifacts/check-formulae.py" "$dir/scripts/artifacts/"
 	# `del-multi` adds a second tracked formula so a deletion can leave the
 	# channel with one left, exercising the deletion-only-but-survivor path
 	# without also tripping the empty-channel refusal.
@@ -79,6 +84,7 @@ sandbox() { # $1=path $2=generator exit code $3=writes? (yes|no|empty|del|del-mu
 	fi
 	cat > "$dir/scripts/release/render-formulae.sh" <<SH
 #!/usr/bin/env bash
+$(awk '/^PRODUCTS=\(/ { inside = 1; print; next } inside && /^\)/ { print; exit } inside { print }' "$HERE/scripts/release/render-formulae.sh")
 case "$mode" in
 	yes)       printf 'class Podup < Formula\n  # changed\nend\n' > "$dir/Formula/podup.rb" ;;
 	new)       printf 'class Zzz < Formula\nend\n' > "$dir/Formula/zzz.rb" ;;

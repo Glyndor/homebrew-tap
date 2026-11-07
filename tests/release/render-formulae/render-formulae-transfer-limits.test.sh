@@ -3,7 +3,7 @@
 # publication. Removing --max-filesize must fail even with the disk caps intact.
 set -euo pipefail
 
-HERE_FIXTURE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../fixtures/release" && pwd)"
+HERE_FIXTURE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../fixtures/release" && pwd)"
 # shellcheck disable=SC1091
 . "$HERE_FIXTURE/render-fixture.sh"
 pass=0

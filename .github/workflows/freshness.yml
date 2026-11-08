@@ -186,8 +186,8 @@ jobs:
   # scoop-bucket, the push that fixed a red main had a green tests.yml,
   # but this job ran at the same moment, read the newest COMPLETED run,
   # which was the previous commit's red one, and put a red cross on the
-  # repair. Picking the run with the matching head_sha closes that race. The script polls up to 32 times with 15 s between
-  # attempts (8 minutes, inside this job's 10-minute timeout); a
+  # repair. Picking the run with the matching head_sha closes that race. The script polls up to 80 times with 15 s between
+  # attempts (20 minutes, inside this job's 25-minute timeout); a
   # `cancelled` conclusion for the pushed commit is RED, because nothing
   # newer can answer for that commit.
   #
@@ -215,11 +215,10 @@ jobs:
   tests-on-main:
     name: newest completed Tests run on main
     runs-on: ubuntu-latest
-    # The script polls up to 32 times with 15 s between attempts in push
-    # mode, 8 minutes at most. The 10-minute floor this org
-    # uses for a job whose honest run is seconds still covers that with
-    # margin to spare.
-    timeout-minutes: 10
+    # The script polls up to 80 times with 15 s between attempts in push
+    # mode, 20 minutes at most: a queued suite measured ten minutes on
+    # 2026-11-08. The 25-minute bound covers that with margin to spare.
+    timeout-minutes: 25
     permissions:
       contents: read
       actions: read

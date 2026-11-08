@@ -256,7 +256,7 @@ if [ ! -f "$local_script" ]; then
 else
 	remote_url="https://raw.githubusercontent.com/$SIBLING_REPO/main/$REMOTE_FILE"
 
-	if ! curl -fsSL --connect-timeout 10 --max-time 60 "$remote_url" > "$tmp/remote" 2>"$tmp/curl.err"; then
+	if ! curl -fsSL --connect-timeout 10 --max-time 60 --max-filesize 1048576 "$remote_url" > "$tmp/remote" 2>"$tmp/curl.err"; then
 		echo "::error::could not fetch $REMOTE_FILE from $SIBLING_REPO: the request to GitHub failed" >&2
 		echo "  $remote_url" >&2
 		if [ -s "$tmp/curl.err" ]; then

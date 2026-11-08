@@ -14,8 +14,8 @@
 #
 #   A file that is the same text in both repositories and has to stay the same
 #   text: the shell both channels lint with, the CI policy both channels
-#   publish under, and the tests both channels hold each other to. Thirty-five
-#   files qualify today.
+#   publish under, and the tests both channels hold each other to. Every file that qualifies
+#   goes in the list below.
 #
 # WHAT DOES NOT BELONG HERE
 #
@@ -49,6 +49,8 @@ tests/ci/policy/rules/cancel-policy.test.sh
 tests/ci/docs/documented-test-command.test.sh
 tests/ci/policy/rules/locale-pinned.test.sh
 tests/ci/policy/workflows/workflow-shape.test.sh
+tests/ci/policy/workflows/freshness-pr-scope.test.sh
+tests/ci/policy/workflows/workflow-publish-triggers.test.sh
 tests/ci/reusable/reusable-dco.test.sh
 tests/ci/reusable/reusable-dependabot-freshness.test.sh
 tests/ci/reusable/reusable-empty-diff.test.sh
@@ -56,11 +58,14 @@ tests/ci/reusable/reusable-line-limit.test.sh
 tests/ci/reusable/reusable-schedule-freshness.test.sh
 tests/ci/reusable/reusable-shell-ci.test.sh
 tests/ci/reusable/reusable-workflow-lint.test.sh
+tests/ci/reusable/reusable-workflow-lint-install.test.sh
 tests/ci/suites/check-suite-completeness.test.sh
 tests/ci/suites/ci-runs-every-test.test.sh
 tests/ci/suites/lint-job-scope.test.sh
 tests/ci/suites/shell-ci-scope.test.sh
+tests/fixtures/ci/schedule-freshness-fixture.sh
 tests/fixtures/monitoring/render-drift-fixture.sh
+tests/monitoring/check-channel-drift.test.sh
 tests/monitoring/check-render-drift/check-render-drift-drift.test.sh
 tests/monitoring/check-render-drift/check-render-drift-missing.test.sh
 tests/monitoring/check-render-drift/check-render-drift-network.test.sh

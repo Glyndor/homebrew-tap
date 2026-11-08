@@ -7,8 +7,8 @@
 #
 # docs/threat-model.md cites the code it describes. It used to cite it by
 # `path:line`, and every one of those coordinates was true on the day it was
-# written and false the next time the file moved. The renderer grew from 454 to
-# 767 lines and changed directory; the citations kept their numbers and started
+# written and false the next time the file moved. The renderer grew by hundreds of
+# lines and changed directory; the citations kept their numbers and started
 # pointing at unrelated code. Nothing failed, because a line number in a
 # Markdown document is not a link and nothing resolves it.
 #

@@ -29,7 +29,7 @@
 #   because handing this check a token would give a drift reporter write reach it
 #   has no business having.
 #
-# THREE OUTCOMES, KEPT DISTINCT ON PURPOSE:
+# FOUR OUTCOMES, KEPT DISTINCT ON PURPOSE:
 #
 #   drift            a compared file's logic differs; the diff is printed
 #   fetch failure    GitHub could not be reached, or answered with nothing.
@@ -37,6 +37,8 @@
 #                    network with a real disagreement teaches people that a red
 #                    check means "try again later", which is exactly the habit
 #                    that lets a genuine one through.
+#   absent           this repository does not carry a copy of a reusable it
+#                    should; reported on its own, never as drift
 #   nothing compared refuse to pass having inspected nothing (see the bottom)
 #
 # Usage: check-reusable-drift.sh [repo-root]   (default: the repo this lives in)

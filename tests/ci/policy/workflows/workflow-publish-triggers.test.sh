@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Pin the exact event set for workflows that publish with a write-capable token.
 #
-# update.yml mints glyndor-updater's App token and commits Formula/ to main.
+# update.yml mints glyndor-updater's App token and commits the rendered files to main.
 # A PR event would check out revision-controlled code in that credentialed job.
 # Scan parsed workflow data (not comments) so future publishers enter this rule.
 # Requires: python3 with PyYAML (tests.yml installs python3-yaml).

@@ -2,8 +2,8 @@
 #
 # freshness.yml answers questions about main and about crons, never about the
 # change in a pull request, so it must not run on every pull request. It may
-# run on one that changes what it is made of: the workflow itself and the two
-# reusables it calls. A filter that left its own file out would stop testing the
+# run on one that changes what it is made of: the workflow itself, the two
+# reusables it calls and the script its suite job runs. A filter that left its own file out would stop testing the
 # workflow it guards, and a filter on a required check would never report it, so
 # this also requires that no job of the file is one the repository requires.
 #

@@ -4,7 +4,7 @@
 # workflow invokes must exist.
 #
 # scripts/quality/check-test-coverage.sh watches that each script has a test. Nothing
-# watched that the test RUNS. That gap was live when this was written:
+# watched that the test RUNS. That gap was live in the apt repository when this was written:
 # tests/ci/policy/rules/locale-pinned.test.sh had been added, passed locally, and no workflow
 # called it -- a guard against unpinned collation that CI never executed.
 #

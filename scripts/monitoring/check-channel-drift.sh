@@ -5,7 +5,7 @@
 #
 # WHY THIS CHECK EXISTS
 #
-#   Thirty-five scripts and tests under scripts/ and tests/ are byte-identical
+#   The scripts and tests listed in channel-shared-paths.txt are byte-identical
 #   in both channel repositories: the same shell, the same CI policy, the same
 #   tests. They are copies, and the duplication is deliberate -- it keeps every
 #   repository in the publication path self-contained, so no outside repository
@@ -16,7 +16,7 @@
 #   answered the same question differently: one refusing a manifest the other
 #   published, one linting what the other let through. The reusable workflows
 #   have their own watcher (check-reusable-drift.sh) and the render scripts
-#   have theirs (check-render-drift.sh). These thirty-five files had none.
+#   have theirs (check-render-drift.sh). These files had none.
 #
 # WHAT IS COMPARED
 #
@@ -33,15 +33,15 @@
 #   has stopped being a copy. The sibling checks are looser on purpose -- the
 #   reusable workflows' comments legitimately name their own repository, and
 #   the renderers share units rather than a whole file -- and a byte
-#   comparison here would not misfire, because none of the thirty-five files
+#   comparison here would not misfire, because none of those files
 #   carries prose that belongs to one repository and not the other.
 #
 #   Two things are normalised before the comparison. Both are invisible to a
 #   reader, and neither can hide a change in behaviour:
 #
 #     CRLF line endings    a checkout on Windows has CRLF files unless the
-#                          repository says otherwise, and reporting thirty-five
-#                          files as drifted because of the reader's line
+#                          repository says otherwise, and reporting all
+#                          listed files as drifted because of the reader's line
 #                          endings is a red nobody can act on.
 #     trailing whitespace  an invisible byte at the end of a line must not
 #                          masquerade as drift, and the diff of two lines that

@@ -207,7 +207,7 @@ while IFS= read -r path; do
 	# so the test that reads every curl in scripts/ can parse its arguments.
 	: > "$tmp/code"
 	curl_rc=0
-	curl -fsSL --connect-timeout 10 --max-time 60 -o "$tmp/remote" -w '%{http_code}' "$url" > "$tmp/code" 2> "$tmp/curl.err" || curl_rc=$?
+	curl -fsSL --connect-timeout 10 --max-time 60 --max-filesize 1048576 -o "$tmp/remote" -w '%{http_code}' "$url" > "$tmp/code" 2> "$tmp/curl.err" || curl_rc=$?
 	http_code="$(cat "$tmp/code")"
 
 	if [ "$curl_rc" -ne 0 ]; then

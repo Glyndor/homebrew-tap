@@ -5,10 +5,14 @@
 # It is the one check that reads the published formulae against an external
 # standard, and the commits that change those formulae raise no event it can
 # trigger on: update.yml lands them with the GraphQL createCommitOnBranch
-# mutation under GITHUB_TOKEN, and GitHub starts no workflow run for an event
+# mutation, and under GITHUB_TOKEN GitHub starts no workflow run for an event
 # that token caused. Measured 2026-09-06 in #146: three bot rewrites of
 # Formula/podup.rb on `main` over three days, and no `push` event on the branch
 # at all across them, while `brew audit` was failing on every one of them.
+#
+# The updater now commits with an app token, whose commits do start a push run,
+# so the schedule is what covers a change in Homebrew's rules with no commit at
+# all.
 #
 # So the trigger this asserts is not a preference about cadence. Without it the
 # gate reads a tree nobody publishes from, and the next time Homebrew changes

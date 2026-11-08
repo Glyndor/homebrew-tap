@@ -9,6 +9,10 @@ trim_trailing_whitespace = true
 insert_final_newline = true
 max_line_length = 120
 
+# Two trailing spaces are a hard line break in Markdown.
+[*.md]
+trim_trailing_whitespace = false
+
 [*.{json,yml,yaml}]
 indent_style = space
 indent_size = 2

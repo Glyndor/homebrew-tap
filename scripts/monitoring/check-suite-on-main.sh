@@ -7,8 +7,8 @@
 #
 # 1. push (GITHUB_EVENT_NAME=push). The verdict is the tests.yml run on
 #    main whose head_sha equals GITHUB_SHA, i.e. the run of the commit that
-#    was just pushed. The script polls up to 32 times with 15 s between
-#    attempts (8 minutes, inside the 10-minute job timeout) waiting for
+#    was just pushed. The script polls up to 80 times with 15 s between
+#    attempts (20 minutes, inside the 25-minute job timeout) waiting for
 #    that run to appear and finish. A `cancelled` conclusion for the
 #    pushed commit is RED: nothing newer can answer for that commit, and
 #    waiting for a successor would be the wrong shape.
@@ -115,13 +115,13 @@ check_schedule_json() {
 	echo "main is green: newest completed run of tests.yml on main succeeded."
 }
 
-# Push mode: poll up to 32 times with 15 s between attempts (8 minutes)
+# Push mode: poll up to 80 times with 15 s between attempts (20 minutes)
 # for the tests.yml run on main whose head_sha equals the pushed commit.
 # Nothing newer can answer for that commit, so a cancelled run for it is
 # RED and the script does not wait for a successor.
 push_path() { # $1=REPO $2=SHA
 	local repo="$1" sha="$2"
-	local attempt=1 max_attempts=32
+	local attempt=1 max_attempts=80
 
 	while [ "$attempt" -le "$max_attempts" ]; do
 		local page run
@@ -174,7 +174,7 @@ push_path() { # $1=REPO $2=SHA
 		attempt=$((attempt + 1))
 	done
 
-	echo "::error::No tests.yml run on main for commit $sha finished within 8 minutes (waited $max_attempts attempts; refusing to read another commit's run as a verdict)."
+	echo "::error::No tests.yml run on main for commit $sha finished within 20 minutes (waited $max_attempts attempts; refusing to read another commit's run as a verdict)."
 	exit 1
 }
 

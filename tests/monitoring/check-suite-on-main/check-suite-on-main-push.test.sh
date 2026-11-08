@@ -55,7 +55,7 @@ check "R1: sleep was never called (no need to wait)" "1" \
 	"$( [ "$(count_log "$WORK/sleep.log")" = "0" ] && echo 1 || echo 0)"
 
 # --- R1b: a transient gh failure on the push path is asked again ----------
-# One 502 must not end a poll that has 31 attempts left; a failure that never
+# One 502 must not end a poll that has 79 attempts left; a failure that never
 # clears must still end red, not green.
 write_responses "$(push_page \
 	"$(push_run_obj b completed success 2026-09-19T15:22:53Z 200)" \
@@ -102,21 +102,21 @@ check "R3: the error annotation ::error::main is red is printed" "1" \
 	"$(said '::error::main is red')"
 check "R3: sleep was called exactly 1 time" "1" "$(count_log "$WORK/sleep.log")"
 
-# --- R4: push with no run for the commit in 32 responses -------------------
+# --- R4: push with no run for the commit in 80 responses -------------------
 #
-# 32 empty responses. The script must exhaust 32 attempts, sleep 31
+# 80 empty responses. The script must exhaust 80 attempts, sleep 79
 # times, then fail with a message that names the commit and says
-# 8 minutes, and must not read another commit's run as a verdict.
+# 20 minutes, and must not read another commit's run as a verdict.
 write_responses
-for _ in $(seq 1 32); do
+for _ in $(seq 1 80); do
 	printf '{"workflow_runs":[]}\n' >>"$WORK/responses.txt"
 done
 run_env push b
 check "R4: push with no run for the commit fails" "1" "$rc"
-check "R4: gh was called exactly 32 times" "32" "$(count_log "$WORK/gh.log")"
-check "R4: sleep was called exactly 31 times" "31" "$(count_log "$WORK/sleep.log")"
+check "R4: gh was called exactly 80 times" "80" "$(count_log "$WORK/gh.log")"
+check "R4: sleep was called exactly 79 times" "79" "$(count_log "$WORK/sleep.log")"
 check "R4: the error names the commit (b)" "1" "$(said 'commit b')"
-check "R4: the error says 8 minutes" "1" "$(said '8 minutes')"
+check "R4: the error says 20 minutes" "1" "$(said '20 minutes')"
 check "R4: the error does not name another run's conclusion as the verdict" "0" \
 	"$(printf '%s' "$out" | grep -c 'conclusion:')"
 check "R4: the error says it refused to read another commit's run" "1" \

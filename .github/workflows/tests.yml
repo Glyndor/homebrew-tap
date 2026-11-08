@@ -98,6 +98,7 @@ jobs:
         ./tests/ci/policy/rules/network-calls-are-bounded.test.sh
         ./tests/monitoring/check-suite-on-main.test.sh
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh
+        ./tests/monitoring/check-suite-on-main/check-suite-on-main-retry.test.sh
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
         ./tests/ci/docs/documented-test-command.test.sh
       # shellcheck: tests/quality/lint-workflow-shell.test.sh plants a violation and

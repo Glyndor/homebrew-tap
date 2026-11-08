@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Fail when a script in scripts/ has no matching tests/<name>.test.sh.
+# Fail when a script (.sh or .py) in scripts/ has no matching tests/<name>.test.sh.
 #
 # This file lives in scripts/, so it is in its own input set and needs its own
 # test like anything else here. Removing that test, or exempting this file,
@@ -26,9 +26,9 @@ root="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 missing=()
 while IFS= read -r -d '' script; do
 	rel="${script#"$root"/scripts/}"
-	rel="${rel%.sh}"
-	[ -f "$root/tests/$rel.test.sh" ] || missing+=("scripts/$rel.sh")
-done < <(find "$root/scripts" -type f -name '*.sh' -print0 | LC_ALL=C sort -z)
+	name="${rel%.*}"
+	[ -f "$root/tests/$name.test.sh" ] || missing+=("scripts/$rel")
+done < <(find "$root/scripts" -type f \( -name '*.sh' -o -name '*.py' \) -print0 | LC_ALL=C sort -z)
 
 if [ ${#missing[@]} -gt 0 ]; then
 	echo "::error::${#missing[@]} script(s) in scripts/ have no test in the same folder of tests/:" >&2

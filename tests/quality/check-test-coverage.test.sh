@@ -74,6 +74,21 @@ assert_error 1 "2 script(s)" \
 	"and the count matches how many were named" \
 	-- "$GATE" "$WORK/many"
 
+# --- a Python script is a script ---------------------------------------------
+#
+# The gate once looked only at *.sh, so a .py under scripts/ needed no test and
+# the one that gates the roster went uncovered. The message names the file with
+# its own extension, so the reader does not have to guess which one it was.
+mkscript "$WORK/py/scripts/area/alpha.sh"
+mkscript "$WORK/py/tests/area/alpha.test.sh"
+mkscript "$WORK/py/scripts/area/beta.py"
+assert_error 1 "scripts/area/beta.py" \
+	"a Python script without a test is named with its extension" \
+	-- "$GATE" "$WORK/py"
+mkscript "$WORK/py/tests/area/beta.test.sh"
+assert 0 "and it passes once the test sits in the same folder" \
+	-- "$GATE" "$WORK/py"
+
 # --- a tests/ file with no script is not an error ---------------------------
 #
 # The gate asserts one direction. tests/ also holds tests for things that are

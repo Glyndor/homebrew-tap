@@ -63,7 +63,7 @@ jobs:
   drift:
     name: reusable drift
     runs-on: ubuntu-latest
-    # Measured around 10 seconds for the fifteen reusable fetches, and the
+    # Measured around 10 seconds for the fourteen reusable fetches, and the
     # thirty-five shared-file fetches add about nine. The job makes sequential network
     # fetches, and each one is bounded where it is issued rather than here:
     # the scripts pass their own deadline, so this ceiling catches a job that

@@ -107,8 +107,9 @@ That last line is there because the loop cannot fail on its own. Running all of
 the tests rather than halting at the first failure is the right local behaviour,
 and the cost is the exit status: `$?` comes from `echo`, so a run with four
 failures and a clean run look identical to anything reading it, a pre-push hook
-included. The workflow chains the same scripts with `&&`, which is why CI has
-never been able to miss one.
+included. The workflow hands the same suites to one runner, which runs each of them
+and fails at the end if any failed, which is why CI has never been able to miss
+one.
 
 **Every script in `scripts/` needs a test.**
 `scripts/quality/check-test-coverage.sh` fails when one does not, itself included --

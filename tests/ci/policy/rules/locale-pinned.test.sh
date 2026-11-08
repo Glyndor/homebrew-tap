@@ -5,7 +5,7 @@
 # `pod-up` and `podup`, both legal package names -- compare EQUAL and `sort -u`
 # drops one. A list that genuinely differs then compares the same.
 #
-# That is not a hypothetical. It shipped: scripts/build-index-page.sh dropped a
+# That is not a hypothetical. It shipped: scripts/build/build-index-page.sh in the apt repository dropped a
 # package from the published page, and the test that caught it had been red on a
 # developer machine and green in CI for as long as it existed, because the
 # runner's collation happens not to collapse those two.
@@ -16,7 +16,7 @@
 #
 # It checks the shape, not the behaviour: `LC_ALL=C` appearing on the line is
 # not proof the sort is correct. The behavioural half lives in
-# tests/build-index-page.test.sh, which builds a page under a locale that really
+# tests/build/build-index-page.test.sh in the apt repository, which builds a page under a locale that really
 # does collapse two names.
 #
 # Requires: nothing beyond coreutils and grep.

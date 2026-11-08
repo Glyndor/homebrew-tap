@@ -39,7 +39,7 @@ jobs:
       # No path is listed, so nothing is ever skipped. The suite reads every
       # document under docs/ through scripts/quality/check-doc-anchors.sh, so a
       # pull request that touches nothing but prose is exactly the one that can
-      # break a reference; README.md is read by check-products-consistent for
+      # break a reference; README.md is read by check-issue-templates for
       # the same reason. tests/ci/suites/shell-ci-scope.test.sh fails if this
       # list grows to a file the suite reads.
       test-command: >-

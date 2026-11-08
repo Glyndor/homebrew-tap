@@ -20,7 +20,7 @@ Evidence is of three kinds: a **test** is a case under `tests/` that fails when 
 control is removed from the file it covers; a **workflow** is a job that runs
 on every push, pull request or schedule, and here that is weaker than it sounds,
 because the updater app bypasses the required checks on `main`; human pull
-requests must pass them (`CONTRIBUTING.md#Branch flow`, “Branch rules”); a
+requests must pass them (`CONTRIBUTING.md#Branch flow`); a
 **measurement** is a number or an outcome read off
 a file or a run, with the date.
 

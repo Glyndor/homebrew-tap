@@ -585,7 +585,7 @@ SEMVER
 # unchecked failure would carry on and render a formula from a half-read state.
 render_product() { # $1=table entry
 	local entry="$1"
-	local repo formula cls licence desc version_check
+	local repo formula cls licence desc version_check target tmp
 	local mac_arm mac_intel linux_arm linux_intel
 	local tag version base install_body
 	local mac_blocks linux_blocks os_blocks mac_expr linux_expr
@@ -804,7 +804,17 @@ render_product() { # $1=table entry
 	# message is the evidence that it does, since the rule only fires when the
 	# scanned version EQUALS the declared one, and the `brew audit` job is what
 	# reads it on every pull request and on every push to `main`.
-	cat >"$root/Formula/$formula.rb" <<RB
+	# A formula that is a symlink is refused, and the file is written beside it
+	# and moved into place. Redirecting straight into the path follows the link,
+	# so the render reported success while Formula/ kept only the link, nothing
+	# changed for update.yml to commit, and the tap stayed frozen unnoticed.
+	target="$root/Formula/$formula.rb"
+	if [ -L "$target" ]; then
+		echo "::error::Formula/$formula.rb is a symlink; refusing to write through it" >&2
+		return 1
+	fi
+	tmp="$(mktemp "$root/Formula/.render.XXXXXX")" || return 1
+	cat >"$tmp" <<RB
 # typed: false
 # frozen_string_literal: true
 
@@ -828,6 +838,10 @@ $install_body
   end
 end
 RB
+	mv -f "$tmp" "$target" || {
+		rm -f "$tmp"
+		return 1
+	}
 
 	echo "rendered Formula/$formula.rb -> $version"
 }

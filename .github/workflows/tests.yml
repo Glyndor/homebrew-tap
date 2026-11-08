@@ -81,6 +81,7 @@ jobs:
         ./tests/ci/policy/workflows/workflow-shape.test.sh
         ./tests/ci/policy/workflows/workflow-publish-triggers.test.sh
         ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
+        ./tests/ci/policy/workflows/brew-style-scope.test.sh
         ./tests/monitoring/check-render-drift.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-drift.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-missing.test.sh
@@ -181,8 +182,36 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 2
+
+      - name: Decide whether brew style has anything to look at
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          # brew style reads Formula/*.rb and nothing else, and the preinstalled
+          # Homebrew does not change with a pull request, so a change that touches
+          # neither a formula nor this workflow gets the same verdict as its base.
+          # The job still runs and reports (it is a required check); only the
+          # 40 seconds of brew are skipped. A push, a schedule, an empty or
+          # unreadable diff and a rename all run it: nothing here can justify a skip.
+          run_style=true
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            changed="$(mktemp)"
+            trap 'rm -f "$changed"' EXIT
+            if git diff --no-renames --name-only -z HEAD^1..HEAD -- > "$changed" && [ -s "$changed" ]; then
+              run_style=false
+              while IFS= read -r -d '' path; do
+                case "$path" in
+                  Formula/*|.github/workflows/tests.yml) run_style=true; break ;;
+                esac
+              done < "$changed"
+            fi
+          fi
+          echo "run_style=$run_style" >> "$GITHUB_OUTPUT"
 
       - name: Validate formulae with the preinstalled Homebrew
+        if: steps.scope.outputs.run_style == 'true'
         run: |
           set -euo pipefail
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"

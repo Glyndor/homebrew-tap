@@ -142,8 +142,9 @@ calls = [json.loads(line) for line in open(sys.argv[1])]
 # The sums file, its signature and the two release assets: four downloads.
 valid = len(calls) == 4
 for args in calls:
-    values = [args[i + 1] for i, arg in enumerate(args[:-1]) if arg == "--proto-redir"]
-    valid = valid and values == ["=https"]
+    for flag in ("--proto-redir", "--proto"):
+        values = [args[i + 1] for i, arg in enumerate(args[:-1]) if arg == flag]
+        valid = valid and values == ["=https"]
 sys.exit(0 if valid else 1)
 PYARGV
 }

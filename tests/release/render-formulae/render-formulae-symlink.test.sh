@@ -55,6 +55,44 @@ check "and the file the link points at is untouched" "$before" "$(cksum <"$WORK/
 check "and Formula/ still holds the link, not a rendered file" "1" "$([ -L "$WORK/link/Formula/podup.rb" ] && echo 1 || echo 0)"
 check "and no temporary file is left" "0" "$(find "$WORK/link/Formula" -name '.render.*' | wc -l)"
 
+# --- a write that fails --------------------------------------------------------
+#
+# render_product runs under `if !`, which turns errexit off for its whole body,
+# so an unchecked `cat >"$tmp"` left a truncated file that `mv` then installed
+# while the run said "rendered". The scoop renderer already checked its write.
+# A `cat` that fails when it is given no file (the heredoc case) stands in for a
+# full disk; any other use of cat passes through to the real one.
+mkdir -p "$WORK/failcat"
+REAL_CAT="$(command -v cat)"
+cat > "$WORK/failcat/cat" <<SHIM
+#!/bin/sh
+[ "\$#" -eq 0 ] && exit 1
+exec "$REAL_CAT" "\$@"
+SHIM
+chmod +x "$WORK/failcat/cat"
+new_root "$WORK/full"
+PATH="$WORK/failcat:$PATH" render "$WORK/full"
+check "a failed write stops the product" "1" "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
+check "and the message says the formula could not be written" "1" "$(grep -c 'could not write the rendered Formula/podup.rb' <<<"$out")"
+check "and no formula is installed" "0" "$(find "$WORK/full/Formula" -name 'podup.rb' | wc -l)"
+check "and no temporary file is left" "0" "$(find "$WORK/full/Formula" -name '.render.*' | wc -l)"
+
+# The control: with the unchecked write the same failure installs an empty formula.
+new_root "$WORK/unguarded"
+generator_with "$WORK/unguarded/scripts/release/render-formulae.sh" "$PODUP"
+python3 - "$WORK/unguarded/scripts/release/render-formulae.sh" <<'PY'
+import re, sys
+p = sys.argv[1]
+s = open(p).read()
+s, n = re.subn(r'<<RB \|\| \{[^\n]*\}', '<<RB', s, count=1)
+assert n == 1
+open(p, 'w').write(s)
+PY
+rc=0
+( cd "$WORK/unguarded" && PATH="$WORK/failcat:$PATH" "$WORK/unguarded/scripts/release/render-formulae.sh" --pubkey "$PUBKEY" >/dev/null 2>&1 ) || rc=$?
+check "control: without the check the failure installs an empty formula" "0 1" \
+	"$rc $([ -e "$WORK/unguarded/Formula/podup.rb" ] && [ ! -s "$WORK/unguarded/Formula/podup.rb" ] && echo 1 || echo 0)"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

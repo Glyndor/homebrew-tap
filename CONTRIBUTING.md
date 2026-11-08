@@ -87,6 +87,8 @@ There is no `develop`. Branch from `main`, open a pull request against
 
 ## Tests
 
+The suites need `shellcheck`, `python3-yaml` and `ruby` installed, the same packages `tests.yml` installs in CI.
+
 ```sh
 fail=0
 suite=$(find tests -name '*.test.sh' -type f | sort)

@@ -198,7 +198,22 @@ if [ -z "$INPUT" ] && [ -n "${GITHUB_EVENT_NAME:-}" ]; then
 	else
 		# status=completed so in-flight runs cannot fill the 30-item page
 		# ahead of the newest completed one.
-		JSON="$(gh api "repos/${REPO}/actions/workflows/tests.yml/runs?branch=main&per_page=30&status=completed")"
+		# The same rule as the push path: one transient API error (a 502, a
+		# dropped connection) is not a verdict, so it is asked again a few
+		# times. A failure that never clears still ends red.
+		retry_attempts=3
+		JSON=""
+		for attempt in $(seq 1 "$retry_attempts"); do
+			if JSON="$(gh api "repos/${REPO}/actions/workflows/tests.yml/runs?branch=main&per_page=30&status=completed")"; then
+				break
+			fi
+			if [ "$attempt" -eq "$retry_attempts" ]; then
+				echo "::error::gh api failed ${retry_attempts} times in a row; no verdict on tests.yml on main." >&2
+				exit 1
+			fi
+			echo "::warning::gh api failed on attempt $attempt of $retry_attempts; asking again" >&2
+			sleep 15
+		done
 		check_schedule_json "$JSON"
 	fi
 else

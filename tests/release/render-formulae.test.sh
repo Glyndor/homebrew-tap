@@ -43,6 +43,9 @@ F="$WORK/r1/Formula/podup.rb"
 # assertion below is where the tag reaching the formula is checked now, so
 # both halves of that property have a case here.
 check "no version is declared" "0" "$(grep -c '^  version ' "$F")"
+# `mktemp` makes the file mode 600 and `mv` keeps it; `brew style` refuses a formula that
+# is not world readable (FormulaAudit/Files), so the mode is part of the contract.
+check "the formula is written world readable (644)" "644" "$(stat -c %a "$F")"
 contains "the arm64 url points at the tagged asset" "$F" \
 	'url "https://github.com/Glyndor/podup/releases/download/v9.9.9/podup-darwin-arm64"'
 contains "the arm64 checksum is the one the signed manifest declares" "$F" \

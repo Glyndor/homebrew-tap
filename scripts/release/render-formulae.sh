@@ -838,6 +838,13 @@ $install_body
   end
 end
 RB
+	# `mktemp` creates the file with mode 600 and `mv` keeps it, so the formula
+	# landed unreadable by group and others and `brew style` refused it
+	# (FormulaAudit/Files: Incorrect file permissions). A formula is 644.
+	chmod 644 "$tmp" || {
+		rm -f "$tmp"
+		return 1
+	}
 	mv -f "$tmp" "$target" || {
 		rm -f "$tmp"
 		return 1

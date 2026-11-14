@@ -157,11 +157,7 @@ for f in "$@"; do
 		echo "        last line was: $last_line"
 	fi
 
-	if [ "$rc" -ne 0 ]; then
-		check "$basename exited 0" "1" "0"
-	else
-		check "$basename exited 0" "1" "1"
-	fi
+	check "$basename exited 0" "0" "$rc"
 done
 
 echo

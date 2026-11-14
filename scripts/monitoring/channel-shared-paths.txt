@@ -49,7 +49,6 @@ tests/ci/policy/rules/cancel-policy.test.sh
 tests/ci/docs/documented-test-command.test.sh
 tests/ci/policy/rules/locale-pinned.test.sh
 tests/ci/policy/workflows/workflow-shape.test.sh
-tests/ci/policy/workflows/freshness-pr-scope.test.sh
 tests/ci/policy/workflows/workflow-publish-triggers.test.sh
 tests/ci/reusable/reusable-dco.test.sh
 tests/ci/reusable/reusable-dependabot-freshness.test.sh

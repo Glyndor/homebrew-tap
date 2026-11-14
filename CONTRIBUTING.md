@@ -92,11 +92,9 @@ The suites need `shellcheck`, `python3-yaml` and `ruby` installed, the same pack
 ```sh
 fail=0
 suite=$(find tests -name '*.test.sh' -type f | sort)
-# The completeness check takes the other test files as arguments; on its own it only prints its usage.
-while IFS= read -r t; do
-  [ "$t" = tests/ci/suites/check-suite-completeness.test.sh ] && continue
-  "$t" || { echo "FAILED: $t"; fail=1; }
-done <<< "$suite"
+# The completeness check takes the other test files as arguments and runs them
+# itself, so this command runs each suite exactly once. On its own it only
+# prints its usage.
 # shellcheck disable=SC2086
 [ -x tests/ci/suites/check-suite-completeness.test.sh ] &&
   { tests/ci/suites/check-suite-completeness.test.sh $(grep -v check-suite-completeness <<< "$suite") || fail=1; }

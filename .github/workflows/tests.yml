@@ -50,6 +50,7 @@ jobs:
         ./tests/release/render-formulae/render-formulae-version.test.sh
         ./tests/release/render-formulae/render-formulae-products.test.sh
         ./tests/release/render-formulae/render-formulae-attestation.test.sh
+        ./tests/release/render-formulae/render-formulae-linux-attestation.test.sh
         ./tests/release/render-formulae/render-formulae-inputs.test.sh
         ./tests/release/render-formulae/render-formulae-tag-shape.test.sh
         ./tests/release/render-formulae/render-formulae-symlink.test.sh

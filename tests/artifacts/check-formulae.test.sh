@@ -97,6 +97,11 @@ T="$(mktree link)"; rm "$T/Formula/podup.rb"; ln -s /etc/hostname "$T/Formula/po
 rc=0; gate "$T" || rc=$?
 check "a symlink named like a formula is refused" "1" "$rc"
 
+T="$(mktree dirlink)"; mv "$T/Formula" "$T/elsewhere"; ln -s elsewhere "$T/Formula"
+rc=0; gate "$T" || rc=$?
+check "a Formula/ that is a symlink is refused" "1" "$rc"
+check "and the message names the symlink, not an empty tap" "1" "$(said 'Formula/ is a symlink')"
+
 T="$(mktree empty)"; rm "$T/Formula/podup.rb"
 rc=0; gate "$T" || rc=$?
 check "an empty tap is an error, not a pass" "1" "$rc"

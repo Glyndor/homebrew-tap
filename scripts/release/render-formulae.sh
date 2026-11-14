@@ -803,7 +803,8 @@ render_product() { # $1=table entry
 	# `.../releases/download/v<version>/<asset>` as <version>. The audit
 	# message is the evidence that it does, since the rule only fires when the
 	# scanned version EQUALS the declared one, and the `brew audit` job is what
-	# reads it on every pull request and on every push to `main`.
+	# reads it on every pull request that changes a formula and on every push
+	# to `main`.
 	# A formula that is a symlink is refused, and the file is written beside it
 	# and moved into place. Redirecting straight into the path follows the link,
 	# so the render reported success while Formula/ kept only the link, nothing

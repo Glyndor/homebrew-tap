@@ -31,7 +31,10 @@ On Linux this tap serves the same signed binaries the products publish for
 
 **The checksum in each formula does not come from the release asset.** It
 comes from a `SHA256SUMS` this repository verified against the organisation's
-Ed25519 release key first, the same key the products embed.
+Ed25519 release key first, the same key the products embed. Each asset is also
+downloaded and its SHA-256 compared with that manifest, and it must carry build
+provenance for the release tag from the product's release workflow, so an old
+binary re-published under a new tag is refused even when its signature is valid.
 
 `brew` reads this repository straight from GitHub, so there is no separate
 server in the path, and a download whose bytes do not match the pinned SHA-256
@@ -40,7 +43,8 @@ is refused.
 ```mermaid
 flowchart LR
   R["Product release<br/>SHA256SUMS + .sig"] -->|hourly pull| V["Verify signature<br/>org Ed25519 release key"]
-  V -->|verified| G["Re-render Formula/*.rb<br/>version, URLs, checksums"]
+  V -->|verified| P["Check each asset<br/>checksum + provenance for the tag"]
+  P --> G["Re-render Formula/*.rb<br/>version, URLs, checksums"]
   G --> C["Validate, then commit to main<br/>GitHub-signed"]
   C -->|brew upgrade| U["User"]
   V -.->|bad signature| X["run fails<br/>formulae unchanged"]

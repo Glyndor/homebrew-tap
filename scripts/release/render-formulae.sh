@@ -808,12 +808,29 @@ render_product() { # $1=table entry
 	# and moved into place. Redirecting straight into the path follows the link,
 	# so the render reported success while Formula/ kept only the link, nothing
 	# changed for update.yml to commit, and the tap stayed frozen unnoticed.
+	#
+	# A formula that is a DIRECTORY is refused for the same reason and one step
+	# further on. `mv` treats a directory destination as a place to put the file
+	# inside, so the rendered formula was moved to Formula/podup.rb/.render.XXXXXX
+	# and the run said "rendered". The tap kept a directory where a formula
+	# belongs, nothing changed for update.yml to commit, and the formula the
+	# tap served was the one that was already there.
 	target="$root/Formula/$formula.rb"
 	if [ -L "$target" ]; then
 		echo "::error::Formula/$formula.rb is a symlink; refusing to write through it" >&2
 		return 1
 	fi
-	tmp="$(mktemp "$root/Formula/.render.XXXXXX")" || return 1
+	if [ -d "$target" ]; then
+		echo "::error::Formula/$formula.rb is a directory; refusing to write the formula over it" >&2
+		return 1
+	fi
+	# The temporary is written at the root of the repository, not inside
+	# Formula/. update.yml commits every untracked file under Formula/, so a
+	# temporary left there by an interrupted run would be published as part of
+	# the tap, and `brew style` would read it. The root is on the same
+	# filesystem as Formula/, so the move into place is still a rename and
+	# never a copy: a reader never sees half a formula.
+	tmp="$(mktemp "$root/.render.XXXXXX")" || return 1
 	cat >"$tmp" <<RB || { echo "::error::could not write the rendered Formula/$formula.rb" >&2; rm -f "$tmp"; return 1; }
 # typed: false
 # frozen_string_literal: true
@@ -852,6 +869,19 @@ RB
 
 	echo "rendered Formula/$formula.rb -> $version"
 }
+
+# Formula/ is a directory of the repository, and it is where every formula
+# below is written. If it is a symlink, all of those writes land somewhere
+# else: the render reported success, the tap never changed, and the formula
+# the tap served was whatever the link pointed at. `mkdir -p` is happy with a
+# symlink to a directory, so nothing else in the run would have noticed.
+#
+# The refusal happens before the directory is created and before any product
+# is rendered, so a run that finds one writes nothing at all.
+if [ -L "$root/Formula" ]; then
+	echo "::error::Formula/ is a symlink; refusing to write the formulae outside the repository" >&2
+	exit 1
+fi
 
 mkdir -p "$root/Formula"
 

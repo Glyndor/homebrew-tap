@@ -160,7 +160,8 @@ Every reusable lives in `.github/workflows/reusable-*.yml` as a copy kept identi
 copies in the sibling channels (`scripts/monitoring/check-reusable-drift.sh` compares
 them). The scripts and tests listed in `scripts/monitoring/channel-shared-paths.txt` are
 copies kept identical to the bucket's (`scripts/monitoring/check-channel-drift.sh` compares them).
-Nothing is pulled remotely.
+Nothing from the siblings is executed: the three drift watchers fetch their copies over https
+from `raw.githubusercontent.com` to compare them, never to run them.
 
 **Job ids are load-bearing.** A required status check is named
 `<caller job id> / <inner job name>`, so renaming a job renames its check.

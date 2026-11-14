@@ -54,6 +54,12 @@ if [ ! -r "$renderer" ]; then
 	echo "::error::cannot read the PRODUCTS roster at scripts/release/render-formulae.sh; refusing to validate against an unknown roster" >&2
 	exit 1
 fi
+# test -d follows a link, so a Formula/ that points elsewhere has to be named
+# before the directory test; the sibling check and the renderer refuse it too.
+if [ -L "$root/Formula" ]; then
+	echo "::error::Formula/ is a symlink; the tap must hold its own formulae" >&2
+	exit 1
+fi
 if [ ! -d "$root/Formula" ]; then
 	echo "::error::no Formula/ directory under $root; refusing to validate an empty tap" >&2
 	exit 1

@@ -45,7 +45,7 @@ permissions:
 # pull requests cancel: a run on `main` is the one freshness reads, and a
 # cancelled one would leave it with nothing to read.
 concurrency:
-  group: audit-${{ github.ref }}
+  group: audit-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -90,7 +90,9 @@ jobs:
     # changed no formula or audit logic: Homebrew rule changes are covered by
     # the daily cron. The audit reads no repository scripts, so scripts/** is
     # deliberately absent from the allowlist above. Push/schedule always run.
-    if: needs.scope.outputs.run_audit == 'true'
+    # always(): if the scope job itself fails, the audit runs instead of being
+    # skipped, because a skipped required check reports Success.
+    if: always() && (needs.scope.result != 'success' || needs.scope.outputs.run_audit == 'true')
     name: brew audit
     runs-on: macos-latest
     # The variables below stop brew updating itself; this bounds what is left.

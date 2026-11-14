@@ -58,8 +58,13 @@ updates:
     # non-local `uses:` here happens to be an actions/* today, and the first
     # one that is not would have landed in a group whose name said otherwise.
     groups:
+      # The action that receives a private key is reviewed on its own, not
+      # inside the routine bump.
+      app-token:
+        patterns: ["actions/create-github-app-token"]
       actions:
         patterns: ["*"]
+        exclude-patterns: ["actions/create-github-app-token"]
     # Dependabot infers a prefix from the commit history when this is absent,
     # and here it inferred "build(deps): Bump ..." -- a capitalised verb and a
     # type the label taxonomy does not use. Set it so the generated title is

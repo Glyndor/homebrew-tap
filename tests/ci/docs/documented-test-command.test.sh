@@ -43,6 +43,17 @@ chmod +x "$WORK/t/tests/a/good.test.sh" "$WORK/t/tests/a/b/bad.test.sh"
 printf '#!/bin/sh\nprintf "%%s\\n" "$@" >> "%s/shellcheck.args"\necho shellcheck-probe\nexit "${SHELLCHECK_STUB_EXIT:-0}"\n' "$WORK" > "$WORK/bin/shellcheck"
 chmod +x "$WORK/bin/shellcheck"
 
+# The completeness check refuses to run without arguments (it prints its usage
+# and exits 2), so the documented command has to hand it the other test files.
+# It is also what runs them: the command does not run them itself. So the
+# stand-in has to be there before the command runs, and it has to run the
+# suites it is given and keep going past a failure, the way the real one does.
+mkdir -p "$WORK/t/tests/ci/suites"
+# shellcheck disable=SC2016 # the stand-in reads these variables when it runs
+printf '#!/usr/bin/env bash\n[ "$#" -gt 0 ] || { echo usage >&2; exit 2; }\necho completeness-got-"$#"\nrc=0\nfor f in "$@"; do "$f" || { echo "FAIL  $f exited 0"; rc=1; }; done\nexit $rc\n' \
+	> "$WORK/t/tests/ci/suites/check-suite-completeness.test.sh"
+chmod +x "$WORK/t/tests/ci/suites/check-suite-completeness.test.sh"
+
 out="$(cd "$WORK/t" && PATH="$WORK/bin:$PATH" bash -c "$block" 2>&1)"
 rc=$?
 check "a nested failing suite makes the documented command fail" "1" "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
@@ -56,16 +67,6 @@ rm -f "$WORK/t/tests/a/b/bad.test.sh"
 out="$(cd "$WORK/t" && PATH="$WORK/bin:$PATH" bash -c "$block" 2>&1)"
 rc=$?
 check "with every suite passing the documented command succeeds" "0" "$rc"
-
-# The completeness check refuses to run without arguments (it prints its usage
-# and exits 2). Run on its own by the loop it would fail every clean tree, so the
-# documented command has to hand it the other test files.
-mkdir -p "$WORK/t/tests/ci/suites"
-printf '#!/usr/bin/env bash\n[ "$#" -gt 0 ] || { echo usage >&2; exit 2; }\necho completeness-got-"$#"\n' \
-	> "$WORK/t/tests/ci/suites/check-suite-completeness.test.sh"
-chmod +x "$WORK/t/tests/ci/suites/check-suite-completeness.test.sh"
-out="$(cd "$WORK/t" && PATH="$WORK/bin:$PATH" bash -c "$block" 2>&1)"
-rc=$?
 check "the completeness check is given the other suites, not run bare" "0" "$rc"
 check "and it received one argument per other suite" "1" "$(printf '%s' "$out" | grep -c 'completeness-got-1$')"
 

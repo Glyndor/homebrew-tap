@@ -38,7 +38,7 @@ check("scope does not persist credentials", False, checkout["with"]["persist-cre
 check("scope exposes its decision", "${{ steps.scope.outputs.run_audit }}", scope["outputs"]["run_audit"])
 check("required check name survives", "brew audit", audit["name"])
 check("audit depends on scope", "scope", audit["needs"])
-check("audit runs only on a true decision", "needs.scope.outputs.run_audit == 'true'", audit["if"])
+check("audit runs on a true decision, or when scope itself failed", "always() && (needs.scope.result != 'success' || needs.scope.outputs.run_audit == 'true')", audit["if"])
 check("audit stays on macOS", "macos-latest", audit["runs-on"])
 triggers = doc.get("on", doc.get(True))
 check("PR trigger has no paths filter", None, triggers["pull_request"])

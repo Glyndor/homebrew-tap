@@ -64,24 +64,36 @@ def precedence(version, where):
 APPROVALS = "scripts/artifacts/approved-rollbacks.txt"
 
 
-def approved_rollbacks(base):
-    """(formula, from, to) triples written in the approvals file at BASE."""
-    done = subprocess.run(["git", "show", f"{base}:{APPROVALS}"],
-                          capture_output=True, text=True)
-    if done.returncode != 0:
-        return set()
-    approved = set()
-    for number, raw in enumerate(done.stdout.splitlines(), 1):
+def parse_approvals(text, where):
+    """(path, from, to) triples; every line is checked, so one bad line stops the gate."""
+    entries = []
+    for number, raw in enumerate(text.splitlines(), 1):
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
         fields = line.split()
-        if len(fields) != 3 or not fields[0].endswith(".rb"):
-            fail(f"{APPROVALS}:{number} at {base}: expected '<formula path> <from> <to>'")
-        precedence(fields[1], f"{APPROVALS}:{number}")
-        precedence(fields[2], f"{APPROVALS}:{number}")
-        approved.add(tuple(fields))
-    return approved
+        if len(fields) != 3 or not fields[0].lower().endswith(".rb"):
+            fail(f"{where}:{number}: malformed line, and a malformed approvals file stops the gate "
+                 f"for every pull request until it is fixed; expected '<formula path> <from> <to>'")
+        precedence(fields[1], f"{where}:{number}")
+        precedence(fields[2], f"{where}:{number}")
+        entries.append(tuple(fields))
+    return entries
+
+
+def core(version):
+    """The version without build metadata, which SemVer precedence ignores."""
+    return version.split("+", 1)[0]
+
+
+def approved_rollbacks(base):
+    """(path, from, to) triples written in the approvals file at BASE."""
+    exists = subprocess.run(["git", "cat-file", "-e", f"{base}:{APPROVALS}"],
+                            capture_output=True).returncode == 0
+    if not exists:
+        return set()
+    text = git("show", f"{base}:{APPROVALS}")
+    return {(n, core(a), core(b)) for n, a, b in parse_approvals(text, f"{APPROVALS} at {base}")}
 
 
 TAG = re.compile(r"/releases/download/v([^/\s\"']+)/")
@@ -104,6 +116,7 @@ names = [n for n in git("ls-tree", "-r", "--name-only", base, "--", directory + 
 if not names:
     fail(f"no formula under {directory}/ at {base}: nothing was compared, and a gate that compares nothing approves everything")
 approved = approved_rollbacks(base)
+rolled_back = 0
 for name in names:
     try:
         with open(name, encoding="utf-8") as handle:
@@ -114,10 +127,29 @@ for name in names:
     old = precedence(old_version, f"{name} at {base}")
     new_version = version_of(current, name)
     if precedence(new_version, name) < old:
-        if (name, old_version, new_version) in approved:
+        if (name, core(old_version), core(new_version)) in approved:
             print(f"::warning::{name}: rollback from {old_version} to {new_version} "
                   f"is approved in {APPROVALS} on {base}", file=sys.stderr)
+            rolled_back += 1
             continue
         fail(f"{name}: version {new_version} is below the one already committed on the base branch")
-print(f"checked {len(names)} committed formulae against {base}: none goes back")
+# An approval is single-use: once the tree is already at the version it allowed, the
+# line has to go, or it would quietly allow the same rollback again later. The
+# rollback pull request removes it; the base still holds it, which is what let the
+# rollback through.
+if os.path.exists(APPROVALS):
+    with open(APPROVALS, encoding="utf-8") as handle:
+        for path, came_from, goes_to in parse_approvals(handle.read(), APPROVALS):
+            try:
+                with open(path, encoding="utf-8") as target:
+                    here = version_of(target.read(), path)
+            except FileNotFoundError:
+                continue
+            if core(here) == core(goes_to):
+                fail(f"{APPROVALS}: the approval for {path} ({came_from} -> {goes_to}) has been used, "
+                     f"the file is already at {here}; remove the line in the rollback pull request")
+if rolled_back:
+    print(f"checked {len(names)} committed formulas against {base}: {rolled_back} approved rollback(s)")
+else:
+    print(f"checked {len(names)} committed formulas against {base}: none goes back")
 PY

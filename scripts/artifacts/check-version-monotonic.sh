@@ -64,6 +64,10 @@ def precedence(version, where):
 APPROVALS = "scripts/artifacts/approved-rollbacks.txt"
 
 
+class BadApprovals(Exception):
+    pass
+
+
 def parse_approvals(text, where):
     """(path, from, to) triples; every line is checked, so one bad line stops the gate."""
     entries = []
@@ -73,10 +77,11 @@ def parse_approvals(text, where):
             continue
         fields = line.split()
         if len(fields) != 3 or not fields[0].lower().endswith(".rb"):
-            fail(f"{where}:{number}: malformed line, and a malformed approvals file stops the gate "
+            raise BadApprovals(f"{where}:{number}: malformed line, and a malformed approvals file stops the gate "
                  f"for every pull request until it is fixed; expected '<formula path> <from> <to>'")
-        precedence(fields[1], f"{where}:{number}")
-        precedence(fields[2], f"{where}:{number}")
+        for version in fields[1:]:
+            if not re.fullmatch(PATTERN, version):
+                raise BadApprovals(f"{where}:{number}: {version!r} is not a valid SemVer release version")
         entries.append(tuple(fields))
     return entries
 
@@ -87,13 +92,21 @@ def core(version):
 
 
 def approved_rollbacks(base):
-    """(path, from, to) triples written in the approvals file at BASE."""
+    """(path, from, to) triples written in the approvals file at BASE, as written.
+
+    A malformed file at BASE grants nothing and says so, rather than stopping every pull
+    request: otherwise the very pull request that repairs the file could not pass.
+    """
     exists = subprocess.run(["git", "cat-file", "-e", f"{base}:{APPROVALS}"],
                             capture_output=True).returncode == 0
     if not exists:
         return set()
     text = git("show", f"{base}:{APPROVALS}")
-    return {(n, core(a), core(b)) for n, a, b in parse_approvals(text, f"{APPROVALS} at {base}")}
+    try:
+        return set(parse_approvals(text, f"{APPROVALS} at {base}"))
+    except BadApprovals as error:
+        print(f"::warning::{error}; the file grants nothing until it is repaired", file=sys.stderr)
+        return set()
 
 
 TAG = re.compile(r"/releases/download/v([^/\s\"']+)/")
@@ -127,7 +140,8 @@ for name in names:
     old = precedence(old_version, f"{name} at {base}")
     new_version = version_of(current, name)
     if precedence(new_version, name) < old:
-        if (name, core(old_version), core(new_version)) in approved:
+        if any(n == name and core(a) == core(old_version) and core(b) == core(new_version)
+               for n, a, b in approved):
             print(f"::warning::{name}: rollback from {old_version} to {new_version} "
                   f"is approved in {APPROVALS} on {base}", file=sys.stderr)
             rolled_back += 1
@@ -139,7 +153,11 @@ for name in names:
 # rollback through.
 if os.path.exists(APPROVALS):
     with open(APPROVALS, encoding="utf-8") as handle:
-        for path, came_from, goes_to in parse_approvals(handle.read(), APPROVALS):
+        try:
+            tree_entries = parse_approvals(handle.read(), APPROVALS)
+        except BadApprovals as error:
+            fail(f"{error}; a malformed approvals file stops the gate for every pull request until it is fixed")
+        for path, came_from, goes_to in tree_entries:
             try:
                 with open(path, encoding="utf-8") as target:
                     here = version_of(target.read(), path)
@@ -148,6 +166,14 @@ if os.path.exists(APPROVALS):
             if core(here) == core(goes_to):
                 fail(f"{APPROVALS}: the approval for {path} ({came_from} -> {goes_to}) has been used, "
                      f"the file is already at {here}; remove the line in the rollback pull request")
+    # The permission has to be a change of its own: a pull request that rolls something
+    # back may only delete lines, never add or alter one, or it could install the
+    # permission for the next rollback, or for another file, in the same change.
+    if rolled_back:
+        carried = sorted(set(tree_entries) - approved)
+        if carried:
+            fail(f"{APPROVALS}: a pull request that rolls back cannot also add or change an approval "
+                 f"line (found {' | '.join(' '.join(e) for e in carried)}); land the permission first, as its own change")
 if rolled_back:
     print(f"checked {len(names)} committed formulas against {base}: {rolled_back} approved rollback(s)")
 else:

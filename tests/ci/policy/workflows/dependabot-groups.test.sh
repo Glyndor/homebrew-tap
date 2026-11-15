@@ -47,6 +47,9 @@ for u in ups:
     if uses_token:
         if not own:
             problems.append("the app-token action has no group of its own")
+        for n in own:
+            if list(groups[n].get("patterns") or []) != [tok]:
+                problems.append("the app-token group holds more than the app-token action")
         for n in broad:
             if tok not in (groups[n].get("exclude-patterns") or []):
                 problems.append("the broad group does not exclude the app-token action")
@@ -76,13 +79,20 @@ def no_label(u):
     u["labels"] = [l for l in u["labels"] if l != "type:deps"]
 write("no-own", no_own)
 write("no-exclude", no_exclude)
+def mixed(u):
+    for g in u["groups"].values():
+        if "actions/create-github-app-token" in (g.get("patterns") or []):
+            g["patterns"] = ["actions/create-github-app-token", "actions/checkout"]
 write("no-label", no_label)
+write("mixed", mixed)
 PY
 if [ "$uses_token" = yes ]; then
 	check "without a group of its own the app-token action is reported" \
 		"the app-token action has no group of its own" "$(verdict "$WORK/c/no-own.yml" yes)"
 	check "without the exclusion the broad group is reported" \
 		"the broad group does not exclude the app-token action" "$(verdict "$WORK/c/no-exclude.yml" yes)"
+	check "a group that mixes the app-token action with another is reported" \
+		"the app-token group holds more than the app-token action" "$(verdict "$WORK/c/mixed.yml" yes)"
 fi
 check "a missing label is reported" "missing label type:deps" "$(verdict "$WORK/c/no-label.yml" no)"
 

@@ -75,6 +75,18 @@ check "a filter wider than the four files is reported" \
 
 check "the live freshness workflow passes" "ok" "$(scope "$HERE/.github/workflows/freshness.yml")"
 
+# The suite poll waits up to twenty minutes on a push, so a pull request that is
+# pushed again must cancel the superseded poll, and main and the schedule never.
+poll="$(python3 - "$HERE/.github/workflows/freshness.yml" <<'PY'
+import sys, yaml
+job = yaml.safe_load(open(sys.argv[1]))["jobs"]["tests-on-main"]
+c = job.get("concurrency") or {}
+print(c.get("cancel-in-progress", "missing"))
+PY
+)"
+check "the suite poll is cancelled by a newer push only on a pull request" \
+	"\${{ github.event_name == 'pull_request' }}" "$poll"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

@@ -313,6 +313,9 @@ jobs:
           # Decide before apt, using the BASE resolver and dependency map.
           # Older consumers, unsupported commands and failed decisions keep
           # the full caller list. The test runner and its gates stay unchanged.
+          # This copy is kept identical in logic to apt's. This repository has no
+          # package map, so its resolver does not answer `packages=` and the
+          # list stays whole; the branch below is for the day it gets one.
           packages="$APT_PACKAGES"
           script="$(mktemp "$RUNNER_TEMP/package-scope.XXXXXX")" || script=""
           trap 'rm -f "$script"' EXIT

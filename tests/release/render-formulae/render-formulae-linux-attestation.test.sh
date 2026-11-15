@@ -24,6 +24,9 @@ run "$root/scripts/release/render-formulae.sh" "$root" || rc=$?
 check "a release with four attested assets renders successfully" "0" "$rc"
 check "every asset gets its own provenance check (4 of 4)" "4" \
 	"$(grep -c '^attestation verify ' "$ATTEST_STUB_LOG")"
+# The count alone would pass for one asset verified twice and another skipped.
+check "and the four checks are about four different assets" "4" \
+	"$(sort -u "$ATTEST_STUB_LOG" | grep -c '^attestation verify ')"
 contains "the formula publishes Linux arm64" "$root/Formula/podup.rb" \
 	'/v9.9.9/podup-linux-arm64'
 contains "the formula publishes Linux x86_64" "$root/Formula/podup.rb" \

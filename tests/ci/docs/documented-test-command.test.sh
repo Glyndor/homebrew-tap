@@ -50,7 +50,7 @@ chmod +x "$WORK/bin/shellcheck"
 # suites it is given and keep going past a failure, the way the real one does.
 mkdir -p "$WORK/t/tests/ci/suites"
 # shellcheck disable=SC2016 # the stand-in reads these variables when it runs
-printf '#!/usr/bin/env bash\n[ "$#" -gt 0 ] || { echo usage >&2; exit 2; }\necho completeness-got-"$#"\nrc=0\nfor f in "$@"; do "$f" || { echo "FAIL  $f exited 0"; rc=1; }; done\nexit $rc\n' \
+printf '#!/usr/bin/env bash\n[ "$#" -gt 0 ] || { echo usage >&2; exit 2; }\necho completeness-got-"$#"\nrc=0\nfor f in "$@"; do "$f" || { echo "FAIL  $f exited non-zero"; rc=1; }; done\nexit $rc\n' \
 	> "$WORK/t/tests/ci/suites/check-suite-completeness.test.sh"
 chmod +x "$WORK/t/tests/ci/suites/check-suite-completeness.test.sh"
 

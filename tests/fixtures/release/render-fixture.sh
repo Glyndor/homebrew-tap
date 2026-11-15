@@ -123,7 +123,7 @@ case "$sub" in
 		# stable identifier the stub has, because verify_attestation
 		# reuses one work file for every call.
 		if [ -n "${ATTEST_STUB_LOG:-}" ]; then
-			printf 'attestation verify %s\n' "$verify_file" >> "$ATTEST_STUB_LOG"
+			printf 'attestation verify %s\n' "$(sha256sum "$verify_file" | cut -d' ' -f1)" >> "$ATTEST_STUB_LOG"
 		fi
 		# The two pins that close the gap the SHA256SUMS signature does
 		# not cover: --source-ref names the tag the artifact was built

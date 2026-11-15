@@ -132,6 +132,64 @@ rc=0; gate "$R" || rc=$?
 check "a base with no formula is refused, not approved" "1" "$rc"
 check "  and the error says nothing was compared" "1" "$(grep -c 'nothing was compared' "$WORK/out")"
 
+# A reviewed rollback: the approval is a line in scripts/artifacts/approved-rollbacks.txt
+# on the BASE commit, naming the formula, the committed version and the version it
+# may go back to. Everything not named there stays refused.
+approved_repo() { # $1=name $2=base version $3=content of the approvals file
+	local r; r="$(repo "$1" "$2")"
+	mkdir -p "$r/scripts/artifacts"
+	printf '%s\n' "$3" > "$r/scripts/artifacts/approved-rollbacks.txt"
+	git -C "$r" -c user.name=t -c user.email=t@example.invalid add -A
+	git -C "$r" -c user.name=t -c user.email=t@example.invalid commit -q -m approval
+	echo "$r"
+}
+R="$(approved_repo ap1 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"
+rc=0; gate "$R" || rc=$?
+check "an approved rollback of exactly that formula and those versions passes" "0" "$rc"
+check "  and the warning names the approval" "1" "$(grep -c 'rollback from 1.2.0 to 1.1.9 is approved' "$WORK/out")"
+
+R="$(approved_repo ap2 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.0 > "$R/Formula/p.rb"
+rc=0; gate "$R" || rc=$?
+check "an approval for one target does not cover a lower one" "1" "$rc"
+
+R="$(approved_repo ap3 1.3.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"
+rc=0; gate "$R" || rc=$?
+check "an approval from another committed version does not apply" "1" "$rc"
+
+R="$(approved_repo ap4 1.2.0 'Formula/other.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"
+rc=0; gate "$R" || rc=$?
+check "an approval for another formula does not apply" "1" "$rc"
+
+R="$(repo ap5 1.2.0)"; frm 1.1.9 > "$R/Formula/p.rb"
+mkdir -p "$R/scripts/artifacts"; echo 'Formula/p.rb 1.2.0 1.1.9' > "$R/scripts/artifacts/approved-rollbacks.txt"
+rc=0; gate "$R" || rc=$?
+check "an approval that arrives with the rollback itself is not read" "1" "$rc"
+
+R="$(approved_repo ap6 1.2.0 $'# the approved one\n\nFormula/p.rb 1.2.0 1.1.9\n')"; frm 1.1.9 > "$R/Formula/p.rb"
+rc=0; gate "$R" || rc=$?
+check "comments and blank lines in the approvals file are ignored" "0" "$rc"
+
+R="$(approved_repo ap7 1.2.0 $'Formula/p.rb 1.2.0 1.1.9\nnot a line')"; frm 1.1.9 > "$R/Formula/p.rb"
+rc=0; gate "$R" || rc=$?
+check "a malformed approvals file fails closed even for a listed rollback" "1" "$rc"
+
+R="$(approved_repo ap8 1.2.0 'Formula/p.rb 1.2.0 junk')"; frm 1.1.9 > "$R/Formula/p.rb"
+rc=0; gate "$R" || rc=$?
+check "an approval naming a version that is not SemVer fails closed" "1" "$rc"
+
+R="$(approved_repo ap9 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.3.0 > "$R/Formula/p.rb"
+rc=0; gate "$R" || rc=$?
+check "an approval does not stop an ordinary upgrade" "0" "$rc"
+
+# Control: the approvals lookup removed, so the approved rollback is refused.
+CUT2="$WORK/cut2.sh"
+sed 's/if (name, old_version, new_version) in approved:/if False:/' "$HERE/scripts/artifacts/check-version-monotonic.sh" > "$CUT2"
+chmod +x "$CUT2"
+check "the approvals control differs from the gate" "1" "$(cmp -s "$CUT2" "$HERE/scripts/artifacts/check-version-monotonic.sh" && echo 0 || echo 1)"
+R="$(approved_repo apc 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"
+rc=0; gate "$R" "$CUT2" || rc=$?
+check "without the lookup the approved rollback is refused (the pass was the lookup's)" "1" "$rc"
+
 # Control: the same rollback, with the comparison replaced by `false`.
 CUT="$WORK/cut.sh"
 sed 's/if precedence(new_version, name) < old:/if False:/' "$HERE/scripts/artifacts/check-version-monotonic.sh" > "$CUT"

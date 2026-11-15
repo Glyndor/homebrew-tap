@@ -56,12 +56,19 @@ request: an unsigned human commit would be a red run within a minute.
 ## Manual release rollback
 
 The renderer rejects a release older than the version in the served formula.
-For an intentional rollback, make the desired signed release `latest`, then run
+For an intentional rollback, take two pull requests. First merge one that adds a
+line `Formula/<name>.rb <committed version> <version to go back to>` to
+`scripts/artifacts/approved-rollbacks.txt`: the permission is read from the base
+branch, so it cannot arrive together with the rollback. Then make the desired
+signed release `latest`, run
 `ALLOW_RELEASE_DOWNGRADE=1 ./scripts/release/render-formulae.sh` locally and review the
-diff before submitting it through the normal branch flow. This bypass leaves
+diff before submitting it through the normal branch flow. The version gate lets
+exactly that formula go between exactly those two versions and refuses anything
+else; a malformed line makes it fail closed. The renderer bypass leaves
 signature, digest and provenance verification enabled and logs a warning naming
 the product, served version and candidate version. Only the exact value `1`
-enables it. `update.yml` never sets it, including on `workflow_dispatch`.
+enables it. `update.yml` never sets it, including on `workflow_dispatch`. Remove
+the approval line once the rollback has merged.
 
 ## Branch flow
 

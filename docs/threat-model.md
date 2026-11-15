@@ -189,7 +189,10 @@ or a guard changed in one channel and not the other is reported as drift.
   before writing, even when signature and provenance are valid. Equal precedence
   still renders. `ALLOW_RELEASE_DOWNGRADE=1` permits a deliberate manual rollback
   without bypassing signature, digest or provenance checks; `update.yml` never
-  sets it. This compares against the local served formula, not an independent
+  sets it. The version gate for pull requests accepts that rollback only for the
+  exact formula and versions named in `scripts/artifacts/approved-rollbacks.txt`
+  on the base branch, so the permission is a separate reviewed change that cannot
+  ride along with the rollback. This compares against the local served formula, not an independent
   historical version ledger: replacing that baseline or changing the renderer
   remains possible for an actor who controls publication.
 - **Monitoring shares fate with the monitored.** The update, the audit and the

@@ -90,9 +90,10 @@ jobs:
     # changed no formula or audit logic: Homebrew rule changes are covered by
     # the daily cron. The audit reads no repository scripts, so scripts/** is
     # deliberately absent from the allowlist above. Push/schedule always run.
-    # always(): if the scope job itself fails, the audit runs instead of being
-    # skipped, because a skipped required check reports Success.
-    if: always() && (needs.scope.result != 'success' || needs.scope.outputs.run_audit == 'true')
+    # !cancelled() rather than success(): if the scope job itself fails, the audit
+    # runs instead of being skipped, because a skipped required check reports
+    # Success. Unlike always(), it does not start in a run that was cancelled.
+    if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.run_audit == 'true') }}
     name: brew audit
     runs-on: macos-latest
     # The variables below stop brew updating itself; this bounds what is left.

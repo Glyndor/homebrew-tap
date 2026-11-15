@@ -213,6 +213,11 @@ jobs:
   # repository's run history needs `actions: read`, and a job cannot
   # elevate beyond its workflow's grant.
   tests-on-main:
+    # A newer push to the same pull request supersedes the poll; on main and on
+    # the schedule every run is kept, as each answers for its own commit.
+    concurrency:
+      group: freshness-tests-on-main-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: newest completed Tests run on main
     runs-on: ubuntu-latest
     # The script polls up to 80 times with 15 s between attempts in push

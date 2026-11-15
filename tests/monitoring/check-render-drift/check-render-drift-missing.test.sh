@@ -64,6 +64,34 @@ expect_not_contains "$err_body" "release_keys has drifted" "does not call a miss
 expect_not_contains "$err_body" "trust different release keys" "does not invoke the rotation message either"
 
 echo
+echo "=== a unit missing from THIS repository's copy is reported against this repository ==="
+# The sibling holds every unit; the local script holds none. The report must point at the local
+# file, not the sibling's, or the fix would be sought on the wrong side.
+cp "$WORK/$LOCAL_FILE" "$WORK/remote-whole.sh"
+local_without_units
+run_with_remote "$WORK/remote-whole.sh"
+expect_eq "$exit_code" "1" "exit 1 when this repository's copy has no units"
+expect_contains "$err_body" "could not be found in $LOCAL_FILE" "names this repository's file"
+expect_contains "$err_body" "renaming" "explains that renaming breaks the contract"
+restore_local
+
+echo
+echo "=== a unit that opens but never closes is absent, not compared half way ==="
+# The closing marker of the limits unit is deleted on the remote side, then on this side. A half
+# unit extracted to the end of the file would diff as drift, which is the wrong report.
+run_with_remote "$(remote_with '/^MAX_ASSET_BYTES=/d')"
+expect_eq "$exit_code" "1" "exit 1 when a unit never closes on the remote"
+expect_contains "$err_body" "opens but never closes" "says the unit never closes"
+expect_contains "$err_body" "$REMOTE_FILE" "points at the remote file"
+cp "$WORK/$LOCAL_FILE" "$WORK/remote-whole.sh"
+cp "$WORK/$LOCAL_FILE" "$WORK/local-backup.sh"
+sed -i '/^MAX_ASSET_BYTES=/d' "$WORK/$LOCAL_FILE"
+run_with_remote "$WORK/remote-whole.sh"
+expect_eq "$exit_code" "1" "exit 1 when a unit never closes on this side"
+expect_contains "$err_body" "limits in $LOCAL_FILE opens but never closes" "names this repository's unit"
+restore_local
+
+echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]

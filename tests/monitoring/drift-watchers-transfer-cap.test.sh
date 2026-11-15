@@ -29,11 +29,12 @@ check() { # <description> <expected> <actual>
 	fi
 }
 
-# Count of curl invocations in a script that carry no --max-filesize.
-uncapped() { # <script>
+# Count of curl invocations in a script that lack a flag.
+lacking() { # <script> <flag>
 	grep -E '(^|[^A-Za-z0-9_/])curl[[:space:]]' "$1" | grep -vE '^[[:space:]]*#' \
-		| grep -vc -e '--max-filesize' || true
+		| grep -vc -e "$2" || true
 }
+uncapped() { lacking "$1" '--max-filesize'; }
 
 # Count of curl invocations in a script.
 calls() { # <script>
@@ -48,6 +49,15 @@ for name in check-render-drift check-reusable-drift check-channel-drift; do
 	sed 's/ --max-filesize [^ ]*//' "$script" > "$WORK/$name.sh"
 	check "$name: the audit reports a copy with the cap removed" "1" \
 		"$([ "$(uncapped "$WORK/$name.sh")" -ge 1 ] && echo 1 || echo 0)"
+
+	# A redirect to plain http, or a first hop that is not https, would hand the fetched
+	# workflow to whoever answers: every transfer pins https for the request and for redirects.
+	for flag in '--proto =https' '--proto-redir =https'; do
+		check "$name: every curl carries $flag" "0" "$(lacking "$script" "$flag")"
+		sed "s/ $flag//" "$script" > "$WORK/$name-noflag.sh"
+		check "$name: the audit reports a copy without $flag" "1" \
+			"$([ "$(lacking "$WORK/$name-noflag.sh" "$flag")" -ge 1 ] && echo 1 || echo 0)"
+	done
 done
 
 echo "$pass passed, $fail failed"

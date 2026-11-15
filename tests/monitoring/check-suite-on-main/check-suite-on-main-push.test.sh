@@ -54,6 +54,26 @@ check "R1: gh was called exactly once (the run was already completed)" "1" \
 check "R1: sleep was never called (no need to wait)" "1" \
 	"$( [ "$(count_log "$WORK/sleep.log")" = "0" ] && echo 1 || echo 0)"
 
+# --- R1a: the page holds no run for the pushed commit at all ---------------
+# The API filters by head_sha, but the script does not take that on trust: a page that
+# carries only another commit's completed run must never be read as the verdict for this one.
+write_responses "$(push_page \
+	"$(push_run_obj a completed success 2026-09-19T15:20:00Z 100)" \
+)"
+run_env push b
+check "R1a: a page with only another commit's run is not a verdict" "1" "$rc"
+check "R1a: and it says it refuses to read another commit's run" "1" "$(said "refusing to read another commit's run")"
+check "R1a: and it asked until the attempts ran out (80)" "80" "$(count_log "$WORK/gh.log")"
+
+# The same, with the other commit's run newer and green beside this commit's red one.
+write_responses "$(push_page \
+	"$(push_run_obj b completed failure 2026-09-19T15:20:00Z 100)" \
+	"$(push_run_obj a completed success 2026-09-19T15:22:53Z 200)" \
+)"
+run_env push b
+check "R1a: a newer green run of another commit does not hide this commit's red" "1" "$rc"
+check "R1a: and the verdict names the red run (id 100)" "1" "$(said 'id:         100')"
+
 # --- R1b: a transient gh failure on the push path is asked again ----------
 # One 502 must not end a poll that has 79 attempts left; a failure that never
 # clears must still end red, not green.

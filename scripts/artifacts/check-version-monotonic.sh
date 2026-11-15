@@ -49,6 +49,16 @@ def git(*args):
     return done.stdout
 
 
+def valid_semver(version):
+    """The same acceptance as precedence(), as a yes or no, for what is read from a file."""
+    match = re.fullmatch(PATTERN, version)
+    if not match:
+        return False
+    pre = match.group(4)
+    identifiers = [] if pre is None else pre.split(".")
+    return not any(i.isdigit() and len(i) > 1 and i[0] == "0" for i in identifiers)
+
+
 def precedence(version, where):
     match = re.fullmatch(PATTERN, version) if isinstance(version, str) else None
     if not match:
@@ -80,7 +90,7 @@ def parse_approvals(text, where):
             raise BadApprovals(f"{where}:{number}: malformed line, and a malformed approvals file stops the gate "
                  f"for every pull request until it is fixed; expected '<formula path> <from> <to>'")
         for version in fields[1:]:
-            if not re.fullmatch(PATTERN, version):
+            if not valid_semver(version):
                 raise BadApprovals(f"{where}:{number}: {version!r} is not a valid SemVer release version")
         entries.append(tuple(fields))
     return entries
@@ -113,7 +123,9 @@ TAG = re.compile(r"/releases/download/v([^/\s\"']+)/")
 
 
 def version_of(text, where):
-    tags = sorted(set(TAG.findall(text)))
+    # A full-line Ruby comment is not a url: a tag written in one is not a release.
+    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+    tags = sorted(set(TAG.findall(code)))
     if len(tags) != 1:
         fail(f"{where}: expected the urls to name one release tag, found {len(tags)}")
     return tags[0]

@@ -70,6 +70,15 @@ check "with every suite passing the documented command succeeds" "0" "$rc"
 check "the completeness check is given the other suites, not run bare" "0" "$rc"
 check "and it received one argument per other suite" "1" "$(printf '%s' "$out" | grep -c 'completeness-got-1$')"
 
+# A runner that lost its executable bit must not turn the command green by being
+# skipped: it fails the command and says which file is the problem.
+chmod -x "$WORK/t/tests/ci/suites/check-suite-completeness.test.sh"
+out="$(cd "$WORK/t" && PATH="$WORK/bin:$PATH" bash -c "$block" 2>&1)"
+rc=$?
+check "a runner that is not executable fails the documented command" "1" "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
+check "and the message names the runner" "1" "$(printf '%s' "$out" | grep -c 'check-suite-completeness.test.sh is not executable')"
+chmod +x "$WORK/t/tests/ci/suites/check-suite-completeness.test.sh"
+
 # All suites pass here: only a failing shellcheck can make the command red.
 # Evaluate the documented block from a file so the temporary mutation and the
 # live document use exactly the same path through the checker.

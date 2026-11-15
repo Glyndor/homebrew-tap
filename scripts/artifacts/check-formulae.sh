@@ -83,6 +83,15 @@ while IFS= read -r -d '' found; do
 	formulae+=("$found")
 done < <(find "$root/Formula" \( -type f -o -type l \) -iname '*.rb' -print0 | LC_ALL=C sort -z)
 
+# Homebrew loads only *.rb, but anything else under Formula/ is served by the
+# tap all the same: an executable helper there is code nobody listed in the
+# roster. Only formulae live in this directory, so any other file is refused.
+stray="$(find "$root/Formula" -type f ! -iname '*.rb' -print -quit)"
+if [ -n "$stray" ]; then
+	echo "::error file=${stray#"$root"/}::${stray#"$root"/} is not a formula; Formula/ holds only the formulae the roster declares" >&2
+	exit 1
+fi
+
 if [ ${#formulae[@]} -eq 0 ]; then
 	echo "::error::no formulae found under Formula/; refusing to validate an empty tap" >&2
 	exit 1

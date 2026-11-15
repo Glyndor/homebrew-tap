@@ -66,6 +66,8 @@ CASES=(
 	"a resource block|s.replace('  def install', '  resource \"x\" do\n    url \"https://x.example/x.tgz\"\n  end\n\n  def install')|resource"
 	"a comment that opens no block, then a swapped asset|s.replace('    on_intel do', '    # do\n    on_intel do', 1).replace('podup-darwin-x86_64\"\n', 'podup-linux-x86_64\"\n', 1)|slot"
 	"CRLF line endings|s.replace('\n', '\r\n')|CRLF"
+	"a different command in the test block|s.replace('system \"#{bin}/podup\", \"--version\"', 'system \"touch\", \"/tmp/x\"')|test body"
+	"an extra statement in the test block|s.replace('system \"#{bin}/podup\", \"--version\"', 'system \"touch\", \"/tmp/x\"\n    system \"#{bin}/podup\", \"--version\"')|test body"
 	"a backtick command|s.replace('bin.install asset', '\`id\`; bin.install asset')|\`"
 )
 for entry in "${CASES[@]}"; do
@@ -101,6 +103,11 @@ T="$(mktree dirlink)"; mv "$T/Formula" "$T/elsewhere"; ln -s elsewhere "$T/Formu
 rc=0; gate "$T" || rc=$?
 check "a Formula/ that is a symlink is refused" "1" "$rc"
 check "and the message names the symlink, not an empty tap" "1" "$(said 'Formula/ is a symlink')"
+
+T="$(mktree helper)"; printf '#!/bin/sh\nexit 0\n' > "$T/Formula/audit-helper"; chmod +x "$T/Formula/audit-helper"
+rc=0; gate "$T" || rc=$?
+check "an executable that is not a formula is refused" "1" "$rc"
+check "  and the message names it" "1" "$(said 'audit-helper')"
 
 T="$(mktree empty)"; rm "$T/Formula/podup.rb"
 rc=0; gate "$T" || rc=$?
@@ -141,6 +148,11 @@ for entry in "${CASES[@]}"; do
 	rc=0; gate "$S" || rc=$?
 	check "without the verdict, $label passes (the refusal was the check's)" "0" "$rc"
 done
+
+# The check is only a gate while the workflow runs it: a step that stopped
+# calling the script would leave every case above green and the tap unguarded.
+check "the tests workflow runs the formula check" "1" \
+	"$(grep -qE '^[[:space:]]+\./scripts/artifacts/check-formulae\.sh[[:space:]]*$' "$HERE/.github/workflows/tests.yml" && echo 1 || echo 0)"
 
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${0##*/}" "$pass" "$fail"

@@ -84,6 +84,7 @@ jobs:
         ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
         ./tests/ci/policy/workflows/freshness-poll-concurrency.test.sh
         ./tests/ci/policy/workflows/dependabot-groups.test.sh
+        ./tests/ci/policy/workflows/workflows-run-their-scripts.test.sh
         ./tests/ci/policy/workflows/brew-style-scope.test.sh
         ./tests/monitoring/check-render-drift.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-drift.test.sh

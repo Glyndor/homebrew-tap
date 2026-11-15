@@ -192,7 +192,8 @@ or a guard changed in one channel and not the other is reported as drift.
   sets it. The version gate for pull requests accepts that rollback only for the
   exact formula and versions named in `scripts/artifacts/approved-rollbacks.txt`
   on the base branch, so the permission is a separate reviewed change that cannot
-  ride along with the rollback. This compares against the local served formula, not an independent
+  ride along with the rollback, and it is single-use: the gate refuses a tree that
+  still carries a line whose rollback has already happened. This compares against the local served formula, not an independent
   historical version ledger: replacing that baseline or changing the renderer
   remains possible for an actor who controls publication.
 - **Monitoring shares fate with the monitored.** The update, the audit and the

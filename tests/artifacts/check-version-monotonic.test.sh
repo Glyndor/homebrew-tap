@@ -143,7 +143,7 @@ approved_repo() { # $1=name $2=base version $3=content of the approvals file
 	git -C "$r" -c user.name=t -c user.email=t@example.invalid commit -q -m approval
 	echo "$r"
 }
-R="$(approved_repo ap1 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"
+R="$(approved_repo ap1 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"; rm "$R/scripts/artifacts/approved-rollbacks.txt"
 rc=0; gate "$R" || rc=$?
 check "an approved rollback of exactly that formula and those versions passes" "0" "$rc"
 check "  and the warning names the approval" "1" "$(grep -c 'rollback from 1.2.0 to 1.1.9 is approved' "$WORK/out")"
@@ -165,7 +165,7 @@ mkdir -p "$R/scripts/artifacts"; echo 'Formula/p.rb 1.2.0 1.1.9' > "$R/scripts/a
 rc=0; gate "$R" || rc=$?
 check "an approval that arrives with the rollback itself is not read" "1" "$rc"
 
-R="$(approved_repo ap6 1.2.0 $'# the approved one\n\nFormula/p.rb 1.2.0 1.1.9\n')"; frm 1.1.9 > "$R/Formula/p.rb"
+R="$(approved_repo ap6 1.2.0 $'# the approved one\n\nFormula/p.rb 1.2.0 1.1.9\n')"; frm 1.1.9 > "$R/Formula/p.rb"; rm "$R/scripts/artifacts/approved-rollbacks.txt"
 rc=0; gate "$R" || rc=$?
 check "comments and blank lines in the approvals file are ignored" "0" "$rc"
 
@@ -181,14 +181,59 @@ R="$(approved_repo ap9 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.3.0 > "$R/Formu
 rc=0; gate "$R" || rc=$?
 check "an approval does not stop an ordinary upgrade" "0" "$rc"
 
+# The permission is read from the BASE commit, not from the history of the pull
+# request: the approval is committed together with the rollback, on top of a base
+# that does not have it, and the gate has to refuse.
+R="$(repo bs1 1.2.0)"; BASE_SHA="$(git -C "$R" rev-parse HEAD)"
+mkdir -p "$R/scripts/artifacts"; echo 'Formula/p.rb 1.2.0 1.1.9' > "$R/scripts/artifacts/approved-rollbacks.txt"
+frm 1.1.9 > "$R/Formula/p.rb"
+git -C "$R" -c user.name=t -c user.email=t@example.invalid add -A
+git -C "$R" -c user.name=t -c user.email=t@example.invalid commit -q -m "approval and rollback together"
+rc=0; gate "$R" "" "$BASE_SHA" || rc=$?
+check "an approval committed in the pull request itself is not read from there" "1" "$rc"
+
+# A used approval has to be removed, or it would allow the same rollback again.
+R="$(approved_repo st1 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"
+rc=0; gate "$R" || rc=$?
+check "a rollback that leaves its approval line in the tree is refused" "1" "$rc"
+check "  and the error says the approval has been used" "1" "$(grep -c 'has been used' "$WORK/out")"
+R="$(approved_repo st2 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"
+rc=0; gate "$R" || rc=$?
+check "a pending approval whose rollback has not happened is not stale" "0" "$rc"
+
+# Build metadata does not take part in precedence, so it does not take part in the match.
+R="$(approved_repo bm1 1.2.0+a 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9+b > "$R/Formula/p.rb"; rm "$R/scripts/artifacts/approved-rollbacks.txt"
+rc=0; gate "$R" || rc=$?
+check "an approval matches a version whatever its build metadata" "0" "$rc"
+
+# The summary says when a formula went back under an approval.
+R="$(approved_repo sm1 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"; rm "$R/scripts/artifacts/approved-rollbacks.txt"
+rc=0; gate "$R" || rc=$?
+check "the summary counts the approved rollback" "1" "$(grep -c '1 approved rollback(s)' "$WORK/out")"
+check "  and no longer says that none goes back" "0" "$(grep -c 'none goes back' "$WORK/out")"
+
 # Control: the approvals lookup removed, so the approved rollback is refused.
 CUT2="$WORK/cut2.sh"
-sed 's/if (name, old_version, new_version) in approved:/if False:/' "$HERE/scripts/artifacts/check-version-monotonic.sh" > "$CUT2"
+sed 's/if (name, core(old_version), core(new_version)) in approved:/if False:/' "$HERE/scripts/artifacts/check-version-monotonic.sh" > "$CUT2"
 chmod +x "$CUT2"
 check "the approvals control differs from the gate" "1" "$(cmp -s "$CUT2" "$HERE/scripts/artifacts/check-version-monotonic.sh" && echo 0 || echo 1)"
-R="$(approved_repo apc 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"
+R="$(approved_repo apc 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"; rm "$R/scripts/artifacts/approved-rollbacks.txt"
 rc=0; gate "$R" "$CUT2" || rc=$?
 check "without the lookup the approved rollback is refused (the pass was the lookup's)" "1" "$rc"
+
+# Control: read the approvals from HEAD instead of the base, and the same case passes.
+CUT3="$WORK/cut3.sh"
+sed 's/f"{base}:{APPROVALS}"/f"HEAD:{APPROVALS}"/g' "$HERE/scripts/artifacts/check-version-monotonic.sh" > "$CUT3"
+chmod +x "$CUT3"
+check "the read-source control differs from the gate" "1" "$(cmp -s "$CUT3" "$HERE/scripts/artifacts/check-version-monotonic.sh" && echo 0 || echo 1)"
+R="$(repo bs2 1.2.0)"; BASE_SHA="$(git -C "$R" rev-parse HEAD)"
+mkdir -p "$R/scripts/artifacts"; echo 'Formula/p.rb 1.2.0 1.1.9' > "$R/scripts/artifacts/approved-rollbacks.txt"
+frm 1.1.9 > "$R/Formula/p.rb"
+git -C "$R" -c user.name=t -c user.email=t@example.invalid add -A
+git -C "$R" -c user.name=t -c user.email=t@example.invalid commit -q -m "approval and rollback together"
+rm "$R/scripts/artifacts/approved-rollbacks.txt"
+rc=0; gate "$R" "$CUT3" "$BASE_SHA" || rc=$?
+check "reading the approvals from HEAD would let the pull request approve itself" "0" "$rc"
 
 # Control: the same rollback, with the comparison replaced by `false`.
 CUT="$WORK/cut.sh"

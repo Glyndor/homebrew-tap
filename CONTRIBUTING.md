@@ -67,8 +67,9 @@ exactly that formula go between exactly those two versions and refuses anything
 else; a malformed line makes it fail closed. The renderer bypass leaves
 signature, digest and provenance verification enabled and logs a warning naming
 the product, served version and candidate version. Only the exact value `1`
-enables it. `update.yml` never sets it, including on `workflow_dispatch`. Remove
-the approval line once the rollback has merged.
+enables it. `update.yml` never sets it, including on `workflow_dispatch`. The
+rollback pull request must also delete the approval line: an approval is single-use,
+and the gate refuses a tree that is already at the version a line allowed.
 
 ## Branch flow
 

@@ -69,7 +69,11 @@ signature, digest and provenance verification enabled and logs a warning naming
 the product, served version and candidate version. Only the exact value `1`
 enables it. `update.yml` never sets it, including on `workflow_dispatch`. The
 rollback pull request must also delete the approval line: an approval is single-use,
-and the gate refuses a tree that is already at the version a line allowed.
+and the gate refuses a tree that is already at the version a line allowed. A pull
+request that rolls something back may only delete approval lines; adding or changing
+one in the same change is refused, so the next permission always lands on its own. A
+malformed approvals file on the base branch grants nothing, which lets the pull
+request that repairs it pass.
 
 ## Branch flow
 

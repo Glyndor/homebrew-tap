@@ -212,9 +212,37 @@ rc=0; gate "$R" || rc=$?
 check "the summary counts the approved rollback" "1" "$(grep -c '1 approved rollback(s)' "$WORK/out")"
 check "  and no longer says that none goes back" "0" "$(grep -c 'none goes back' "$WORK/out")"
 
+# A rollback may only delete approval lines, never add or alter one: the permission for
+# the next rollback, or for another file, cannot ride along with this one.
+R="$(approved_repo rd1 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"
+printf '%s\n' 'Formula/p.rb 1.2.0 1.0.0' > "$R/scripts/artifacts/approved-rollbacks.txt"
+rc=0; gate "$R" || rc=$?
+check "a rollback that rewrites its own approval line is refused" "1" "$rc"
+check "  and the error says the permission has to land first" "1" "$(grep -c 'cannot also add or change an approval' "$WORK/out")"
+
+R="$(approved_repo rd2 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"
+printf '%s\n' 'Formula/q.rb 5.0.0 4.0.0' > "$R/scripts/artifacts/approved-rollbacks.txt"
+rc=0; gate "$R" || rc=$?
+check "a rollback that installs the approval of another file is refused" "1" "$rc"
+
+R="$(approved_repo rd3 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"
+printf '%s\n%s\n' 'Formula/p.rb 1.2.0 1.1.9' 'Formula/q.rb 5.0.0 4.0.0' > "$R/scripts/artifacts/approved-rollbacks.txt"
+rc=0; gate "$R" || rc=$?
+check "a pull request that only adds an approval, with no rollback, passes" "0" "$rc"
+
+R="$(approved_repo rd4 1.2.0 $'Formula/p.rb 1.2.0 not-a-version')"
+printf '%s\n' 'Formula/p.rb 1.2.0 1.1.9' > "$R/scripts/artifacts/approved-rollbacks.txt"
+rc=0; gate "$R" || rc=$?
+check "a malformed approvals file at the base does not block the pull request that repairs it" "0" "$rc"
+check "  and the warning says it grants nothing until repaired" "1" "$(grep -c 'grants nothing until it is repaired' "$WORK/out")"
+
+R="$(approved_repo rd5 1.2.0 $'Formula/p.rb 1.2.0 not-a-version')"; frm 1.1.9 > "$R/Formula/p.rb"; rm "$R/scripts/artifacts/approved-rollbacks.txt"
+rc=0; gate "$R" || rc=$?
+check "a malformed approvals file at the base grants no rollback" "1" "$rc"
+
 # Control: the approvals lookup removed, so the approved rollback is refused.
 CUT2="$WORK/cut2.sh"
-sed 's/if (name, core(old_version), core(new_version)) in approved:/if False:/' "$HERE/scripts/artifacts/check-version-monotonic.sh" > "$CUT2"
+sed 's/if any(n == name and core(a) == core(old_version)/if False and any(n == name and core(a) == core(old_version)/' "$HERE/scripts/artifacts/check-version-monotonic.sh" > "$CUT2"
 chmod +x "$CUT2"
 check "the approvals control differs from the gate" "1" "$(cmp -s "$CUT2" "$HERE/scripts/artifacts/check-version-monotonic.sh" && echo 0 || echo 1)"
 R="$(approved_repo apc 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"; rm "$R/scripts/artifacts/approved-rollbacks.txt"

@@ -148,17 +148,20 @@ rc=0; gate "$R" || rc=$?
 check "an approved rollback of exactly that formula and those versions passes" "0" "$rc"
 check "  and the warning names the approval" "1" "$(grep -c 'rollback from 1.2.0 to 1.1.9 is approved' "$WORK/out")"
 
-R="$(approved_repo ap2 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.0 > "$R/Formula/p.rb"
+R="$(approved_repo ap2 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.0 > "$R/Formula/p.rb"; rm "$R/scripts/artifacts/approved-rollbacks.txt"
 rc=0; gate "$R" || rc=$?
 check "an approval for one target does not cover a lower one" "1" "$rc"
+check "  and the refusal is the downgrade rule, not the single-use one" "1" "$(grep -c 'is below the one already committed' "$WORK/out")"
 
-R="$(approved_repo ap3 1.3.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"
+R="$(approved_repo ap3 1.3.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"; rm "$R/scripts/artifacts/approved-rollbacks.txt"
 rc=0; gate "$R" || rc=$?
 check "an approval from another committed version does not apply" "1" "$rc"
+check "  and the refusal is the downgrade rule, not the single-use one" "1" "$(grep -c 'is below the one already committed' "$WORK/out")"
 
-R="$(approved_repo ap4 1.2.0 'Formula/other.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"
+R="$(approved_repo ap4 1.2.0 'Formula/other.rb 1.2.0 1.1.9')"; frm 1.1.9 > "$R/Formula/p.rb"; rm "$R/scripts/artifacts/approved-rollbacks.txt"
 rc=0; gate "$R" || rc=$?
 check "an approval for another formula does not apply" "1" "$rc"
+check "  and the refusal is the downgrade rule, not the single-use one" "1" "$(grep -c 'is below the one already committed' "$WORK/out")"
 
 R="$(repo ap5 1.2.0)"; frm 1.1.9 > "$R/Formula/p.rb"
 mkdir -p "$R/scripts/artifacts"; echo 'Formula/p.rb 1.2.0 1.1.9' > "$R/scripts/artifacts/approved-rollbacks.txt"
@@ -240,6 +243,17 @@ R="$(approved_repo rd5 1.2.0 $'Formula/p.rb 1.2.0 not-a-version')"; frm 1.1.9 > 
 rc=0; gate "$R" || rc=$?
 check "a malformed approvals file at the base grants no rollback" "1" "$rc"
 
+# A line the parser would call valid on its own but SemVer would not (a leading zero in
+# a numeric pre-release) stops the file like any other bad line, and grants nothing.
+R="$(approved_repo lz1 1.2.0 $'Formula/p.rb 1.2.0 1.1.9\nFormula/q.rb 2.0.0 1.0.0-01')"; frm 1.1.9 > "$R/Formula/p.rb"; rm "$R/scripts/artifacts/approved-rollbacks.txt"
+rc=0; gate "$R" || rc=$?
+check "an approval naming 1.0.0-01 is malformed, so the file grants nothing" "1" "$rc"
+
+# A tag written in a full-line comment is not a release url.
+R="$(repo cm1 1.2.0)"; { frm 1.2.0; echo '# the old 5.18.0 url was /releases/download/v5.18.0/p'; } > "$R/Formula/p.rb"
+rc=0; gate "$R" || rc=$?
+check "a release tag written in a comment is not read as a second tag" "0" "$rc"
+
 # Control: the approvals lookup removed, so the approved rollback is refused.
 CUT2="$WORK/cut2.sh"
 sed 's/if any(n == name and core(a) == core(old_version)/if False and any(n == name and core(a) == core(old_version)/' "$HERE/scripts/artifacts/check-version-monotonic.sh" > "$CUT2"
@@ -262,6 +276,9 @@ git -C "$R" -c user.name=t -c user.email=t@example.invalid commit -q -m "approva
 rm "$R/scripts/artifacts/approved-rollbacks.txt"
 rc=0; gate "$R" "$CUT3" "$BASE_SHA" || rc=$?
 check "reading the approvals from HEAD would let the pull request approve itself" "0" "$rc"
+rc=0; gate "$R" "" "$BASE_SHA" || rc=$?
+check "the real gate refuses that same pull request as a downgrade" "1" "$rc"
+check "  and says it is the downgrade rule" "1" "$(grep -c 'is below the one already committed' "$WORK/out")"
 
 # Control: the same rollback, with the comparison replaced by `false`.
 CUT="$WORK/cut.sh"

@@ -68,6 +68,7 @@ CASES=(
 	"CRLF line endings|s.replace('\n', '\r\n')|CRLF"
 	"a different command in the test block|s.replace('system \"#{bin}/podup\", \"--version\"', 'system \"touch\", \"/tmp/x\"')|test body"
 	"an extra statement in the test block|s.replace('system \"#{bin}/podup\", \"--version\"', 'system \"touch\", \"/tmp/x\"\n    system \"#{bin}/podup\", \"--version\"')|test body"
+	"a tag that is not a version|__import__('re').sub(r'/download/v[0-9][^/]*/', '/download/latest/', s)|the tag latest is not the plain version"
 	"a backtick command|s.replace('bin.install asset', '\`id\`; bin.install asset')|\`"
 )
 for entry in "${CASES[@]}"; do
@@ -98,6 +99,19 @@ check "  and its name is printed escaped" "1" "$(said 'x.rb\nok\tpodup.rb')"
 T="$(mktree link)"; rm "$T/Formula/podup.rb"; ln -s /etc/hostname "$T/Formula/podup.rb"
 rc=0; gate "$T" || rc=$?
 check "a symlink named like a formula is refused" "1" "$rc"
+check "and the refusal says the formula is a symlink" "1" "$(said 'the formula is a symlink')"
+
+T="$(mktree twice)"
+python3 -I - "$T/scripts/release/render-formulae.sh" <<'PY'
+import re, sys
+p = sys.argv[1]
+text = open(p).read()
+row = re.search(r'^\t"Glyndor/podup\|.*"$', text, re.M).group(0)
+open(p, "w").write(text.replace(row, row + "\n" + row, 1))
+PY
+rc=0; gate "$T" || rc=$?
+check "a roster that declares a product twice is refused" "1" "$rc"
+check "and the refusal says the roster declares podup twice" "1" "$(said 'declares podup twice')"
 
 T="$(mktree dirlink)"; mv "$T/Formula" "$T/elsewhere"; ln -s elsewhere "$T/Formula"
 rc=0; gate "$T" || rc=$?

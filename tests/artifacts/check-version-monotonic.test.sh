@@ -180,6 +180,17 @@ R="$(approved_repo ap8 1.2.0 'Formula/p.rb 1.2.0 junk')"; frm 1.1.9 > "$R/Formul
 rc=0; gate "$R" || rc=$?
 check "an approval naming a version that is not SemVer fails closed" "1" "$rc"
 
+# A line can be well-formed in every field but one: the right number of fields with good versions
+# on a file that is not a formula, or one field short. Either makes the whole file grant nothing.
+R="$(approved_repo ap7b 1.2.0 $'Formula/p.rb 1.2.0 1.1.9\nFormula/q.txt 1.0.0 0.9.0')"; frm 1.1.9 > "$R/Formula/p.rb"
+rc=0; gate "$R" || rc=$?
+check "an approval for a file that is not a formula makes the file grant nothing" "1" "$rc"
+check "and the gate says the file grants nothing until it is repaired" "1" "$(grep -c 'grants nothing until it is repaired' "$WORK/out")"
+R="$(approved_repo ap7c 1.2.0 $'Formula/p.rb 1.2.0 1.1.9\nFormula/q.rb 1.0.0')"; frm 1.1.9 > "$R/Formula/p.rb"
+rc=0; gate "$R" || rc=$?
+check "an approval one field short makes the file grant nothing" "1" "$rc"
+check "and the gate says the file grants nothing until it is repaired (short line)" "1" "$(grep -c 'grants nothing until it is repaired' "$WORK/out")"
+
 R="$(approved_repo ap9 1.2.0 'Formula/p.rb 1.2.0 1.1.9')"; frm 1.3.0 > "$R/Formula/p.rb"
 rc=0; gate "$R" || rc=$?
 check "an approval does not stop an ordinary upgrade" "0" "$rc"

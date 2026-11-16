@@ -64,8 +64,7 @@ pushed here by a product and no product holds a credential on this repository
   the required checks, which is why the key is the credential that matters here.
 - **A human with Write.** Opens pull requests. The ruleset requires a pull
   request, nine status checks with the branch up to date, signed commits and
-  CodeQL, and gives humans no bypass. One person holds Write today
-  (`.github/CODEOWNERS#*`).
+  CodeQL, and gives humans no bypass.
 - **A macOS user running `brew install`.** Trusts this repository's `main`,
   Homebrew, and their own machine. The tap cannot reach past the second.
 
@@ -114,7 +113,7 @@ the manual override.
 |---|---|---|
 | A malicious or careless formula committed by a human | `main` accepts only signed commits and linear history, and the bot's commits are GitHub-signed; together with the required pull request and checks, and it says who committed, not whether the change was right (`CONTRIBUTING.md#The bot commits straight to main, and that is not an oversight`, `CONTRIBUTING.md#Branch flow`). A hand edit to a formula is overwritten within the hour: the renderer rewrites every declared formula from the signed release and commits whatever differs (`scripts/release/render-formulae.sh#render_product`, `.github/workflows/update.yml#Render formulae from the latest signed releases`). An edit to the generator itself is not | the ruleset lives on GitHub, not in this tree, and this page cites what `CONTRIBUTING.md` records of it; test: none for the overwrite; `tests/publication/update/update-workflow.test.sh#the commit step invokes gh (not git push)` and `tests/publication/update/update-workflow.test.sh#and the payload uses createCommitOnBranch` hold the commit path to `createCommitOnBranch` so a refactor to `git push` cannot ship an unsigned commit |
 | A human commit lands without a `Signed-off-by` trailer (the DCO gap) | `dco.yml` runs on pull requests and is a required check; `dco-on-main.yml` reports every human-authored commit that arrived without the trailer, exempting the bot by who pushed rather than by what the commit says (`.github/workflows/dco-on-main.yml#Check the pushed commits`, `scripts/governance/check-dco-on-main.sh#is_bot`, `scripts/governance/check-dco-on-main.sh#exempt_all`). The required pull-request DCO check prevents an unsigned proposed commit from merging through that path. The push watcher detects any unsigned human commit that nevertheless lands; it cannot undo publication | test: `tests/governance/check-dco-on-main.test.sh#an unsigned human commit fails`; `tests/governance/check-dco-on-main.test.sh#a human using the bot's exact subject is still reported`; `tests/governance/check-dco-on-main.test.sh#a commit whose author field impersonates the bot is still reported` |
-| A pull request neutralises a check by replacing its caller with a stub of the same name | none that prevents it; `CODEOWNERS` lists `.github/workflows/` so that required review from Code Owners can be switched on the day a second person gets Write (`.github/CODEOWNERS#.github/workflows/`) | measurement: single maintainer, read off `.github/CODEOWNERS#*` |
+| A pull request neutralises a check by replacing its caller with a stub of the same name | none that prevents it; `CODEOWNERS` lists `.github/workflows/` so that required review from Code Owners can be switched on (`.github/CODEOWNERS`) | none: the check is only as strong as that review |
 | A caller quietly switches the test job off | `workflow-lint` asserts from outside the shell job that every caller of `reusable-shell-ci` passes a `test-command` that runs a suite, and that at least one caller exists (`.github/workflows/reusable-workflow-lint.yml#A required test job must not be switchable off`) | test: `tests/ci/reusable/reusable-workflow-lint.test.sh#a caller with an empty test-command is refused`; `tests/ci/reusable/reusable-workflow-lint.test.sh#a tree with no reusable-shell-ci caller is refused` |
 | A test exists and no workflow runs it, or a script has no test | one watcher fails when a suite under `tests/` is invoked by no workflow, another when a script under `scripts/` has no suite, each including itself (`tests/ci/suites/ci-runs-every-test.test.sh#every test in tests/ is invoked by a workflow`, `scripts/quality/check-test-coverage.sh#check-test-coverage`, `.github/workflows/tests.yml#shell`) | test: `tests/ci/suites/ci-runs-every-test.test.sh#this watcher is itself invoked by a workflow`; `tests/quality/check-test-coverage.test.sh#check-test-coverage` |
 
@@ -160,8 +159,8 @@ or a guard changed in one channel and not the other is reported as drift.
 ## Residual risks
 
 - **A human who merges past a red check.** `dco` and the rest are required,
-  and the ruleset gives humans no bypass, so the remaining case is the owner
-  changing the ruleset itself. `dco-on-main.yml` reports anything that lands
+  and the ruleset gives humans no bypass, so the remaining case is a repository
+  administrator changing the ruleset itself. `dco-on-main.yml` reports anything that lands
   unsigned despite that.
 - **No field test on macOS hardware.** The formula is rendered from a real
   signed release and passes `brew style` and `brew audit --strict` in CI
@@ -169,9 +168,10 @@ or a guard changed in one channel and not the other is reported as drift.
   `.github/workflows/audit.yml#Audit formulae as an installed tap`); no
   `brew install` of it has been recorded
   on a real Mac as of 2026-09-02. Treat it as CI-green.
-- **One maintainer.** Every pull request is reviewed and merged by its author
-  (`.github/CODEOWNERS#*`), and a required status check is matched by name, so
-  the mitigation for a second person with Write is written down rather than on.
+- **A gate replaced in the pull request that should be judged by it.** A required
+  status check is matched by name, so someone with write access could replace a
+  caller with a stub that emits the name. The mitigation is Code Owner review on
+  `.github/workflows/` (see `.github/CODEOWNERS`).
 - **A compromised trusted release pipeline.** Manifest signatures and per-asset
   provenance authenticate the publisher and build context, not good intent. A
   malicious binary built and signed by the trusted pipeline can pass both.

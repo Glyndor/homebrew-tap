@@ -1,0 +1,513 @@
+# suite-scope.txt -- which paths can change each suite's verdict.
+#
+# WHAT THIS FILE IS
+#
+# The test job of .github/workflows/tests.yml runs every suite on every pull
+# request. Most of them are cheap, and the whole suite takes well under a
+# minute on this repository, but the decision to run them is not the point:
+# the point is that a pull request that touches nothing any suite reads
+# cannot change any suite's verdict, so the runner is free to skip those
+# suites without learning anything it did not already know.
+#
+# This file says, per suite, the paths whose change can alter what that suite
+# concludes. The decision is made by scripts/quality/ci-job-scope.sh, in its
+# `suites` mode, and the job and its required check `shell / test` still
+# report exactly as before.
+#
+# WHY IT IS SAFE
+#
+#   * It fails open, in every direction. A suite with no entry here always
+#     runs. A suite whose entry has no pattern is refused. A diff that cannot
+#     be read, a rename, a copy, a type change, a push, a schedule or a
+#     workflow dispatch runs every suite. A wrong skip lets a change merge
+#     untested; a wrong run costs seconds. The asymmetry decides every
+#     borderline case in favour of running.
+#
+#   * The decision is taken with the resolver and this map as they are in the
+#     BASE commit, not as the pull request ships them. A pull request that
+#     rewrites the map or the resolver to narrow its own scope gets the full
+#     suite instead, because the base copy is what decides. This is the same
+#     rule the shellcheck job of the reusable already follows for
+#     scripts/quality/ci-job-scope.sh, and the rule the CI standard states:
+#     a gate script is read from the base commit, never from the checkout of
+#     the pull request it is judging.
+#
+#   * The map, the resolver and the runner are an input of every suite. A
+#     change to any of the three runs the whole suite set, so the thing that
+#     decides what runs cannot be changed in order to decide less, and the
+#     thing that runs the suites cannot be changed in order to run fewer.
+#     The rule is in scripts/quality/ci-job-scope.sh rather than in an entry
+#     per suite here, so a suite added below later cannot forget it.
+#
+#   * The names of the suites here are the paths the workflow passes to
+#     tests/ci/suites/check-suite-completeness.test.sh, so the workflow still
+#     names every suite and tests/ci/suites/ci-runs-every-test.test.sh still
+#     sees a complete list. Only the decision to EXECUTE a suite changes.
+#
+#   * A push to main runs every suite. Nothing is ever removed from the set
+#     that runs there; the mechanism only ever removes suites from a pull
+#     request, and only those a pull request cannot affect.
+#
+# HOW THE ENTRIES WERE DERIVED
+#
+# Every suite was run under strace on 2026-11-16 and the repository files it
+# opened were recorded, so the sets below are measured rather than guessed.
+# They were then widened to the area that contains them: a suite that read
+# one file of scripts/ depends on scripts/, because the next change in that
+# folder may be the one it reads.
+#
+# Two shapes need saying apart, because the measurement alone does not tell
+# them apart:
+#
+#   * A suite that WALKS a tree -- find, ls, `git ls-files` -- depends on the
+#     whole tree BY NAME. The coverage gate walks scripts/ and requires a
+#     test of the same name in tests/, so its entry is scripts/** and
+#     tests/**: a script added without a test, or a test removed while its
+#     script stays, changes what it concludes. The editorconfig gate walks
+#     every tracked file, so its entry is `**`.
+#
+#   * A suite that COPIES a tree into its fixture -- `cp scripts/...` -- and
+#     then runs the copy depends on the copy, not on the tree. Copying is
+#     not reading: the members that are never executed cannot change the
+#     verdict. The entries below that copy the tree name the scripts they
+#     execute and whatever those read.
+#
+# PATTERN SYNTAX
+#
+#   *   matches within one path segment.
+#   ?   matches one character within one path segment.
+#   **  matches any number of segments, including none.
+#   A bare path matches that path exactly.
+#
+#   scripts/**     every file under scripts/
+#   .github/workflows/publish.yml   that one file
+#   **                   every tracked file
+#
+# HOW TO EXTEND IT
+#
+# A new suite arrives without an entry, so it always runs until somebody
+# writes one. That is the safe default and it is why the file is allowed to
+# lag behind the suite list. When you add an entry, measure it the same way
+# this one was measured: run the suite under strace and record the files it
+# opens. When in doubt, map more paths and not fewer: a short map is a hole,
+# and a hole lets a change merge untested.
+#
+# ---------------------------------------------------------------------------
+
+# --- the runner -------------------------------------------------------------
+#
+# The runner is the suite that runs the others, so its verdict is the verdict
+# of every suite it is given and of the workflow that names them. The
+# measurement says the same: the runner opens every tracked file of the
+# repository, because the suites it runs open them. So every tracked file is
+# an input of its verdict, and the entry is `**`.
+
+tests/ci/suites/check-suite-completeness.test.sh
+	**
+
+# --- the renderer -----------------------------------------------------------
+#
+# Every renderer suite reads the generator and the fixture all of them share.
+# The fixture lives in tests/fixtures/release/, and a change to it moves every
+# case of every suite that sources it.
+
+tests/release/render-formulae.test.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/release/**
+	tests/release/render-formulae.test.sh
+
+tests/release/render-formulae/render-formulae-trust.test.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/release/**
+	tests/release/render-formulae/**
+
+tests/release/render-formulae/render-formulae-transfer-limits.test.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/release/**
+	tests/release/render-formulae/**
+
+tests/release/render-formulae/render-formulae-version.test.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/release/**
+	tests/release/render-formulae/**
+
+tests/release/render-formulae/render-formulae-products.test.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/release/**
+	tests/release/render-formulae/**
+
+# The attestation suite also reads the workflow that runs the renderer, for
+# the flag that turns the rollback refusal off.
+
+tests/release/render-formulae/render-formulae-attestation.test.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/release/**
+	tests/release/render-formulae/**
+	.github/workflows/update.yml
+
+tests/release/render-formulae/render-formulae-linux-attestation.test.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/release/**
+	tests/release/render-formulae/**
+
+tests/release/render-formulae/render-formulae-inputs.test.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/release/**
+	tests/release/render-formulae/**
+
+tests/release/render-formulae/render-formulae-tag-shape.test.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/release/**
+	tests/release/render-formulae/**
+
+tests/release/render-formulae/render-formulae-symlink.test.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/release/**
+	tests/release/render-formulae/**
+
+# --- the publication workflow ------------------------------------------------
+
+tests/publication/update/update-workflow.test.sh
+	.github/workflows/update.yml
+	Formula/**
+	scripts/artifacts/check-formulae.py
+	scripts/artifacts/check-formulae.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/publication/**
+	tests/publication/update/**
+
+# --- the formulae ------------------------------------------------------------
+#
+# The three gates that read the formulae read the roster they are held to, and
+# the roster is the PRODUCTS table inside the renderer. The formulae are the
+# tree the renderer writes, so a change to any of them moves what the gates
+# conclude.
+
+tests/artifacts/check-products-consistent.test.sh
+	scripts/artifacts/check-products-consistent.sh
+	scripts/release/render-formulae.sh
+	Formula/**
+
+tests/artifacts/check-formulae.test.sh
+	.github/workflows/tests.yml
+	Formula/**
+	scripts/artifacts/check-formulae.py
+	scripts/artifacts/check-formulae.sh
+	scripts/release/render-formulae.sh
+
+tests/artifacts/check-formulae/check-formulae-roster.test.sh
+	Formula/**
+	scripts/artifacts/check-formulae.py
+	scripts/artifacts/check-formulae.sh
+	scripts/release/render-formulae.sh
+
+# The rollback gate compares the formulae with the base commit, so a formula
+# that goes back to an older release is what it looks for.
+
+tests/artifacts/check-version-monotonic.test.sh
+	scripts/artifacts/check-version-monotonic.sh
+	Formula/**
+
+# --- the publication audit ---------------------------------------------------
+#
+# The audit gates read the workflow that fires the audit, and the fixture the
+# obligation is expressed in.
+
+tests/publication/audit/audit-runs-on-a-schedule.test.sh
+	.github/workflows/audit.yml
+
+tests/publication/audit/audit-trusts-the-linked-tap.test.sh
+	.github/workflows/audit.yml
+	tests/fixtures/publication/**
+
+tests/publication/update/update-audits-before-commit.test.sh
+	.github/workflows/update.yml
+	scripts/artifacts/check-formulae.sh
+	tests/fixtures/publication/**
+
+# --- the CI policy rules ----------------------------------------------------
+#
+# The locale gate and the network gate walk every script under scripts/, so
+# every script is an input of their verdict.
+
+tests/ci/policy/rules/locale-pinned.test.sh
+	scripts/**
+
+tests/ci/policy/rules/network-calls-are-bounded.test.sh
+	scripts/**
+
+# The workflow gates walk every workflow.
+
+tests/ci/policy/rules/cancel-policy.test.sh
+	.github/workflows/**
+
+tests/ci/policy/rules/brew-jobs-are-bounded.test.sh
+	.github/workflows/**
+
+tests/ci/policy/rules/jobs-are-bounded.test.sh
+	.github/workflows/**
+
+# --- the workflow gates -----------------------------------------------------
+
+tests/ci/policy/workflows/workflow-shape.test.sh
+	.github/workflows/**
+
+tests/ci/policy/workflows/workflow-publish-triggers.test.sh
+	.github/workflows/update.yml
+
+tests/ci/policy/workflows/freshness-pr-scope.test.sh
+	.github/workflows/freshness.yml
+
+tests/ci/policy/workflows/freshness-poll-concurrency.test.sh
+	.github/workflows/freshness.yml
+
+# The dependabot gate reads the dependabot file and looks through every
+# workflow for the token action it names.
+
+tests/ci/policy/workflows/dependabot-groups.test.sh
+	.github/dependabot.yml
+	.github/workflows/**
+
+# The script-pinning gate reads the five workflows it pins and the scripts
+# those workflows must run.
+
+tests/ci/policy/workflows/workflows-run-their-scripts.test.sh
+	.github/workflows/dco-on-main.yml
+	.github/workflows/drift.yml
+	.github/workflows/freshness.yml
+	.github/workflows/tests.yml
+	.github/workflows/update.yml
+
+# The brew-style gate reads the workflow that decides whether brew style runs.
+
+tests/ci/policy/workflows/brew-style-scope.test.sh
+	.github/workflows/tests.yml
+
+# The audit gate reads the workflow that fires the audit.
+
+tests/ci/policy/workflows/audit-scope.test.sh
+	.github/workflows/audit.yml
+
+# --- the reusable gates -----------------------------------------------------
+#
+# Each reusable gate reads the reusable it covers.
+
+tests/ci/reusable/reusable-line-limit.test.sh
+	.github/workflows/reusable-line-limit.yml
+
+tests/ci/reusable/reusable-shell-ci.test.sh
+	.github/workflows/reusable-shell-ci.yml
+
+tests/ci/reusable/reusable-empty-diff.test.sh
+	.github/workflows/reusable-empty-diff.yml
+
+tests/ci/reusable/reusable-dco.test.sh
+	.github/workflows/reusable-dco.yml
+
+tests/ci/reusable/reusable-dependabot-freshness.test.sh
+	.github/workflows/reusable-dependabot-freshness.yml
+
+tests/ci/reusable/reusable-schedule-freshness.test.sh
+	.github/workflows/reusable-schedule-freshness.yml
+	tests/fixtures/ci/**
+
+# The workflow-lint gate covers two reusables and the caller that names them.
+
+tests/ci/reusable/reusable-workflow-lint.test.sh
+	.github/workflows/reusable-workflow-lint.yml
+	.github/workflows/reusable-shell-ci.yml
+	.github/workflows/tests.yml
+
+tests/ci/reusable/reusable-workflow-lint-install.test.sh
+	.github/workflows/reusable-workflow-lint.yml
+
+# --- the quality gates ------------------------------------------------------
+#
+# The coverage gate walks EVERY script under scripts/ and requires a test of
+# the same name in the mirrored folder of tests/, so both trees are inputs of
+# its verdict by name: a script added without a test, or a test removed while
+# its script stays, changes what it concludes.
+
+tests/quality/check-test-coverage.test.sh
+	scripts/**
+	tests/**
+
+# The doc-anchor gate reads every document under docs/ and resolves the
+# references they carry into the repository, so a file the documents cite is
+# an input of its verdict: rename a function it names and the reference stops
+# resolving. The areas below are the ones it resolves into.
+
+tests/quality/check-doc-anchors.test.sh
+	docs/**
+	.github/**
+	CONTRIBUTING.md
+	README.md
+	Formula/**
+	scripts/**
+	tests/**
+
+# The pin gate walks every workflow and every composite action.
+
+tests/quality/check-action-pins.test.sh
+	.github/workflows/**
+	.github/actions/**
+	scripts/quality/check-action-pins.sh
+
+# The editorconfig gate walks EVERY tracked file, so every tracked file is an
+# input of its verdict and it runs on every pull request.
+
+tests/quality/check-editorconfig.test.sh
+	**
+
+# The lint gate extracts the shell embedded in the workflows and lints it.
+
+tests/quality/lint-workflow-shell.test.sh
+	scripts/quality/lint-workflow-shell.sh
+	.github/workflows/**
+
+# The classifier under test, and its own test.
+
+tests/quality/ci-job-scope.test.sh
+	scripts/quality/ci-job-scope.sh
+	tests/quality/**
+
+# The suites mode of the classifier, its map and its test. The test reads the
+# workflow to learn which suites exist, so the workflow is an input of it too.
+
+tests/quality/ci-job-scope-suites.test.sh
+	scripts/quality/ci-job-scope.sh
+	scripts/quality/suite-scope.txt
+	.github/workflows/tests.yml
+	tests/quality/**
+
+# --- the governance gates ---------------------------------------------------
+
+tests/governance/check-dco-on-main.test.sh
+	scripts/governance/check-dco-on-main.sh
+
+# The template gate reads the bug report template, the README it holds the
+# template to, and the formulae it holds the product names to.
+
+tests/governance/check-issue-templates.test.sh
+	scripts/governance/check-issue-templates.sh
+	.github/ISSUE_TEMPLATE/**
+	README.md
+	Formula/**
+
+# --- the monitoring gates ---------------------------------------------------
+#
+# The suite-on-main gate reads the run history, not the tree; its script is
+# the only file input. The three suites around it share the fixture.
+
+tests/monitoring/check-suite-on-main.test.sh
+	scripts/monitoring/check-suite-on-main.sh
+	tests/fixtures/monitoring/**
+
+tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh
+	scripts/monitoring/check-suite-on-main.sh
+	tests/fixtures/monitoring/**
+
+tests/monitoring/check-suite-on-main/check-suite-on-main-retry.test.sh
+	scripts/monitoring/check-suite-on-main.sh
+	tests/fixtures/monitoring/**
+
+tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
+	scripts/monitoring/check-suite-on-main.sh
+	tests/fixtures/monitoring/**
+
+# The reusable drift gate compares the seven reusables this repository
+# carries, so every one of them is an input of its verdict.
+
+tests/monitoring/check-reusable-drift.test.sh
+	scripts/monitoring/check-reusable-drift.sh
+	.github/workflows/reusable-*.yml
+
+# The channel drift gate compares the files listed in the shared-path list
+# with the sibling channel, so the list and everything it names are inputs of
+# its verdict.
+
+tests/monitoring/check-channel-drift.test.sh
+	scripts/monitoring/check-channel-drift.sh
+	scripts/monitoring/channel-shared-paths.txt
+	scripts/quality/**
+	tests/ci/**
+	tests/fixtures/**
+	tests/monitoring/**
+	tests/quality/**
+
+# The transfer-cap gate audits the three drift watchers.
+
+tests/monitoring/drift-watchers-transfer-cap.test.sh
+	scripts/monitoring/check-channel-drift.sh
+	scripts/monitoring/check-render-drift.sh
+	scripts/monitoring/check-reusable-drift.sh
+
+# The render drift gate compares the units the two renderers share, so the
+# renderer is an input of its verdict.
+
+tests/monitoring/check-render-drift.test.sh
+	scripts/monitoring/check-render-drift.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/monitoring/**
+
+tests/monitoring/check-render-drift/check-render-drift-drift.test.sh
+	scripts/monitoring/check-render-drift.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/monitoring/**
+
+tests/monitoring/check-render-drift/check-render-drift-missing.test.sh
+	scripts/monitoring/check-render-drift.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/monitoring/**
+
+tests/monitoring/check-render-drift/check-render-drift-network.test.sh
+	scripts/monitoring/check-render-drift.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/monitoring/**
+
+tests/monitoring/check-render-drift/check-render-drift-digest-case.test.sh
+	scripts/monitoring/check-render-drift.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/monitoring/**
+
+tests/monitoring/check-render-drift/check-render-drift-version.test.sh
+	scripts/monitoring/check-render-drift.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/monitoring/**
+
+# --- the suites that check the wiring itself ---------------------------------
+#
+# ci-runs-every-test walks tests/ and every workflow, so a new test file or a
+# new workflow is an input of its verdict.
+
+tests/ci/suites/ci-runs-every-test.test.sh
+	tests/**
+	.github/workflows/**
+
+# shell-ci-scope reads the two workflows that carry the scope step, and it
+# greps tests/ and scripts/ for the paths the caller declares inert, so their
+# contents are inputs of its verdict too.
+
+tests/ci/suites/shell-ci-scope.test.sh
+	.github/workflows/reusable-shell-ci.yml
+	.github/workflows/tests.yml
+	scripts/**
+	tests/**
+
+# lint-job-scope reads the three reusables that carry the scope step, and the
+# classifier the step runs.
+
+tests/ci/suites/lint-job-scope.test.sh
+	scripts/quality/ci-job-scope.sh
+	.github/workflows/reusable-line-limit.yml
+	.github/workflows/reusable-shell-ci.yml
+	.github/workflows/reusable-workflow-lint.yml
+
+# --- the documented command -------------------------------------------------
+
+# The documented test command is read from CONTRIBUTING.md, and the pull
+# request template must not carry the flat globs either.
+
+tests/ci/docs/documented-test-command.test.sh
+	CONTRIBUTING.md
+	.github/PULL_REQUEST_TEMPLATE.md

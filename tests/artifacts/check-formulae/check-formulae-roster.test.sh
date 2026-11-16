@@ -60,6 +60,9 @@ CASES=(
 	$'an upper-case formula name\tGlyndor/podup|podup|Podup\tGlyndor/podup|Podup|Podup\tan invalid formula name'
 	$'a class name with an underscore\t|podup|Podup|MIT\t|podup|Podup_2|MIT\tan invalid class name'
 	$'an asset name with a slash\tpodup-darwin-arm64\tpodup/darwin-arm64\tan invalid asset name in mac_arm'
+	$'a description that interpolates Ruby\tDocker-compose translator and runner\tDocker-compose #{x} runner\tempty or would end or escape a Ruby string'
+	$'a row with one field too many\t|--version"\t|--version|extra"\tfields, not 10'
+	$'a row with one field too few\t|podup-linux-x86_64|--version"\t|--version"\tfields, not 10'
 )
 for entry in "${CASES[@]}"; do
 	IFS=$'\t' read -r label old new text <<<"$entry"
@@ -77,7 +80,9 @@ import sys
 s = open(sys.argv[1]).read()
 for old, new in (("if not shape.fullmatch(row[name]):", "if False:"),
                  ('if not row["repo"].startswith("Glyndor/"):', "if False:"),
-                 ('if row[name] != "-" and not ASSET_RE.fullmatch(row[name]):', "if False:")):
+                 ('if row[name] != "-" and not ASSET_RE.fullmatch(row[name]):', "if False:"),
+                 ("if not value or any(bad in value for bad in ('\"', \"\\\\\", \"#{\", \"#$\", \"#@\")):", "if False:"),
+                 ("if len(values) != len(FIELDS):", "if False:")):
     assert old in s, old
     s = s.replace(old, new, 1)
 open(sys.argv[2], "w").write(s)

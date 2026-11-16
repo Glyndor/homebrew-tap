@@ -134,6 +134,13 @@ echo "../outside" >> "$LIST"
 check "a path that climbs out of the repository is refused" "1" "$(rc_of)"
 check "and the message says it is not usable" "1" "$(said 'not a usable repository-relative path')"
 
+# A path with no ".." can still be unusable: the list is a versioned file and the path goes into a
+# URL, so a query string, a space or any character outside the plain set is refused, not fetched.
+scenario chars scripts/a.sh
+echo 'scripts/x?y=1.sh' >> "$LIST"
+check "a path with a query string is refused" "1" "$(rc_of)"
+check "and the message says it is not usable" "1" "$(said 'not a usable repository-relative path')"
+
 scenario none
 check "an empty list is refused, not passed" "1" "$(rc_of)"
 check "and says there is nothing to compare" "1" "$(said 'names no file')"

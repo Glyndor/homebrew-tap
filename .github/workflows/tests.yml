@@ -71,6 +71,7 @@ jobs:
         ./tests/ci/reusable/reusable-shell-ci.test.sh
         ./tests/ci/suites/shell-ci-scope.test.sh
         ./tests/quality/ci-job-scope.test.sh
+        ./tests/quality/ci-job-scope-suites.test.sh
         ./tests/ci/suites/lint-job-scope.test.sh
         ./tests/ci/policy/rules/cancel-policy.test.sh
         ./tests/ci/reusable/reusable-empty-diff.test.sh

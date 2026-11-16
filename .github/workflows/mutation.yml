@@ -1,0 +1,45 @@
+name: mutation
+
+# The catalogue of mutations: every entry breaks one guard of the scripts on
+# purpose and names the tests that must notice. A guard that no test notices is
+# decoration, and the catalogue is what keeps that from being a matter of
+# opinion: it is checked here, every week, against the guards as they stand.
+#
+# Weekly and on demand, never on a pull request: the sweep is a report and not
+# a gate. The pull request path already runs the suites, and what the sweep adds
+# is the question the suites cannot answer on their own -- whether they would
+# still notice.
+on:
+  schedule:
+    # Monday, 05:23 UTC. GitHub queues everyone's :00 and :30 crons together,
+    # and the other schedules of this repository already sit at 08:13, 09:19,
+    # 09:41 and every half hour.
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  # A scheduled run is never replaced by the next one: each answers for the
+  # state of the guards on the day it ran.
+  cancel-in-progress: false
+
+jobs:
+  mutations:
+    name: the guards still die under their mutations
+    runs-on: ubuntu-latest
+    # Measured 2m16s over the 55 entries of the catalogue, each one a copy of
+    # the tree and the suites it names. Fifteen minutes is over six times the
+    # slowest measurement and still short of a hang.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Break every guard on purpose and watch the suites notice
+        run: |
+          set -euo pipefail
+          ./tests/mutation/run-mutations.sh

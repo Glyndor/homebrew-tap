@@ -511,3 +511,14 @@ tests/ci/suites/lint-job-scope.test.sh
 tests/ci/docs/documented-test-command.test.sh
 	CONTRIBUTING.md
 	.github/PULL_REQUEST_TEMPLATE.md
+
+# --- the mutation catalogue --------------------------------------------------
+
+# The suite that tests the runner of the mutation catalogue drives the runner
+# against a throwaway repository of its own, so the runner and the catalogue
+# it reads are the inputs of its verdict. Nothing else: the guards the
+# catalogue breaks live in scripts/, and the sweep that breaks them is not one
+# of the suites this job runs.
+
+tests/mutation/run-mutations.test.sh
+	tests/mutation/**

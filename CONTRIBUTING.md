@@ -179,6 +179,7 @@ and red immediately after. Stage first, then check.
 | `update.yml` | the hourly regeneration, which commits to `main` |
 | `drift.yml` | a copy this repository shares with a sibling channel no longer agrees: a reusable workflow, the renderer's verification logic, or one of the scripts and tests the tap and the bucket carry as exact copies |
 | `dco-on-main.yml` | a human commit reached `main` without a `Signed-off-by` trailer; detection after the push, not prevention |
+| `mutation.yml` | a guard of the scripts stopped dying when it was broken on purpose: the suite that watches it no longer notices |
 
 Every reusable lives in `.github/workflows/reusable-*.yml` as a copy kept identical in logic to the
 copies in the sibling channels (`scripts/monitoring/check-reusable-drift.sh` compares

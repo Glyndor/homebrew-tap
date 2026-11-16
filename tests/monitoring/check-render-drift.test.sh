@@ -61,7 +61,9 @@ expect_not_contains "$err_body" "render_product" "the excluded unit is not named
 echo
 echo "=== a comment-only change inside a compared unit passes ==="
 # Same logic, extra comments on the remote side. Stripping must absorb them.
-run_with_remote "$(remote_with_comment '^hash_of\(\) \{$')"
+remote_file="$(remote_with_comment '^hash_of\(\) \{$')"
+expect_contains "$(cat "$remote_file")" "a remote-only comment" "the comment reached the file under test"
+run_with_remote "$remote_file"
 expect_eq "$exit_code" "0" "exit 0 on comment-only diff"
 expect_contains "$combined" "compared 9 render unit" "still compares 9 units"
 

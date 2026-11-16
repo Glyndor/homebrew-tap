@@ -134,6 +134,16 @@ it lives in `scripts/`, so deleting its test makes it report itself.
 sits in `tests/`, passes by hand, and reads as coverage while CI never runs
 it. That happened in the sibling `apt` repository and went unnoticed for a day.
 
+**A new suite needs an entry in `scripts/quality/suite-scope.txt`.**
+On a pull request the runner skips the suites whose paths the change does not
+touch, so a suite with no entry would run every time and
+`tests/quality/ci-job-scope-suites.test.sh` fails until it has one. List every
+path the suite reads: a missing path lets a change merge without the suite that
+should have judged it, while an extra one only costs a run. A change to the map,
+to `scripts/quality/ci-job-scope.sh` or to the runner runs everything, and both
+files are shared byte for byte with the sibling channel repository, so they
+change in both together.
+
 **A test you have not watched fail is not a test.** Before claiming a check
 works, delete or invert the control it covers and confirm it goes red for the
 reason it names. Four ways that goes wrong: the change you made changed nothing; it changed

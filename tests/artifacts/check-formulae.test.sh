@@ -69,6 +69,9 @@ CASES=(
 	"a different command in the test block|s.replace('system \"#{bin}/podup\", \"--version\"', 'system \"touch\", \"/tmp/x\"')|test body"
 	"an extra statement in the test block|s.replace('system \"#{bin}/podup\", \"--version\"', 'system \"touch\", \"/tmp/x\"\n    system \"#{bin}/podup\", \"--version\"')|test body"
 	"a tag that is not a version|__import__('re').sub(r'/download/v[0-9][^/]*/', '/download/latest/', s)|the tag latest is not the plain version"
+	"a download host that is not github.com|s.replace('https://github.com/Glyndor/podup/releases/download', 'https://evil.example/Glyndor/podup/releases/download', 1)|is not a release asset url"
+	"a statement after the class|s.rstrip() + '\\nputs 1\\n'|writes nothing after the class"
+	"an altered header|s.replace('# typed: false', '# typed: strict', 1)|expected \`# typed: false\`"
 	"a backtick command|s.replace('bin.install asset', '\`id\`; bin.install asset')|\`"
 )
 for entry in "${CASES[@]}"; do

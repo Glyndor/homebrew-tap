@@ -264,8 +264,13 @@ PY
 # A copy of the local script with a comment inserted before the line matching
 # the given pattern, used as the sibling's copy.
 remote_with_comment() { # $1 = awk pattern
-	awk -v pat="$1" '{print} $0 ~ pat {print "\t# a remote-only comment"}' \
+	# The pattern goes through the environment: `awk -v` processes backslash escapes
+	# and gawk and mawk disagree about `\(`, so a pattern passed that way matched no
+	# line on one of them and the "comment" never reached the file under test.
+	PAT="$1" awk '{print} $0 ~ ENVIRON["PAT"] {print "\t# a remote-only comment"}' \
 		"$WORK/$LOCAL_FILE" >"$WORK/remote-commented.sh"
+	grep -q 'a remote-only comment' "$WORK/remote-commented.sh" \
+		|| echo "remote_with_comment: the pattern matched no line" >&2
 	printf '%s\n' "$WORK/remote-commented.sh"
 }
 

@@ -2,9 +2,9 @@
 #
 # WHAT THIS FILE IS
 #
-# The test job of .github/workflows/tests.yml runs every suite on every pull
-# request. Most of them are cheap, and the whole suite takes well under a
-# minute on this repository, but the decision to run them is not the point:
+# Before this map, the test job of .github/workflows/tests.yml ran every suite
+# on every pull request. Most of them are cheap, and the whole suite takes under
+# two minutes when run locally (measured 2026-11-16), but the cost is not the point:
 # the point is that a pull request that touches nothing any suite reads
 # cannot change any suite's verdict, so the runner is free to skip those
 # suites without learning anything it did not already know.

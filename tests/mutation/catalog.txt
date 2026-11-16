@@ -1,0 +1,87 @@
+# The catalogue of mutations: one entry per line, five fields separated by TAB.
+#
+#   id <TAB> file to mutate <TAB> exact text to replace <TAB> text that replaces it
+#        <TAB> tests of tests/ that must fail when the mutation is applied
+#
+# The text to replace has to appear EXACTLY ONCE in the file: a text that appears nowhere
+# changes nothing and proves nothing, and one that appears twice is ambiguous. The runner
+# refuses both, so an inert entry cannot sit in this file unnoticed. A text holds no TAB:
+# the line carries exactly four, and a fifth would move every field after it.
+#
+# The tests named by an entry are the ones that must notice when it is applied.
+#
+# WHAT IS NOT IN THIS FILE
+#
+# Two suites of tests/ cannot run in the copy the sweep works on, and no entry names
+# them. The copy is made with `git archive HEAD`, so it carries no git metadata:
+#
+#   tests/ci/suites/check-suite-completeness.test.sh
+#       It runs the other suites and reads the base commit with `git show HEAD^1:...`.
+#   tests/quality/check-editorconfig.test.sh
+#       It walks the tracked files with `git ls-files`.
+#
+# Both fail in that copy whatever the mutant is, so a failure there would count as a
+# kill that never happened. The runner excludes them by name, on every run, with the
+# same reason; the list here and the list in the runner are the same one.
+#
+# No other suite is excluded: none of them needs the network (the drift watchers
+# stub `curl`), and none of them needs a tool this repository does not carry. The
+# tools the workflows install for themselves -- `brew`, `scoop`, `reprepro` -- are
+# named only inside workflow fixtures, never invoked by a suite.
+#
+# Run: tests/mutation/run-mutations.sh [--list] [<id>]
+formulae-definition	scripts/artifacts/check-formulae.py	if not re.fullmatch(r"[^/]+\.rb", inside):	if False:	tests/artifacts/check-formulae.test.sh
+formulae-symlink	scripts/artifacts/check-formulae.py	if os.path.islink(path):	if False:	tests/artifacts/check-formulae.test.sh
+formulae-slot-asset	scripts/artifacts/check-formulae.py	elif asset != row["slots"][slot]:	if False:	tests/artifacts/check-formulae.test.sh
+formulae-second-tag	scripts/artifacts/check-formulae.py	if tags and tag != tags[0]:	if False:	tests/artifacts/check-formulae.test.sh
+formulae-after-class	scripts/artifacts/check-formulae.py	if line is not None:	if False:	tests/artifacts/check-formulae.test.sh
+formulae-no-verdict	scripts/artifacts/check-formulae.py	found = check_formula(path, row)	found = []	tests/artifacts/check-formulae.test.sh
+formulae-crlf	scripts/artifacts/check-formulae.py	if "\r" in text:	if False:	tests/artifacts/check-formulae.test.sh
+formulae-digest	scripts/artifacts/check-formulae.py	if not DIGEST_RE.match(value):	if False:	tests/artifacts/check-formulae.test.sh
+formulae-repository	scripts/artifacts/check-formulae.py	if repo != row["repo"]:	if False:	tests/artifacts/check-formulae.test.sh
+formulae-asset	scripts/artifacts/check-formulae.py	if asset not in row["assets"]:	if False:	tests/artifacts/check-formulae.test.sh
+formulae-tag	scripts/artifacts/check-formulae.py	if not tag.startswith("v") or not VERSION_RE.match(tag[1:]):	if False:	tests/artifacts/check-formulae.test.sh
+formulae-body	scripts/artifacts/check-formulae.py	if line != wanted:	if False:	tests/artifacts/check-formulae.test.sh
+formulae-roster-missing	scripts/artifacts/check-formulae.py	        if not inside:	        if False:	tests/artifacts/check-formulae.test.sh
+formulae-roster-twice	scripts/artifacts/check-formulae.py	if row["formula"] in by_name:	if False:	tests/artifacts/check-formulae.test.sh
+formulae-roster-organization	scripts/artifacts/check-formulae.py	if not row["repo"].startswith("Glyndor/"):	if False:	tests/artifacts/check-formulae/check-formulae-roster.test.sh
+formulae-roster-fields	scripts/artifacts/check-formulae.py	if len(values) != len(FIELDS):	if False:	tests/artifacts/check-formulae/check-formulae-roster.test.sh
+formulae-roster-shape	scripts/artifacts/check-formulae.py	if not shape.fullmatch(row[name]):	if False:	tests/artifacts/check-formulae/check-formulae-roster.test.sh
+formulae-roster-asset	scripts/artifacts/check-formulae.py	if row[name] != "-" and not ASSET_RE.fullmatch(row[name]):	if False:	tests/artifacts/check-formulae/check-formulae-roster.test.sh
+formulae-roster-string	scripts/artifacts/check-formulae.py	if not value or any(bad in value for bad in ('"', "\\", "#{", "#$", "#@")):	if False:	tests/artifacts/check-formulae/check-formulae-roster.test.sh
+formulae-shell-symlink	scripts/artifacts/check-formulae.sh	if [ -L "$root/Formula" ]; then	if false; then	tests/artifacts/check-formulae.test.sh
+formulae-shell-stray	scripts/artifacts/check-formulae.sh	if [ -n "$stray" ]; then	if false; then	tests/artifacts/check-formulae.test.sh
+formulae-shell-empty	scripts/artifacts/check-formulae.sh	if [ ${#formulae[@]} -eq 0 ]; then	if false; then	tests/artifacts/check-formulae.test.sh
+formulae-shell-ok-record	scripts/artifacts/check-formulae.sh	if [ "$marker" = "ok" ]; then	if false; then	tests/artifacts/check-formulae.test.sh
+formulae-shell-list	scripts/artifacts/check-formulae.sh	\( -type f -o -type l \) -iname '*.rb' -print0	\( -type f \) -iname '*.rb' -print0	tests/artifacts/check-formulae.test.sh
+products-odd-name	scripts/artifacts/check-products-consistent.sh	if [ -n "$odd" ]; then	if false; then	tests/artifacts/check-products-consistent.test.sh
+products-not-regular	scripts/artifacts/check-products-consistent.sh	if [ -n "$not_regular" ]; then	if false; then	tests/artifacts/check-products-consistent.test.sh
+products-no-roster	scripts/artifacts/check-products-consistent.sh	[ -n "$declared" ] || {	false || {	tests/artifacts/check-products-consistent.test.sh
+templates-os-field	scripts/governance/check-issue-templates.sh	if ! printf '%s\n' "$os_field" | grep -qiF "$platform"; then	if false; then	tests/governance/check-issue-templates.test.sh
+templates-manager	scripts/governance/check-issue-templates.sh	if [ -n "$manager" ] && ! printf '%s\n' "$os_field" | grep -qiF "$manager"; then	if false; then	tests/governance/check-issue-templates.test.sh
+templates-install-command	scripts/governance/check-issue-templates.sh	if ! holds_install_command "$version_field"; then	if false; then	tests/governance/check-issue-templates.test.sh
+templates-foreign-method	scripts/governance/check-issue-templates.sh	if grep -qF "$method" "$template"; then	if false; then	tests/governance/check-issue-templates.test.sh
+templates-no-os-field	scripts/governance/check-issue-templates.sh	if [ -z "$os_field" ]; then	if false; then	tests/governance/check-issue-templates.test.sh
+coverage-missing-test	scripts/quality/check-test-coverage.sh	[ -f "$root/tests/$name.test.sh" ] || missing+=("scripts/$rel")	true || missing+=("scripts/$rel")	tests/quality/check-test-coverage.test.sh
+pins-sha	scripts/quality/check-action-pins.sh	if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then	if false; then	tests/quality/check-action-pins.test.sh
+channel-usable-path	scripts/monitoring/check-channel-drift.sh	[[ "$1" =~ ^[A-Za-z0-9._/-]+$ ]] || return 1	[[ "$1" =~ ^.*$ ]] || return 1	tests/monitoring/check-channel-drift.test.sh
+channel-empty-body	scripts/monitoring/check-channel-drift.sh	if [ ! -s "$tmp/remote" ]; then	if false; then	tests/monitoring/check-channel-drift.test.sh
+channel-max-filesize	scripts/monitoring/check-channel-drift.sh	--max-filesize 1048576 -o "$tmp/remote"	-o "$tmp/remote"	tests/monitoring/drift-watchers-transfer-cap.test.sh
+channel-https	scripts/monitoring/check-channel-drift.sh	--proto =https --proto-redir =https --connect-timeout 10 --max-time 60 --max-filesize 1048576	--connect-timeout 10 --max-time 60 --max-filesize 1048576	tests/monitoring/drift-watchers-transfer-cap.test.sh
+reusable-https	scripts/monitoring/check-reusable-drift.sh	--proto =https --proto-redir =https --connect-timeout 10 --max-time 60 --max-filesize 1048576	--connect-timeout 10 --max-time 60 --max-filesize 1048576	tests/monitoring/drift-watchers-transfer-cap.test.sh
+render-drift-https	scripts/monitoring/check-render-drift.sh	--proto =https --proto-redir =https --connect-timeout 10 --max-time 60 --max-filesize 1048576	--connect-timeout 10 --max-time 60 --max-filesize 1048576	tests/monitoring/drift-watchers-transfer-cap.test.sh
+suite-on-main-cancelled	scripts/monitoring/check-suite-on-main.sh	select(.status == "completed" and .conclusion != "cancelled")	select(.status == "completed")	tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
+suite-on-main-empty	scripts/monitoring/check-suite-on-main.sh	if [ -z "$picked" ]; then	if false; then	tests/monitoring/check-suite-on-main.test.sh
+render-version-guard	scripts/release/render-formulae.sh	"" | *[!0-9A-Za-z.+-]* | .* | *.)	"" | .* | *.)	tests/release/render-formulae/render-formulae-version.test.sh
+render-symlink	scripts/release/render-formulae.sh	if [ -L "$target" ]; then	if false; then	tests/release/render-formulae/render-formulae-symlink.test.sh
+render-directory	scripts/release/render-formulae.sh	if [ -d "$target" ]; then	if false; then	tests/release/render-formulae/render-formulae-symlink.test.sh
+render-source-ref	scripts/release/render-formulae.sh	--source-ref "refs/tags/$tag" \	--source-ref "refs/tags/v0.0.0-ATTACKER" \	tests/release/render-formulae/render-formulae-attestation.test.sh
+render-signer-workflow	scripts/release/render-formulae.sh	--signer-workflow "$repo/.github/workflows/release.yml" \	--signer-workflow "$repo/.github/workflows/attacker.yml" \	tests/release/render-formulae/render-formulae-attestation.test.sh
+anchors-undeclared	scripts/quality/check-doc-anchors.sh	if ! grep -Fxq -- "$name" <<<"$declared"; then	if false; then	tests/quality/check-doc-anchors.test.sh
+anchors-coordinate	scripts/quality/check-doc-anchors.sh	grep -n -oE '[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*:[0-9][0-9,-]*' "$1" || true	true	tests/quality/check-doc-anchors.test.sh
+version-compare	scripts/artifacts/check-version-monotonic.sh	if precedence(new_version, name) < old:	if False:	tests/artifacts/check-version-monotonic.test.sh
+version-no-formula	scripts/artifacts/check-version-monotonic.sh	if not names:	if False:	tests/artifacts/check-version-monotonic.test.sh
+version-approval-single-use	scripts/artifacts/check-version-monotonic.sh	if core(here) == core(goes_to):	if False:	tests/artifacts/check-version-monotonic.test.sh
+dco-bots	scripts/governance/check-dco-on-main.sh	"github-actions[bot]"|"glyndor-updater[bot]") return 0 ;;	"github-actions[bot]") return 0 ;;	tests/governance/check-dco-on-main.test.sh
+dco-trailer	scripts/governance/check-dco-on-main.sh	grep -qE '^Signed-off-by: .+ <[^<>@ ]+@[^<>@ ]+>$'	grep -qE '^Signed-off-by: .+$'	tests/governance/check-dco-on-main.test.sh
+dco-rev-list	scripts/governance/check-dco-on-main.sh	if ! commits="$(git rev-list --no-merges $range)"; then	if false; then	tests/governance/check-dco-on-main.test.sh

@@ -65,15 +65,6 @@ if [ ! -d "$root/Formula" ]; then
 	exit 1
 fi
 
-# The roster block, cut out of the generator. The rows themselves are parsed
-# and validated by the python below, so the two do not disagree about where
-# the roster starts or what a row looks like.
-roster="$(mktemp)"
-trap 'rm -f "$roster"' EXIT
-awk '/^PRODUCTS=\(/ { inside = 1; print; next }
-     inside && /^\)/ { print; exit }
-     inside { print }' "$renderer" >"$roster"
-
 # Every formula Homebrew would load, at any depth: a file under Formula/e/ is
 # a formula this tap serves whatever the roster says. Symlinks are listed too
 # and refused below, because a symlink named like a formula passes a name
@@ -99,7 +90,7 @@ fi
 
 # The python prints one tab-separated record per line: "ok<TAB>file" for a
 # formula that matches the row, and "file<TAB>message" for a problem.
-problems="$(python3 -I "$(dirname "${BASH_SOURCE[0]}")/check-formulae.py" "$roster" "$root" "${formulae[@]}")" || {
+problems="$(python3 -I "$(dirname "${BASH_SOURCE[0]}")/check-formulae.py" "$renderer" "$root" "${formulae[@]}")" || {
 	echo "::error::the formula check could not run" >&2
 	exit 1
 }

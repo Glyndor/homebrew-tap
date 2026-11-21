@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """The comparison behind scripts/artifacts/check-formulae.sh.
 
-usage: check-formulae.py <roster-block> <repo-root> <formula>...
+usage: check-formulae.py <generator> <repo-root> <formula>...
 
 It prints one tab-separated record per line: "ok<TAB>file" for a formula that
 matches its roster row, "file<TAB>message" for a problem, and a last
 "VERDICT<TAB>n" that counts the problems. The shell wrapper finds the formulae,
-cuts the roster out of the generator and turns the records into annotations.
+names the generator the roster is read from and turns the records into
+annotations.
 """
 import os
 import re
@@ -128,7 +129,7 @@ def read_roster(path):
     """The rows of the PRODUCTS table, and the problems reading it.
 
     The table is read by scripts/release/products.sh, the reader every gate of
-    this repository uses for it, so this check and check-products-consistent.sh
+    this repository uses for the file, so this check and check-products-consistent.sh
     cannot read two different rosters from one file. A table the reader refuses
     is a problem here, with the reader's own reason.
     """

@@ -82,6 +82,16 @@ check "a file that is not there is refused" "1 1" "$rc $(said 'is not a readable
 rc=0; bash "$READER" > /dev/null 2>&1 || rc=$?
 check "and a call with no file is a usage error" "2" "$rc"
 
+# --- no second reader of the file -----------------------------------------------
+# The reader is the one place that finds the table in the renderer's text. A gate
+# that cuts or parses it with a pattern of its own is a second grammar, and the
+# first change of shape breaks the two apart. The renderer declares the array and
+# bash reads it, so the renderer and the files it sources do not count: they never
+# search the file for the table.
+readers="$(grep -rlF '^PRODUCTS=' "$HERE/scripts" | sed "s|^$HERE/||" | sort | tr '\n' ' ')"
+check "the table is found in the renderer's text by scripts/release/products.sh and nothing else" \
+	"scripts/release/products.sh " "$readers"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

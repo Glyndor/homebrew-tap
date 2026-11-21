@@ -68,6 +68,7 @@ jobs:
         ./tests/release/release-signature.test.sh
         ./tests/publication/update/update-workflow.test.sh
         ./tests/publication/update/update-key-isolation.test.sh
+        ./tests/publication/update/update-mldsa-venv.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/artifacts/check-formulae.test.sh
         ./tests/artifacts/check-formulae/check-formulae-roster.test.sh

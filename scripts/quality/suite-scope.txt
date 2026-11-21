@@ -209,6 +209,11 @@ tests/publication/update/update-key-isolation.test.sh
 	tests/fixtures/publication/**
 	tests/publication/update/**
 
+tests/publication/update/update-mldsa-venv.test.sh
+	.github/workflows/update.yml
+	scripts/release/render-formulae.sh
+	tests/publication/update/update-mldsa-venv.test.sh
+
 # --- the formulae ------------------------------------------------------------
 #
 # The three gates that read the formulae read the roster they are held to, and

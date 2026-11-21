@@ -47,7 +47,8 @@ on:
   schedule:
     - cron: "13 8,20 * * *"
   # A pull request runs these only when it changes what these jobs are made of:
-  # this file, the two reusables it calls and the script its suite job runs.
+  # this file, the two reusables it calls, the script its suite job runs and
+  # the one its tool-versions job runs.
   # Anything else cannot change the
   # verdict, so it would only repeat the same verdicts. None of the jobs here is a
   # required check, which is what makes a path filter safe: a required check
@@ -61,6 +62,7 @@ on:
       - .github/workflows/reusable-dependabot-freshness.yml
       - .github/workflows/reusable-schedule-freshness.yml
       - scripts/monitoring/check-suite-on-main.sh
+      - scripts/monitoring/check-tool-versions.sh
   push:
     branches: [main]
 
@@ -128,6 +130,18 @@ jobs:
       max-age-days: 2
       count-any-conclusion: true
 
+  # HOW THE LIMIT OF A DAILY OR WEEKLY CRON IS CHOSEN
+  #
+  # Two periods plus one day: three days for a daily cron, fifteen for a
+  # weekly one, the rule reusable-schedule-freshness.yml states for its
+  # max-age-days input. One dropped firing passes and a second does not, and
+  # the extra day absorbs GitHub starting a schedule hours late, which is the
+  # ordinary case here (measured lateness of three to six hours below). Every
+  # daily and weekly watcher in this file uses it, so two crons of the same
+  # cadence cannot be held to limits that differ for no written reason.
+  # A cron that fires more than once a day keeps a limit of its own instead,
+  # because the cadence GitHub delivers is far from the one it asks for.
+  #
   # Nothing watched drift.yml's cron, and that cron is the only thing that runs
   # the comparison at all: the file triggers on schedule and workflow_dispatch
   # and on nothing else, because pull_request would deadlock the three channels
@@ -135,10 +149,10 @@ jobs:
   # file for minutes after a merge. A cron that quietly stops therefore stops
   # the whole check, and reports nothing while doing it.
   #
-  # Three days. The schedule asks for 09:41Z and the last five firings began
-  # between 13:00Z and 13:50Z, so a delay of three to four hours is the normal
-  # case rather than the exception, and one day would leave no margin at all
-  # over a daily cron.
+  # Three days, by the rule above for a daily cron. The schedule asks for
+  # 09:41Z and the last five firings began between 13:00Z and 13:50Z, so a
+  # delay of three to four hours is the normal case, which the day of margin
+  # covers.
   freshness-drift:
     permissions:
       contents: read
@@ -158,11 +172,11 @@ jobs:
   # workflow it names has no successful scheduled run, so a watcher added on
   # the day the cron landed opens red for a reason that is not a fault.
   #
-  # Two days, from the two firings on record rather than from the period. The
-  # cron asks for 09:19Z; the first ran 2026-09-07 at 15:05Z and the second
-  # 2026-09-08 at 13:40Z, so it arrived 5h46m and 4h21m late. A one-day
-  # threshold on a daily cron would spend most of its margin on GitHub being
-  # late and would trip on lateness rather than on failure.
+  # Three days, by the rule above for a daily cron. It used to be two while
+  # drift.yml, daily too, had three, with nothing written to say why the two
+  # differed. The cron asks for 09:19Z; the first ran 2026-09-07 at 15:05Z and
+  # the second 2026-09-08 at 13:40Z, so it arrived 5h46m and 4h21m late, which
+  # the day of margin covers.
   freshness-audit:
     permissions:
       contents: read
@@ -170,7 +184,27 @@ jobs:
     uses: ./.github/workflows/reusable-schedule-freshness.yml
     with:
       workflow: audit.yml
-      max-age-days: 2
+      max-age-days: 3
+
+  # mutation.yml runs the catalogue every Monday and on demand, never on a
+  # pull request, so its cron is the only thing that asks whether the guards
+  # still die under their mutations. A cron that stops takes that question
+  # with it, and nothing says so.
+  #
+  # Fifteen days, by the rule above for a weekly cron. The cron landed on
+  # 2026-11-16 and had not fired when this job was added; the reusable gives a
+  # workflow with no scheduled run on record a grace period of the same fifteen
+  # days from the commit that added its file, and passes with a notice until
+  # then, so the watcher is not born red and still fails if the first Monday
+  # never comes.
+  freshness-mutation:
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/reusable-schedule-freshness.yml
+    with:
+      workflow: mutation.yml
+      max-age-days: 15
 
   # Watches the suite, the way reusable-schedule-freshness watches a cron:
   # fails when a run that should have been green was not. The other jobs in
@@ -227,6 +261,8 @@ jobs:
       group: freshness-tests-on-main-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: newest completed Tests run on main
+    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
+    # compares strings, so a new image cannot change its verdict.
     runs-on: ubuntu-latest
     # The script polls up to 80 times with 15 s between attempts in push
     # mode, 20 minutes at most: a queued suite measured ten minutes on
@@ -247,3 +283,53 @@ jobs:
         run: |
           set -euo pipefail
           bash ./scripts/monitoring/check-suite-on-main.sh
+
+  # The versions of shellcheck and actionlint written inside the reusables have
+  # no update path: Dependabot moves `uses:` pins only, and dependabot-freshness
+  # reads only those. This compares each pinned version with the releases its
+  # upstream publishes and fails once the first release after the pin has been
+  # out longer than the lag the script states and explains (30 days). An
+  # upstream that cannot be read fails too, rather than passing unread.
+  #
+  # Here because this workflow already runs twice a day and on every push to
+  # main, and its own cron is watched by freshness-itself. Like every job here
+  # it is not a required check: a new release upstream says nothing about the
+  # pull request under review. The pull request filter names the script and not
+  # the reusables that carry the pins, so a pin bump is judged by the push that
+  # lands it.
+  #
+  # It asks GitHub for the releases of two public repositories with the job's
+  # own token, and `contents: read` is all that needs.
+  #
+  # The script imports yaml and this job installs nothing for it, by the same
+  # criterion as the workflow-lint job: the image ships python3-yaml, as the
+  # lint steps that imported yaml on ubuntu-latest showed, and ubuntu-latest
+  # resolved to ubuntu-26.04 on 2026-11-21. An image without it is an
+  # ImportError and a red job, not a green one.
+  tool-versions:
+    name: pinned tool versions keep up with upstream
+    # A newer push to the same pull request supersedes the run; on main and on
+    # the schedule every run is kept, as each answers for its own commit.
+    concurrency:
+      group: freshness-tool-versions-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
+    # compares strings, so a new image cannot change its verdict.
+    runs-on: ubuntu-latest
+    # Two `gh release list` calls and a checkout, seconds when measured
+    # locally against stubs; the real calls are two API requests. Ten minutes
+    # is the floor this repository uses for a job whose honest run is seconds.
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compare the pinned tool versions with upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bash ./scripts/monitoring/check-tool-versions.sh

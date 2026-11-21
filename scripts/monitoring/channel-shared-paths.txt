@@ -42,11 +42,14 @@
 #
 #   This file is not listed in itself. It lives in this repository only, and
 #   a path the sibling does not carry cannot be a shared copy.
+scripts/monitoring/check-tool-versions.sh
 scripts/quality/check-action-pins.sh
 scripts/quality/check-doc-anchors.sh
 scripts/quality/check-editorconfig.sh
 scripts/quality/check-suites-wired.sh
+scripts/quality/check-test-job-not-switchable.sh
 scripts/quality/check-test-coverage.sh
+scripts/quality/check-tooling-isolation.sh
 scripts/quality/ci-job-scope.sh
 scripts/quality/lint-workflow-shell.sh
 scripts/release/release-signature.sh
@@ -55,6 +58,7 @@ scripts/release/render-requirements.txt
 tests/ci/policy/rules/cancel-policy.test.sh
 tests/ci/docs/documented-test-command.test.sh
 tests/ci/policy/rules/locale-pinned.test.sh
+tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh
 tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
 tests/ci/policy/workflows/workflow-shape.test.sh
 tests/ci/policy/workflows/workflow-publish-triggers.test.sh
@@ -63,9 +67,9 @@ tests/ci/reusable/reusable-dependabot-freshness.test.sh
 tests/ci/reusable/reusable-empty-diff.test.sh
 tests/ci/reusable/reusable-line-limit.test.sh
 tests/ci/reusable/reusable-schedule-freshness.test.sh
+tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.test.sh
 tests/ci/reusable/reusable-shell-ci.test.sh
 tests/ci/reusable/reusable-workflow-lint.test.sh
-tests/ci/reusable/reusable-workflow-lint-install.test.sh
 tests/ci/suites/check-suite-completeness.test.sh
 tests/ci/suites/ci-runs-every-test.test.sh
 tests/ci/suites/lint-job-scope.test.sh
@@ -83,13 +87,16 @@ tests/monitoring/check-render-drift/check-render-drift-digest-case.test.sh
 tests/monitoring/check-render-drift/check-render-drift-version.test.sh
 tests/monitoring/check-render-drift.test.sh
 tests/monitoring/check-reusable-drift.test.sh
+tests/monitoring/check-tool-versions.test.sh
 tests/mutation/catalog-reaches-every-script.test.sh
 tests/publication/update/update-mldsa-venv.test.sh
 tests/quality/check-action-pins.test.sh
 tests/quality/check-doc-anchors.test.sh
 tests/quality/check-editorconfig.test.sh
 tests/quality/check-suites-wired.test.sh
+tests/quality/check-test-job-not-switchable.test.sh
 tests/quality/check-test-coverage.test.sh
+tests/quality/check-tooling-isolation.test.sh
 tests/quality/ci-job-scope.test.sh
 tests/quality/lint-workflow-shell.test.sh
 tests/release/release-signature.test.sh

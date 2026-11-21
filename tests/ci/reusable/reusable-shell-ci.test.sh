@@ -218,6 +218,201 @@ PY
 )"
 check "the shellcheck job decides whether its work is needed and guards every later step" "ok" "$shellcheck_gate"
 
+# --- the install step decides from the suites, before anything is installed --
+#
+# The actual install body runs with a recording sudo and a curl that serves a
+# fixture shellcheck tarball, never the host's apt or the network. The resolver,
+# the suite map and the dependency map live in real BASE commit objects.
+step_script "$WORKFLOW" "Install test dependencies" > "$WORK/install.sh"
+mkdir -p "$WORK/bin" "$WORK/rt-packages" "$WORK/sc/shellcheck-v0.0.0"
+cat > "$WORK/bin/sudo" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$APT_LOG"
+STUB
+printf '#!/bin/sh\necho pinned shellcheck\n' > "$WORK/sc/shellcheck-v0.0.0/shellcheck"
+tar -cJf "$WORK/sc.tar.xz" -C "$WORK/sc" shellcheck-v0.0.0
+SC_SHA="$(sha256sum "$WORK/sc.tar.xz" | cut -d' ' -f1)"
+cat > "$WORK/bin/curl" <<'STUB'
+#!/usr/bin/env bash
+out=""
+while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac; done
+printf 'pinned shellcheck\n' >> "$APT_LOG"
+cp "$SC_TARBALL" "$out"
+STUB
+chmod +x "$WORK/bin/sudo" "$WORK/bin/curl"
+FULL_PACKAGES='python3-cryptography reprepro shellcheck python3-yaml'
+RUNNER=tests/ci/suites/check-suite-completeness.test.sh
+EDITOR=tests/quality/check-editorconfig.test.sh
+BUILD=tests/build/build-repo.test.sh
+OTHER=tests/quality/check-action-pins.test.sh
+COMMAND="./$RUNNER ./$EDITOR ./$BUILD ./$OTHER"
+package_repo() {
+	R="$WORK/packages"
+	rm -rf "$R"; mkdir -p "$R/scripts/quality" "$R/tests/ci/suites"
+	git -C "$R" init -q -b main
+	git -C "$R" config user.name t; git -C "$R" config user.email t@example.invalid
+	git -C "$R" config commit.gpgsign false
+	cp "$HERE/scripts/quality/ci-job-scope.sh" "$R/scripts/quality/"
+	cp "$HERE/$RUNNER" "$R/$RUNNER"
+	printf '%s\n\t**\n%s\n\tarchive.txt\n%s\n\tother.txt\n' \
+		"$EDITOR" "$BUILD" "$OTHER" > "$R/scripts/quality/suite-scope.txt"
+	printf '%s -\n%s reprepro\n%s shellcheck\n' "$EDITOR" "$BUILD" "$OTHER" \
+		> "$R/scripts/quality/suite-dependencies.txt"
+	if [ "${1:-}" = real ]; then
+		cp "$HERE/scripts/quality/suite-scope.txt" "$R/scripts/quality/"
+		cp "$HERE/scripts/quality/suite-dependencies.txt" "$R/scripts/quality/"
+	fi
+	printf 'base\n' > "$R/docs.md"; printf 'archive\n' > "$R/archive.txt"; printf 'other\n' > "$R/other.txt"
+	git -C "$R" add -A; git -C "$R" commit -qm base
+	git -C "$R" checkout -qb pr
+}
+package_merge() {
+	git -C "$R" add -A; git -C "$R" commit -qm change
+	git -C "$R" checkout -q main; git -C "$R" merge -q --no-ff pr -m merge
+}
+install_packages() { # [event] [test command] [shellcheck sha256]
+	: > "$WORK/apt.log"; : > "$WORK/path"; rm -rf "$WORK/rt-packages"; mkdir -p "$WORK/rt-packages"
+	( cd "$R" && PATH="$WORK/bin:$PATH" APT_LOG="$WORK/apt.log" SC_TARBALL="$WORK/sc.tar.xz" \
+		RUNNER_TEMP="$WORK/rt-packages" GITHUB_PATH="$WORK/path" EVENT="${1:-pull_request}" \
+		TEST_COMMAND="${2:-$COMMAND}" APT_PACKAGES="${CALLER_PACKAGES:-$FULL_PACKAGES}" \
+		SHELLCHECK_VERSION=v0.0.0 SHELLCHECK_SHA256="${3:-$SC_SHA}" \
+		bash "$WORK/install.sh" ) > "$WORK/install.out" 2>&1
+	local status=$?
+	if [ "$status" -ne 0 ]; then
+		cat "$WORK/install.out"; echo "install step failed: $status"
+	else
+		cat "$WORK/apt.log"
+	fi
+}
+FULL_INSTALL=$(printf 'pinned shellcheck\napt-get update -qq\napt-get install -y -qq python3-cryptography reprepro python3-yaml')
+
+package_repo real; echo more >> "$R/docs.md"; package_merge
+REAL_COMMAND="$(python3 - "$HERE/.github/workflows/tests.yml" <<'PYCOMMAND'
+import sys, yaml
+print(yaml.safe_load(open(sys.argv[1]))['jobs']['shell']['with']['test-command'])
+PYCOMMAND
+)"
+# The real map may name packages the fixture list does not, so the real cases
+# install against the real caller's list.
+CALLER_PACKAGES="$(python3 - "$HERE/.github/workflows/tests.yml" <<'PYCOMMAND'
+import sys, yaml
+print(yaml.safe_load(open(sys.argv[1]))['jobs']['shell']['with']['apt-packages'])
+PYCOMMAND
+)"
+export CALLER_PACKAGES
+check "docs-only PR with the real suite list and maps installs nothing" "" \
+	"$(install_packages pull_request "$REAL_COMMAND")"
+
+# The real maps again: a change to the workflow shell linter selects its
+# suite, which needs shellcheck, and nothing that needs ruby.
+package_repo real
+mkdir -p "$R/scripts/quality"; echo '# changed' >> "$R/scripts/quality/lint-workflow-shell.sh"
+package_merge
+real_lint="$(install_packages pull_request "$REAL_COMMAND")"
+check "a change to the workflow shell linter installs the pinned shellcheck first" "pinned shellcheck" \
+	"$(printf '%s\n' "$real_lint" | head -1)"
+check "and neither ruby nor shellcheck from apt" "0" \
+	"$(printf '%s\n' "$real_lint" | grep -c -e ruby -e 'install.*shellcheck')"
+unset CALLER_PACKAGES
+package_repo; echo more >> "$R/docs.md"; package_merge
+check "docs-only PR does not invoke apt at all" "" "$(install_packages)"
+check "push installs the complete caller list" "$FULL_INSTALL" "$(install_packages push)"
+check "schedule installs the complete caller list" "$FULL_INSTALL" "$(install_packages schedule)"
+check "unsupported command installs everything" "$FULL_INSTALL" "$(install_packages pull_request 'true')"
+check "compound command installs everything" "$FULL_INSTALL" "$(install_packages pull_request "$COMMAND && true")"
+check "multiline command installs everything" "$FULL_INSTALL" "$(install_packages pull_request "$COMMAND"$'\ntrue')"
+# A PR cannot use its checkout's dependency map to override BASE.
+printf '%s reprepro\n' "$EDITOR" > "$R/scripts/quality/suite-dependencies.txt"
+check "checkout dependency map is ignored" "" "$(install_packages)"
+git -C "$R" checkout -- scripts/quality/suite-dependencies.txt
+echo '# changed' >> "$R/$RUNNER"
+check "changed runner installs everything as it would run every suite" "$FULL_INSTALL" "$(install_packages)"
+
+package_repo; echo more >> "$R/archive.txt"; package_merge
+check "suite requiring reprepro installs exactly reprepro before running" \
+	$'apt-get update -qq\napt-get install -y -qq reprepro' "$(install_packages)"
+
+# The suites get the pinned shellcheck release the shellcheck job uses, verified,
+# never from apt; a suite that needs nothing else installs nothing from apt.
+package_repo; echo more >> "$R/other.txt"; package_merge
+check "a suite needing shellcheck gets the pinned release and no apt run" \
+	"pinned shellcheck" "$(install_packages)"
+check "and the pinned binary is the one put on PATH" "pinned shellcheck" \
+	"$("$(cat "$WORK/path")/shellcheck")"
+check "a shellcheck tarball whose sha256 does not match fails the step" "1" \
+	"$(install_packages pull_request "$COMMAND" "$(printf '%064d' 0)" | grep -c 'install step failed')"
+check "and nothing is put on PATH" "" "$(cat "$WORK/path")"
+
+package_repo; echo '# changed in PR' >> "$R/scripts/quality/suite-dependencies.txt"; package_merge
+check "committed dependency-policy change installs everything" "$FULL_INSTALL" "$(install_packages)"
+
+# Each defect is in BASE: the workflow must keep the full list when the
+# classifier fails, returns garbage/empty, or cannot supply the needed policy.
+for defect in failed empty unknown old empty-suites unknown-suites missing-map malformed-map duplicate-map unknown-package unmapped-suite missing-scope bad-scope; do
+	package_repo
+	case "$defect" in
+		failed) printf '#!/bin/bash\nexit 1\n' > "$R/scripts/quality/ci-job-scope.sh" ;;
+		empty) printf '#!/bin/bash\nexit 0\n' > "$R/scripts/quality/ci-job-scope.sh" ;;
+		unknown) printf '#!/bin/bash\necho garbage\n' > "$R/scripts/quality/ci-job-scope.sh" ;;
+		old) printf '#!/bin/bash\necho true\n' > "$R/scripts/quality/ci-job-scope.sh" ;;
+		empty-suites) sed -i 's/for name in suites(.*):/for name in []:/' "$R/scripts/quality/ci-job-scope.sh" ;;
+		unknown-suites) sed -i 's/for name in suites(.*):/for name in ["tests\/unknown.test.sh"]:/' "$R/scripts/quality/ci-job-scope.sh" ;;
+		missing-map) rm "$R/scripts/quality/suite-dependencies.txt" ;;
+		malformed-map) printf '%s\n' "$EDITOR" > "$R/scripts/quality/suite-dependencies.txt" ;;
+		duplicate-map) printf '%s -\n' "$EDITOR" >> "$R/scripts/quality/suite-dependencies.txt" ;;
+		unknown-package) printf '%s imaginary-package\n' "$EDITOR" > "$R/scripts/quality/suite-dependencies.txt" ;;
+		unmapped-suite) sed -i "\|^$EDITOR |d" "$R/scripts/quality/suite-dependencies.txt" ;;
+		missing-scope) rm "$R/scripts/quality/suite-scope.txt" ;;
+		bad-scope) printf '%s\n' "$EDITOR" > "$R/scripts/quality/suite-scope.txt" ;;
+	esac
+	git -C "$R" add -A; git -C "$R" commit -qm "$defect"
+	git -C "$R" checkout -q main; git -C "$R" merge -q --ff-only pr
+	git -C "$R" checkout -qb change
+	echo more >> "$R/docs.md"; package_merge
+	check "$defect decision installs every dependency" "$FULL_INSTALL" "$(install_packages)"
+done
+
+package_repo; echo more >> "$R/docs.md"
+git -C "$R" add -A; git -C "$R" commit -qm 'branch head, not merge'
+check "non-merge checkout installs everything" "$FULL_INSTALL" "$(install_packages)"
+package_repo; git -C "$R" commit -qm empty --allow-empty
+git -C "$R" checkout -q main; git -C "$R" merge -q --no-ff pr -m merge
+check "empty diff installs everything" "$FULL_INSTALL" "$(install_packages)"
+package_repo; echo more >> "$R/docs.md"; package_merge
+parent=$(git -C "$R" rev-parse HEAD^1)
+tree=$(git -C "$R" rev-parse "HEAD^1^{tree}")
+# The base commit and its root tree both go, and any commit-graph with them,
+# because a commit-graph can still answer for a commit whose object is gone.
+rm -f "$R/.git/objects/${parent:0:2}/${parent:2}" "$R/.git/objects/${tree:0:2}/${tree:2}"
+rm -rf "$R/.git/objects/info/commit-graph" "$R/.git/objects/info/commit-graphs"
+check "the fixture's base really cannot be read" "1" \
+	"$(git -C "$R" show HEAD^1:scripts/quality/ci-job-scope.sh >/dev/null 2>&1 && echo 0 || echo 1)"
+check "unreadable base installs everything" "$FULL_INSTALL" "$(install_packages)"
+
+# The real dependency map names suites the workflow runs, packages the caller
+# lists, and no suite twice. A suite left out is allowed: it gets the full
+# install, which is the fail-open default.
+map_valid="$(python3 -I - "$HERE" <<'PYMAP'
+from pathlib import Path
+import sys
+root = Path(sys.argv[1])
+wf = (root / '.github/workflows/tests.yml').read_text()
+allowed = set(wf.split('apt-packages: ', 1)[1].splitlines()[0].split())
+seen = set()
+for line in (root / 'scripts/quality/suite-dependencies.txt').read_text().splitlines():
+    fields = line.split()
+    if not fields or fields[0].startswith('#'):
+        continue
+    suite, *deps = fields
+    assert suite not in seen and './' + suite in wf and (root / suite).is_file(), line
+    assert deps == ['-'] or (deps and set(deps) <= allowed), line
+    seen.add(suite)
+assert seen
+print('ok')
+PYMAP
+)"
+check "the real dependency map names run suites and listed packages without duplicates" "ok" "$map_valid"
+
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"
 [ "$fail" -eq 0 ]

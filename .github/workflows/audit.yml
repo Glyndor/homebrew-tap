@@ -50,6 +50,8 @@ concurrency:
 
 jobs:
   scope:
+    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
+    # compares strings, so a new image cannot change its verdict.
     runs-on: ubuntu-latest
     # Only checkout and a local diff; 2 minutes bounds runner/setup stalls.
     # No hosted measurement yet; the decision itself is exercised by audit-scope.test.sh.
@@ -95,6 +97,13 @@ jobs:
     # Success. Unlike always(), it does not start in a run that was cancelled.
     if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.run_audit == 'true') }}
     name: brew audit
+    # macos-latest is left floating, unlike the Linux jobs. What decides this
+    # verdict is Homebrew's rule set, and the Homebrew preinstalled on any macOS
+    # image is replaced by GitHub every week whatever the label says, so naming
+    # a macOS version would not hold the tool still. The question asked is
+    # whether the formula passes on the macOS a user installing today gets,
+    # which is the latest one. Which version the label resolved to was not
+    # measured when this was written; the run log says it.
     runs-on: macos-latest
     # The variables below stop brew updating itself; this bounds what is left.
     # Measured over the last eight runs: 25 to 96 seconds, one outlier at 246

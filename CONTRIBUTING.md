@@ -31,8 +31,8 @@ from creating or approving them, and that setting is locked org-wide. A commit
 that no pull request produced has no checks run on it, so the push needs a
 bypass actor on the ruleset. `github-actions[bot]` cannot be one; a GitHub App
 can. `glyndor-updater` is that app, installed on this repository with
-`contents: write` and nothing else. The job mints a short-lived token from the
-app's private key (`UPDATER_APP_PRIVATE_KEY`, a repository secret; the id is
+`contents: write` and nothing else. The workflow's `commit` job mints a
+short-lived token from the app's private key (`UPDATER_APP_PRIVATE_KEY`, a repository secret; the id is
 the variable `UPDATER_APP_ID`) on every scheduled run, so a removed
 installation or a broken key turns into a red run on the next schedule, not at
 the next release.
@@ -49,6 +49,14 @@ gate between a bad render and `brew install`**, because the bot's push skips the
 required checks. It is covered by `tests/publication/update/update-workflow.test.sh`, which
 extracts the workflow's own `run:` blocks and executes them as they ship rather
 than against a copy.
+
+The workflow runs in three jobs, and only `commit` ever holds the app's key.
+`render` renders the formulae and records their SHA-256 in its job outputs;
+`validate` runs `brew style` and `brew audit --strict`, which can install Ruby
+gems, so it holds no secret; `commit` runs no `brew`, commits only files that
+match the recorded digests, and needs both. Keep any new `brew` command, or any
+install, out of the `commit` job: `tests/publication/update/update-key-isolation.test.sh`
+and the `workflow-lint` check refuse it.
 
 `dco-on-main.yml` stays as detection for anything that lands without a pull
 request: an unsigned human commit would be a red run within a minute.

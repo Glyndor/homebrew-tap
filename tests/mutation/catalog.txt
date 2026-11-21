@@ -71,6 +71,8 @@ suites-wired-base-exemptions	scripts/quality/check-suites-wired.sh	    return {p
 lint-base-exemptions	.github/workflows/reusable-workflow-lint.yml	            && git show "HEAD^1:$exemptions" > "$script.exempt" 2>/dev/null; then	            && cp "$exemptions" "$script.exempt" 2>/dev/null; then	tests/quality/check-suites-wired.test.sh
 suites-wired-operators	scripts/quality/check-suites-wired.sh	OPERATOR_RE = re.compile(r"[|&;<>`]|\$\(")	OPERATOR_RE = re.compile(r"(?!)")	tests/quality/check-suites-wired.test.sh
 suites-wired-heredoc	scripts/quality/check-suites-wired.sh	                        if "<<" in run else "") \	                        if False else "") \	tests/quality/check-suites-wired.test.sh
+suites-wired-skip-paths	scripts/quality/check-suites-wired.sh	                             skip_gate, where)	                             job_gate, where)	tests/quality/check-suites-wired.test.sh
+suites-wired-skip-literal	scripts/quality/check-suites-wired.sh	    if [[ "$f" == $pattern ]]; then	    if [[ "$f" == "$pattern" ]]; then	tests/quality/check-suites-wired.test.sh
 pins-sha	scripts/quality/check-action-pins.sh	if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then	if false; then	tests/quality/check-action-pins.test.sh
 channel-usable-path	scripts/monitoring/check-channel-drift.sh	[[ "$1" =~ ^[A-Za-z0-9._/-]+$ ]] || return 1	[[ "$1" =~ ^.*$ ]] || return 1	tests/monitoring/check-channel-drift.test.sh
 channel-empty-body	scripts/monitoring/check-channel-drift.sh	if [ ! -s "$tmp/remote" ]; then	if false; then	tests/monitoring/check-channel-drift.test.sh

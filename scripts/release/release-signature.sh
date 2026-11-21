@@ -60,6 +60,12 @@ verify_sha256sums() { # $1=repo $2=tag $3=product
 	# error: a release that publishes only the Ed25519 signature is admitted
 	# exactly as it was before, unless its product is in the required list.
 	#
+	# It is asked for even when no ML-DSA-65 key is configured and no product
+	# is required, which today means one more request per product and run that
+	# answers 404. Skipping it then would admit a release that carries a second
+	# signature nobody can check, and that release is refused on purpose: the
+	# key reaches the verifier before any product signs with it.
+	#
 	# The status code is what tells the two apart, and it is read with the
 	# transfer instead of guessed from curl's exit status: a 404 means the
 	# release carries no second signature, while any other failure means the
@@ -370,6 +376,18 @@ check_release_configuration() {
 			return 1
 		}
 	done
+	# The two switches are set in one order: the public key reaches the
+	# verifier first, and a product is required only after a release of it
+	# has been verified with both signatures. A key with an empty list is the
+	# state between those steps, and is valid: a second signature is checked
+	# when a release carries one, and none is demanded yet. A list with no key
+	# is not a state of that order. Every release of a required product would
+	# be refused, reported as that product's release and not as this file, so
+	# it stops here.
+	if [ "${#required[@]}" -gt 0 ] && [ -z "$RELEASE_PQ_PUBKEY_B64$RELEASE_PQ_PUBKEY2_B64" ]; then
+		echo "::error::the required-products list names ${required[*]}, and no ML-DSA-65 release public key is configured to check the signature it requires; the key is committed before any product is required" >&2
+		return 1
+	fi
 }
 
 # release_key_bytes <algorithm> <base64>: the number of bytes a configured key

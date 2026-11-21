@@ -59,6 +59,11 @@ RELEASE_PQ_PUBKEY2_B64=""
 # a product named here is refused without its ML-DSA-65 signature. Every name
 # must be a product of the roster below, and one that names no product stops
 # the run before any release is read.
+#
+# The two switches move in one order: a key goes into a slot above first, and
+# a product is named here only after a release of it has been verified with
+# both signatures. A key with this list empty is the state between the two, and
+# is valid; a name here with both slots empty stops the run as well.
 RELEASE_PQ_REQUIRED=""
 
 # Bounds on the bytes this script reads off the network. The signature proves

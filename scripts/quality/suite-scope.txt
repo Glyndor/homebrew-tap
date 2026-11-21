@@ -485,7 +485,7 @@ tests/monitoring/check-channel-drift.test.sh
 
 # The transfer-cap gate audits the three drift watchers.
 
-tests/monitoring/drift-watchers-transfer-cap.test.sh
+tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
 	scripts/monitoring/check-channel-drift.sh
 	scripts/monitoring/check-render-drift.sh
 	scripts/monitoring/check-reusable-drift.sh

@@ -390,6 +390,13 @@ tests/quality/check-test-job-not-switchable.test.sh
 tests/quality/check-tooling-isolation.test.sh
 	scripts/quality/check-tooling-isolation.sh
 
+# The tool-version watcher reads the pins from the two reusables that carry them.
+
+tests/monitoring/check-tool-versions.test.sh
+	scripts/monitoring/check-tool-versions.sh
+	.github/workflows/reusable-shell-ci.yml
+	.github/workflows/reusable-workflow-lint.yml
+
 # --- the quality gates ------------------------------------------------------
 #
 # The coverage gate walks EVERY script under scripts/ and requires a test of

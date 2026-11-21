@@ -224,7 +224,7 @@ catch, because a count per file cannot tell one guard from another.
 | `tests.yml` | four jobs. `shell`: a suite or shellcheck. `ML-DSA-65 verifier`: the second signature verified with real ML-DSA-65 keys, in a virtual environment built from `scripts/release/render-requirements.txt`, so a red there can be that pinned wheel failing to install as well as the verifier. `products match the generator`: `Formula/` no longer matches `PRODUCTS`, a formula is not what the generator emits, or one goes back to an older release. `brew style`: Homebrew's style rules reject a formula |
 | `audit.yml` | Homebrew's own rules reject the rendered formulae |
 | `pr-hygiene.yml` | the pull request itself is malformed |
-| `freshness.yml` | something scheduled stopped happening elsewhere |
+| `freshness.yml` | something scheduled stopped happening elsewhere, or a tool pinned in a reusable fell behind its upstream release |
 | `dco.yml` | a commit of the pull request has no `Signed-off-by` trailer |
 | `line-limit.yml` | a source file is over the hard limit of 500 lines of code; passing the soft limit of 300 only warns |
 | `workflow-lint.yml` | `actionlint` found a mistake in a workflow, a suite under `tests/` is run by no workflow, a caller can switch the required test job off, or a job that holds a secret installs third-party tooling |

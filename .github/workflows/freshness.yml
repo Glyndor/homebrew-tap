@@ -47,7 +47,8 @@ on:
   schedule:
     - cron: "13 8,20 * * *"
   # A pull request runs these only when it changes what these jobs are made of:
-  # this file, the two reusables it calls and the script its suite job runs.
+  # this file, the two reusables it calls, the script its suite job runs and
+  # the one its tool-versions job runs.
   # Anything else cannot change the
   # verdict, so it would only repeat the same verdicts. None of the jobs here is a
   # required check, which is what makes a path filter safe: a required check
@@ -61,6 +62,7 @@ on:
       - .github/workflows/reusable-dependabot-freshness.yml
       - .github/workflows/reusable-schedule-freshness.yml
       - scripts/monitoring/check-suite-on-main.sh
+      - scripts/monitoring/check-tool-versions.sh
   push:
     branches: [main]
 
@@ -247,3 +249,40 @@ jobs:
         run: |
           set -euo pipefail
           bash ./scripts/monitoring/check-suite-on-main.sh
+
+  # The versions of shellcheck and actionlint written inside the reusables have
+  # no update path: Dependabot moves `uses:` pins only, and dependabot-freshness
+  # reads only those. This compares each pinned version with the releases its
+  # upstream publishes and fails once the first release after the pin has been
+  # out longer than the lag the script states and explains (30 days). An
+  # upstream that cannot be read fails too, rather than passing unread.
+  #
+  # Here because this workflow already runs twice a day and on every push to
+  # main, and its own cron is watched by freshness-itself. Like every job here
+  # it is not a required check: a new release upstream says nothing about the
+  # pull request under review. The pull request filter names the script and not
+  # the reusables that carry the pins, so a pin bump is judged by the push that
+  # lands it.
+  #
+  # It asks GitHub for the releases of two public repositories with the job's
+  # own token, and `contents: read` is all that needs.
+  tool-versions:
+    name: pinned tool versions keep up with upstream
+    runs-on: ubuntu-latest
+    # Two `gh release list` calls and a checkout, seconds when measured
+    # locally against stubs; the real calls are two API requests. Ten minutes
+    # is the floor this repository uses for a job whose honest run is seconds.
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compare the pinned tool versions with upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bash ./scripts/monitoring/check-tool-versions.sh

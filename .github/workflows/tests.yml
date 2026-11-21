@@ -114,6 +114,7 @@ jobs:
         ./tests/ci/reusable/reusable-dependabot-freshness.test.sh
         ./tests/ci/reusable/reusable-schedule-freshness.test.sh
         ./tests/ci/reusable/reusable-workflow-lint.test.sh
+        ./tests/monitoring/check-tool-versions.test.sh
         ./tests/quality/check-test-job-not-switchable.test.sh
         ./tests/quality/check-tooling-isolation.test.sh
         ./tests/ci/policy/rules/brew-jobs-are-bounded.test.sh

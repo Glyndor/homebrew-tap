@@ -238,6 +238,37 @@ rc=0; run "$WORK/served/scripts/release/render-formulae.sh" "$WORK/served" || rc
 check "a formula whose urls are all commented out has no served version" "1" "$rc"
 contains "and the error says so" "$WORK/out" "cannot determine a unique served version"
 
+# A served formula that names two different tags has no served version either.
+# The renderer reads the version out of a set, and a set holds no order: without
+# the refusal, which of the two tags became the baseline of the rollback check
+# depended on the hash seed of the process, so the same tree refused a
+# downgrade on one run and published it on the next. The case holds whichever
+# tag the set would hand back: a candidate above the first tag and below the
+# second renders under one choice and is refused as a downgrade under the other,
+# and neither outcome is the refusal that names the cause.
+new_root "$WORK/twotags"
+generator_with "$WORK/twotags/scripts/release/render-formulae.sh" "$PODUP"
+publish Glyndor/podup "v1.0.0" podup-darwin-arm64 podup-darwin-x86_64
+run "$WORK/twotags/scripts/release/render-formulae.sh" "$WORK/twotags"
+cp "$WORK/twotags/Formula/podup.rb" "$WORK/twotags.same"
+printf '  url "https://github.com/Glyndor/podup/releases/download/v1.0.0/podup-darwin-x86_64"\n' \
+	>> "$WORK/twotags/Formula/podup.rb"
+publish Glyndor/podup "v1.0.1" podup-darwin-arm64 podup-darwin-x86_64
+rc=0; run "$WORK/twotags/scripts/release/render-formulae.sh" "$WORK/twotags" || rc=$?
+check "a formula repeating one tag still has a served version and renders" "0" "$rc"
+cp "$WORK/twotags.same" "$WORK/twotags/Formula/podup.rb"
+printf '  url "https://github.com/Glyndor/podup/releases/download/v9.9.9/podup-darwin-x86_64"\n' \
+	>> "$WORK/twotags/Formula/podup.rb"
+cp "$WORK/twotags/Formula/podup.rb" "$WORK/twotags.before"
+rc=0; run "$WORK/twotags/scripts/release/render-formulae.sh" "$WORK/twotags" || rc=$?
+check "a formula naming two different tags is refused (exit 1)" "1" "$rc"
+contains "and the error says there is no unique served version" "$WORK/out" \
+	"cannot determine a unique served version"
+check "and the refusal is not the rollback check reading one of the two tags" "0" \
+	"$(grep -c 'refusing release downgrade' "$WORK/out" || true)"
+check "and the formula on disk is left as it was" "0" \
+	"$(cmp -s "$WORK/twotags.before" "$WORK/twotags/Formula/podup.rb"; echo $?)"
+
 
 echo
 echo "$pass passed, $fail failed"

@@ -64,6 +64,7 @@ tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh
 tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
 tests/ci/policy/workflows/workflow-shape.test.sh
 tests/ci/policy/workflows/persist-credentials.test.sh
+tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
 tests/ci/policy/workflows/workflow-publish-triggers.test.sh
 tests/ci/reusable/reusable-dco.test.sh
 tests/ci/reusable/reusable-dependabot-freshness.test.sh

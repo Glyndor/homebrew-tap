@@ -169,7 +169,7 @@ done
 # The check is only a gate while the workflow runs it: a step that stopped
 # calling the script would leave every case above green and the tap unguarded.
 check "the tests workflow runs the formula check" "1" \
-	"$(grep -qE '^[[:space:]]+\./scripts/artifacts/check-formulae\.sh[[:space:]]*$' "$HERE/.github/workflows/tests.yml" && echo 1 || echo 0)"
+	"$(grep -qE '^[[:space:]]+(bash[[:space:]]+)?\./scripts/artifacts/check-formulae\.sh[[:space:]]*$' "$HERE/.github/workflows/tests.yml" && echo 1 || echo 0)"
 
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${0##*/}" "$pass" "$fail"

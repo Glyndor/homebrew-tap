@@ -24,6 +24,17 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request supersedes the run still going on the old commit:
+# the suite, `brew style` and the formula checks would all answer for a commit that
+# no longer exists. Only a pull request cancels. Every run on main is kept, and the
+# group is unique per run there, because GitHub also drops a PENDING run of a
+# shared group when a newer one queues, and freshness.yml reads the verdict of each
+# commit on main. tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
+# holds this shape.
+concurrency:
+  group: tests-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # The first item is the runner and the rest are its arguments. A `&&` chain
 # cannot tell a suite that ran every assertion from one that exited early
 # having run three: both leave a zero status and the chain moves on. Every
@@ -74,6 +85,7 @@ jobs:
         ./tests/quality/ci-job-scope-suites.test.sh
         ./tests/ci/suites/lint-job-scope.test.sh
         ./tests/ci/policy/rules/cancel-policy.test.sh
+        ./tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
         ./tests/ci/reusable/reusable-empty-diff.test.sh
         ./tests/ci/reusable/reusable-dco.test.sh
         ./tests/quality/check-editorconfig.test.sh
@@ -139,7 +151,7 @@ jobs:
           # tested. Inline in this file it was unreachable by anything but a
           # real CI run, which meant it had never been watched fail.
           # tests/artifacts/check-products-consistent.test.sh covers it.
-          ./scripts/artifacts/check-products-consistent.sh
+          bash ./scripts/artifacts/check-products-consistent.sh
 
       - name: Every formula must match what the generator emits
         run: |
@@ -160,7 +172,7 @@ jobs:
           # A step here rather than a new job: a job id is part of the name of
           # a required status check, and a new one would not be required until
           # the ruleset changed. This step rides inside a check that already is.
-          ./scripts/artifacts/check-formulae.sh
+          bash ./scripts/artifacts/check-formulae.sh
 
       - name: A formula never goes back to an older release
         if: github.event_name == 'pull_request'
@@ -171,7 +183,7 @@ jobs:
           # The renderer refuses a rollback, a hand edit does not. The base is
           # fetched on its own: the checkout is shallow and has no history.
           git fetch --no-tags --depth=1 origin "$BASE_SHA"
-          ./scripts/artifacts/check-version-monotonic.sh "$BASE_SHA"
+          bash ./scripts/artifacts/check-version-monotonic.sh "$BASE_SHA"
 
   formulae:
     name: brew style

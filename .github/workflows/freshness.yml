@@ -238,4 +238,4 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          ./scripts/monitoring/check-suite-on-main.sh
+          bash ./scripts/monitoring/check-suite-on-main.sh

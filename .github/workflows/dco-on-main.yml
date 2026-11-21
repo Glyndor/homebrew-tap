@@ -48,4 +48,4 @@ jobs:
           PUSHER: ${{ github.event.pusher.name }}
         run: |
           set -euo pipefail
-          ./scripts/governance/check-dco-on-main.sh "$BEFORE" "$AFTER" "$PUSHER"
+          bash ./scripts/governance/check-dco-on-main.sh "$BEFORE" "$AFTER" "$PUSHER"

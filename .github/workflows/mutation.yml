@@ -42,4 +42,4 @@ jobs:
       - name: Break every guard on purpose and watch the suites notice
         run: |
           set -euo pipefail
-          ./tests/mutation/run-mutations.sh
+          bash ./tests/mutation/run-mutations.sh

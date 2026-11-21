@@ -262,6 +262,9 @@ render "$R" --pq-pubkey "$KEY"
 check "and a key with an empty list, the state between the two steps, starts and admits" "0 1" \
 	"$rc $(said 'SHA256SUMS signature verified')"
 check "and the stop is a configuration error, not a tampered release" "0" "$(said 'release was not admitted')"
+# That run was admitted and wrote its files, and the cases after it count what a
+# refused run leaves behind, so they start from a root nothing was written to.
+fresh guard-refused "$PODUP" "$OTHER"; release
 
 # The Ed25519 slots are held to the same check. A malformed one used to reach the
 # verifier, which refused every release in turn as if each were bad.

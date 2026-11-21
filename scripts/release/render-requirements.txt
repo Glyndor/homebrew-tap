@@ -10,9 +10,10 @@
 # --require-hashes fixes the exact artifacts, so nothing is resolved at install
 # time; --only-binary=:all: refuses an sdist, so no build script runs.
 #
-# This file is the same text in Glyndor/scoop-bucket: the two channels verify
-# the second signature with the same wheel, so a key rotation or a library
-# change cannot land in one of them only.
+# This file is the same text in Glyndor/homebrew-tap and Glyndor/scoop-bucket,
+# compared byte for byte by scripts/monitoring/check-channel-drift.sh: the two
+# channels verify the second signature with the same wheel, so a library change
+# cannot land in one of them only.
 cffi==2.1.1 \
     --hash=sha256:baed1e86cc735622097354b9d1281406caf42ff42a886d29faa8e8d1630333be \
     --hash=sha256:ca82be1a1d406ecfe1d25dc16cb33488e5a16bf4438c9fb590484ea29d92478b \

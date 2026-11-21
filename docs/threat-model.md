@@ -181,6 +181,18 @@ overlap, and the two channels carry the same key material: a rotation that
 lands in one of them and not the other is reported as drift by
 `scripts/monitoring/check-render-drift.sh#UNITS`.
 
+The second signature has a switch besides its key: `RELEASE_PQ_REQUIRED`
+(`scripts/release/render-formulae.sh#RELEASE_PQ_REQUIRED`), the products whose second
+signature is required. It is empty today, here and in Glyndor/scoop-bucket. The order is:
+the ML-DSA-65 public key goes into a slot in both channels; a product starts to
+sign with both keys; and once a release of it has been verified here with both
+signatures, the product is named in the list in both channels. From that commit
+on, a release of that product without its second signature is refused. Before
+it, a second signature is checked whenever a release carries one, and it stops
+nobody who can forge the Ed25519 one, since that forger leaves it out. The list
+is part of what `scripts/monitoring/check-render-drift.sh#UNITS` compares
+between the channels, like the keys.
+
 ## Residual risks
 
 - **A human who merges past a red check.** `dco` and the rest are required,
@@ -235,6 +247,11 @@ lands in one of them and not the other is reported as drift by
   module. An assessment that needs one needs a documented exception.
 - **No independent audit.** Every measurement on this page was made by the
   project.
+- **The second signature is optional until a product is required.** No
+  product is in `RELEASE_PQ_REQUIRED` today, so every release is admitted on
+  its Ed25519 signature alone, and a forger of that signature is not stopped by
+  the ML-DSA-65 check. The list is edited by hand in both channels, in the order
+  the key rotation section gives.
 
 ## Out of scope
 
@@ -258,6 +275,7 @@ grep -n 'RELEASE_PUBKEY\|RELEASE_PQ' scripts/release/render-formulae.sh   # the 
 bash scripts/quality/check-doc-anchors.sh                      # every reference above resolves
 bash scripts/artifacts/check-formulae.sh                       # what the formulae may say
 bash tests/release/render-formulae.test.sh
+bash tests/release/release-signature.test.sh                  # the second signature, without the ML-DSA library
 bash tests/publication/update/update-workflow.test.sh
 bash tests/publication/update/update-key-isolation.test.sh
 bash tests/ci/policy/rules/brew-jobs-are-bounded.test.sh

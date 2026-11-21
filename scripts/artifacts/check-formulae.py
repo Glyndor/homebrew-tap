@@ -10,11 +10,13 @@ cuts the roster out of the generator and turns the records into annotations.
 """
 import os
 import re
+import subprocess
 import sys
 
 FIELDS = ("repo", "formula", "cls", "licence", "desc",
           "mac_arm", "mac_intel", "linux_arm", "linux_intel", "version_check")
 ROSTER = "scripts/release/render-formulae.sh"
+READER = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "release", "products.sh")
 VERSION_RE = re.compile(r"^[0-9](?:[0-9A-Za-z.+-]*[0-9A-Za-z.+-])?$")
 DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 URL_RE = re.compile(r"^https://github\.com/([^/]+/[^/]+)/releases/download/([^/]+)/([^/]+)$")
@@ -123,36 +125,23 @@ class Reader(object):
 
 
 def read_roster(path):
-    """The rows of the PRODUCTS table, and the problems reading it."""
+    """The rows of the PRODUCTS table, and the problems reading it.
+
+    The table is read by scripts/release/products.sh, the reader every gate of
+    this repository uses for it, so this check and check-products-consistent.sh
+    cannot read two different rosters from one file. A table the reader refuses
+    is a problem here, with the reader's own reason.
+    """
     try:
-        with open(path, encoding="utf-8", newline="") as handle:
-            lines = handle.read().splitlines()
+        done = subprocess.run(["bash", READER, path], capture_output=True, text=True, check=False)
     except OSError as error:
         return [], ["cannot read the PRODUCTS roster in %s: %s" % (ROSTER, error)]
-    rows = []
-    problems = []
-    inside = False
-    for number, line in enumerate(lines, start=1):
-        stripped = line.strip()
-        if not inside:
-            if not stripped.startswith("PRODUCTS=("):
-                continue
-            inside = True
-            stripped = stripped[len("PRODUCTS=("):].strip()
-            if stripped.endswith(")"):
-                stripped = stripped[:-1].strip()
-        if stripped.startswith(")"):
-            break
-        if not stripped:
-            continue
-        match = re.fullmatch(r'"([^"]*)",?', stripped)
-        if match is None:
-            problems.append("the PRODUCTS roster in %s line %d is not a quoted row: %s" % (ROSTER, number, stripped))
-            continue
-        rows.append(match.group(1))
-    if not inside:
-        return [], ["no PRODUCTS roster in %s" % ROSTER]
-    return rows, problems
+    if done.returncode != 0:
+        reason = done.stderr.strip().replace("::error::", "") or "the reader stopped with status %d" % done.returncode
+        if "no PRODUCTS=( table" in reason:
+            return [], ["no PRODUCTS roster in %s" % ROSTER]
+        return [], ["cannot read the PRODUCTS roster in %s: %s" % (ROSTER, reason)]
+    return done.stdout.splitlines(), []
 
 
 def build_row(raw, number):

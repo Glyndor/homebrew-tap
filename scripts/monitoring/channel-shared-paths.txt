@@ -24,7 +24,8 @@
 #   check-render-drift.sh compares the units they share, and a byte
 #   comparison of the files would be red forever.
 #   The release signature check they both source is the exception, and is
-#   listed: scripts/release/release-signature.sh is one text in both.
+#   listed: scripts/release/release-signature.sh is one text in both, and so
+#   is scripts/release/products.sh, the reader of their PRODUCTS tables.
 #
 #   scripts/monitoring/check-suite-on-main.sh, which has three different
 #   implementations, one per channel, and is meant to.
@@ -49,6 +50,7 @@ scripts/quality/check-test-coverage.sh
 scripts/quality/ci-job-scope.sh
 scripts/quality/lint-workflow-shell.sh
 scripts/release/release-signature.sh
+scripts/release/products.sh
 scripts/release/render-requirements.txt
 tests/ci/policy/rules/cancel-policy.test.sh
 tests/ci/docs/documented-test-command.test.sh
@@ -91,4 +93,5 @@ tests/quality/check-test-coverage.test.sh
 tests/quality/ci-job-scope.test.sh
 tests/quality/lint-workflow-shell.test.sh
 tests/release/release-signature.test.sh
+tests/release/products.test.sh
 tests/release/release-signature/release-signature-mldsa.test.sh

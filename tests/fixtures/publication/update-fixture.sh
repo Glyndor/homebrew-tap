@@ -81,6 +81,8 @@ sandbox() { # $1=path $2=generator exit code $3=writes? (yes|digest|no|new|empty
 	cp "$HERE/Formula/podup.rb" "$dir/Formula/podup.rb"
 	cp "$HERE/scripts/artifacts/check-formulae.sh" "$HERE/scripts/artifacts/check-formulae.py" \
 		"$HERE/scripts/artifacts/formulae-digests.sh" "$dir/scripts/artifacts/"
+	# check-formulae.py reads the roster through the shared table reader.
+	cp "$HERE/scripts/release/products.sh" "$dir/scripts/release/"
 	# `del-multi` adds a second tracked formula so a deletion can leave the
 	# channel with one left, exercising the deletion-only-but-survivor path
 	# without also tripping the empty-channel refusal.

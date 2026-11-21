@@ -190,6 +190,7 @@ tests/publication/update/update-workflow.test.sh
 	.github/workflows/update.yml
 	Formula/**
 	scripts/artifacts/check-formulae.py
+	scripts/release/products.sh
 	scripts/artifacts/check-formulae.sh
 	scripts/artifacts/formulae-digests.sh
 	scripts/release/render-formulae.sh
@@ -203,6 +204,7 @@ tests/publication/update/update-key-isolation.test.sh
 	.github/workflows/update.yml
 	Formula/**
 	scripts/artifacts/check-formulae.py
+	scripts/release/products.sh
 	scripts/artifacts/check-formulae.sh
 	scripts/artifacts/formulae-digests.sh
 	scripts/release/render-formulae.sh
@@ -221,8 +223,15 @@ tests/publication/update/update-mldsa-venv.test.sh
 # tree the renderer writes, so a change to any of them moves what the gates
 # conclude.
 
+# The reader of the PRODUCTS table reads the renderer that declares it, and
+# compares what it prints with what bash declares from the same file.
+tests/release/products.test.sh
+	scripts/release/products.sh
+	scripts/release/render-formulae.sh
+
 tests/artifacts/check-products-consistent.test.sh
 	scripts/artifacts/check-products-consistent.sh
+	scripts/release/products.sh
 	scripts/release/render-formulae.sh
 	Formula/**
 
@@ -230,12 +239,14 @@ tests/artifacts/check-formulae.test.sh
 	.github/workflows/tests.yml
 	Formula/**
 	scripts/artifacts/check-formulae.py
+	scripts/release/products.sh
 	scripts/artifacts/check-formulae.sh
 	scripts/release/render-formulae.sh
 
 tests/artifacts/check-formulae/check-formulae-roster.test.sh
 	Formula/**
 	scripts/artifacts/check-formulae.py
+	scripts/release/products.sh
 	scripts/artifacts/check-formulae.sh
 	scripts/release/render-formulae.sh
 
@@ -268,6 +279,7 @@ tests/publication/audit/audit-trusts-the-linked-tap.test.sh
 tests/publication/update/update-audits-before-commit.test.sh
 	.github/workflows/update.yml
 	scripts/artifacts/check-formulae.sh
+	scripts/release/products.sh
 	tests/fixtures/publication/**
 
 # --- the CI policy rules ----------------------------------------------------

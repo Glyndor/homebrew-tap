@@ -37,10 +37,10 @@ root="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 # whatever the runner happens to have.
 export LC_ALL=C
 
-declared="$(awk '/^PRODUCTS=\(/ { inside = 1; next }
-                 inside && /^\)/  { exit }
-                 inside           { print }' "$root/scripts/release/render-formulae.sh" \
-           | sed -n 's/^[^"]*"[^|]*|\([^|]*\)|.*/\1/p' | sort -u)"
+# The table is read by scripts/release/products.sh, the reader every gate of
+# this repository uses for it; the product name is the second column.
+rows="$(bash "$(dirname "${BASH_SOURCE[0]}")/../release/products.sh" "$root/scripts/release/render-formulae.sh")" || rows=""
+declared="$(printf '%s\n' "$rows" | cut -d'|' -f2 | sed '/^$/d' | sort -u)"
 [ -n "$declared" ] || {
 	echo "::error::could not read PRODUCTS out of scripts/release/render-formulae.sh" >&2
 	exit 1

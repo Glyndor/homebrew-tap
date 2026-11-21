@@ -426,6 +426,15 @@ for key in pq_keys:
 sys.stderr.write("the ML-DSA-65 signature does not verify against any configured release key\n")
 sys.exit(1)
 PY
+	# A `case` that matches no pattern succeeds, so a status the verifier was
+	# never meant to return would admit the release: python3 missing (127), or
+	# the verifier killed or crashed before it printed a verdict (137, 139).
+	# Only the four statuses below are verdicts, and anything else is refused
+	# here, before the case reads it.
+	[ "$verify_rc" -le 3 ] || {
+		echo "::error::$1 $2: the signature check stopped with status $verify_rc before reaching a verdict; the release is refused" >&2
+		return 1
+	}
 	case "$verify_rc" in
 		0) return 0 ;;
 		1)

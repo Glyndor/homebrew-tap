@@ -71,3 +71,19 @@ updates:
     # predictable and matches the apt repo's.
     commit-message:
       prefix: chore
+
+  # The library that checks the second, ML-DSA-65 half of a release signature
+  # (scripts/release/render-requirements.txt). It is pinned by hash, so it moves
+  # only when something proposes the move. A group and an area of its own, so a
+  # bump of it is not read as one more action bump.
+  - package-ecosystem: "pip"
+    directory: "/scripts/release"
+    schedule:
+      interval: "daily"
+    labels: ["type:deps", "type:security", "area:renderer"]
+    open-pull-requests-limit: 5
+    groups:
+      verifier:
+        patterns: ["*"]
+    commit-message:
+      prefix: chore

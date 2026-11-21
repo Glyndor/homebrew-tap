@@ -34,12 +34,12 @@ err_body=""
 
 echo
 echo "=== a unit missing from the remote file fails and names which unit ==="
-# verify_sha256sums is gone on the remote side. release_keys and hash_of are
+# hash_of is gone on the remote side. release_keys and verify_attestation are
 # still present so the absent count is exactly one and the message names that
 # one without naming the others.
-run_with_remote "$(remote_with '/^verify_sha256sums() {/,/^}/d')"
+run_with_remote "$(remote_with '/^hash_of() {/,/^}/d')"
 expect_eq "$exit_code" "1" "exit 1 when a unit is missing on the remote"
-expect_contains "$err_body" "verify_sha256sums could not be found" "names the missing unit"
+expect_contains "$err_body" "hash_of could not be found" "names the missing unit"
 expect_contains "$err_body" "$REMOTE_FILE" "points at the remote file path"
 
 echo

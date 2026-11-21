@@ -113,26 +113,31 @@ tests/ci/suites/check-suite-completeness.test.sh
 
 tests/release/render-formulae.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae.test.sh
 
 tests/release/render-formulae/render-formulae-trust.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
 tests/release/render-formulae/render-formulae-transfer-limits.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
 tests/release/render-formulae/render-formulae-version.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
 tests/release/render-formulae/render-formulae-products.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
@@ -141,29 +146,43 @@ tests/release/render-formulae/render-formulae-products.test.sh
 
 tests/release/render-formulae/render-formulae-attestation.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 	.github/workflows/update.yml
 
 tests/release/render-formulae/render-formulae-linux-attestation.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
 tests/release/render-formulae/render-formulae-inputs.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
 tests/release/render-formulae/render-formulae-tag-shape.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
 tests/release/render-formulae/render-formulae-symlink.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
+
+# The release signature check both renderers source, driven through the
+# renderer, without the ML-DSA-65 library. The suite that needs the library
+# runs in its own job and has no entry, so it always runs.
+tests/release/release-signature.test.sh
+	scripts/release/release-signature.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/release/**
+	tests/release/release-signature.test.sh
 
 # --- the publication workflow ------------------------------------------------
 
@@ -189,6 +208,11 @@ tests/publication/update/update-key-isolation.test.sh
 	scripts/release/render-formulae.sh
 	tests/fixtures/publication/**
 	tests/publication/update/**
+
+tests/publication/update/update-mldsa-venv.test.sh
+	.github/workflows/update.yml
+	scripts/release/render-formulae.sh
+	tests/publication/update/update-mldsa-venv.test.sh
 
 # --- the formulae ------------------------------------------------------------
 #

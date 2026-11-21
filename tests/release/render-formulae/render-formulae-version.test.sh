@@ -139,8 +139,9 @@ https_only() { # $1=argv log; require every effective redirect restriction
 	python3 - "$1" <<'PYARGV'
 import json, sys
 calls = [json.loads(line) for line in open(sys.argv[1])]
-# The sums file, its signature and the two release assets: four downloads.
-valid = len(calls) == 4
+# The sums file, its signature, the optional second signature and the two
+# release assets: five downloads.
+valid = len(calls) == 5
 for args in calls:
     for flag in ("--proto-redir", "--proto"):
         values = [args[i + 1] for i, arg in enumerate(args[:-1]) if arg == flag]

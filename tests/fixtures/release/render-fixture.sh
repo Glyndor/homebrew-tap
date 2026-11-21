@@ -221,12 +221,14 @@ set -euo pipefail
 output=""
 url=""
 max_filesize=""
+write_out=""
 for arg in "$@"; do :; done 2>/dev/null || true
 args=("$@")
 for ((i = 0; i < ${#args[@]}; i++)); do
 	case "${args[i]}" in
 		-o)    output="${args[i+1]}" ;;
 		--max-filesize) max_filesize="${args[i+1]}" ;;
+		-w|--write-out) write_out="${args[i+1]}" ;;
 		http*) url="${args[i]}" ;;
 	esac
 done
@@ -241,13 +243,31 @@ asset="${rest#*/}"
 slug="${owner_repo//\//__}"
 fixture="$RELEASES/$slug/asset_${asset}"
 case "$asset" in
-	SHA256SUMS|SHA256SUMS.sig) fixture="$RELEASES/$slug/$asset" ;;
+	SHA256SUMS|SHA256SUMS.sig|SHA256SUMS.mldsa65.sig) fixture="$RELEASES/$slug/$asset" ;;
 esac
 if [ "${CURL_STUB_FAIL:-}" = "1" ]; then
 	echo "curl stub: configured to fail for $url" >&2
 	exit 22
 fi
+# A test can play a server that answers the second signature with another
+# status, or a transfer that breaks: CURL_STUB_PQ_STATUS is the status the
+# stub reports for it, and CURL_STUB_PQ_RC the exit status it ends with. The
+# body is the fixture's, when the release has one.
+if [ "$asset" = "SHA256SUMS.mldsa65.sig" ] && [ -n "${CURL_STUB_PQ_STATUS:-}" ]; then
+	if [ -f "$fixture" ]; then cp "$fixture" "$output"; fi
+	[ -z "$write_out" ] || printf '%s' "$CURL_STUB_PQ_STATUS"
+	exit "${CURL_STUB_PQ_RC:-0}"
+fi
 if [ ! -f "$fixture" ]; then
+	# The second signature is optional, so its absence is answered with the
+	# status code a real server gives for an asset that is not there, and
+	# not with a failure: the renderer reads that code to tell "this release
+	# carries no second signature" from "this read did not work". The
+	# transfer asks for no `-f`, so the 404 is not a failure either.
+	if [ "$asset" = "SHA256SUMS.mldsa65.sig" ] && [ -n "$write_out" ]; then
+		printf '404'
+		exit 0
+	fi
 	echo "curl stub: no fixture for $url (looked at $fixture)" >&2
 	exit 1
 fi
@@ -259,6 +279,7 @@ if [ -n "$max_filesize" ] && [ "${CURL_STUB_IGNORE_MAXFILESIZE:-}" != "1" ] \
 	exit 63
 fi
 cp "$fixture" "$output"
+[ -z "$write_out" ] || printf '200'
 SH
 chmod +x "$BIN/curl"
 
@@ -336,6 +357,8 @@ SIGN
 # A copy of the generator whose PRODUCTS table is replaced wholesale. Replacing
 # the block rather than editing fields keeps these tests working when the table
 # gains a column; it gained two while the generator was being rewritten.
+# The renderer sources scripts/release/release-signature.sh from its own
+# folder, so every copy made here carries that file beside it.
 generator_with() { # $1=destination $2...=table rows
 	local dest="$1"; shift
 	local rows
@@ -346,6 +369,7 @@ generator_with() { # $1=destination $2...=table rows
 		!inside        { print }
 	' "$GENERATOR" > "$dest"
 	chmod +x "$dest"
+	cp "$(dirname "$GENERATOR")/release-signature.sh" "$(dirname "$dest")/"
 }
 
 run() { # $1=script $2=repo root ; prints nothing, returns the exit status
@@ -355,6 +379,7 @@ run() { # $1=script $2=repo root ; prints nothing, returns the exit status
 # A repo root with a Formula/ directory, for the generator to write into.
 new_root() { # $1=path
 	rm -rf "$1"; mkdir -p "$1/scripts" "$1/scripts/release" "$1/Formula"
+	cp "$(dirname "$GENERATOR")/release-signature.sh" "$1/scripts/release/"
 }
 
 # The one product row both files build their tables from. shellcheck cannot

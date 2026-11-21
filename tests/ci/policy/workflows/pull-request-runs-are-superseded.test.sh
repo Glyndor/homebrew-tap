@@ -291,7 +291,7 @@ open(p, "w").write(cut)
 PY
 rc=0; out="$(audit "$WORK/live")" || rc=$?
 check "tests.yml without its concurrency block is reported" "1" "$rc"
-check "and the report names tests.yml and each of its jobs" "tests.yml: job formulae,tests.yml: job products" \
+check "and the report names tests.yml and each of its jobs" "tests.yml: job formulae,tests.yml: job mldsa,tests.yml: job products" \
 	"$(printf '%s\n' "$out" | grep -o '^tests.yml: job [a-z]*' | LC_ALL=C sort | paste -sd, -)"
 
 echo

@@ -18,21 +18,20 @@
 #
 # WHAT IS COMPARED
 #
-#   Nine named units inside the script:
+#   Seven named units inside the script:
 #
-#       verify_sha256sums  the function that fetches SHA256SUMS + .sig and
-#                         verifies the Ed25519 signature against the
-#                         configured release keys
-#       py_block          the embedded python block, from <<'PY' to PY, that
-#                         does the actual signature verification
 #       hash_of           the function that pulls a single asset's hex digest
 #                         out of the verified SHA256SUMS
-#       release_keys      the two top-level RELEASE_PUBKEY_B64= and
-#                         RELEASE_PUBKEY2_B64= declarations. The logic is
-#                         identical on both sides; the keys themselves are not.
-#                         A rotation applied in one channel and not the other
-#                         leaves both scripts accepting different signing keys,
-#                         and every check stays green because the code matches.
+#       release_keys      the top-level release trust declarations:
+#                         RELEASE_PUBKEY_B64= and RELEASE_PUBKEY2_B64= (the
+#                         Ed25519 slots), RELEASE_PQ_PUBKEY_B64= and
+#                         RELEASE_PQ_PUBKEY2_B64= (the ML-DSA-65 slots), and
+#                         RELEASE_PQ_REQUIRED= (the products whose second
+#                         signature is required). The logic is identical on
+#                         both sides; the keys themselves are not. A rotation
+#                         applied in one channel and not the other leaves both
+#                         scripts accepting different signing keys, and every
+#                         check stays green because the code matches.
 #       verify_attestation the function that downloads one asset, checks its
 #                         digest against the SHA256SUMS entry, and runs
 #                         `gh attestation verify` with --source-ref pinned
@@ -66,6 +65,13 @@
 #       digest_case_guard the function that refuses an upper-case digest in the
 #                         verified SHA256SUMS, because the renderer compares it
 #                         with the lowercase digest of the download
+#
+#   The signature check itself is not among them. verify_sha256sums, the
+#   python block that verifies both signatures, and the configuration guard
+#   live in scripts/release/release-signature.sh, which the two channels carry
+#   as one text: scripts/monitoring/channel-shared-paths.txt lists it, so
+#   check-channel-drift.sh compares it byte for byte, comments included. They
+#   were two units here until they moved into that file.
 #
 #   render_product is EXCLUDED by name, with the reason given below. The two
 #   repositories render to different formats, so the function legitimately
@@ -112,8 +118,6 @@ REMOTE_FILE="scripts/release/render-manifests.sh"
 # Units that MUST stay byte-identical (after stripping comments and blanks).
 # Everything inside this array is the contract.
 UNITS=(
-	verify_sha256sums
-	py_block
 	hash_of
 	release_keys
 	verify_attestation
@@ -156,29 +160,19 @@ strip_prose() { # $1=file
 extract_unit() { # $1=file $2=unit
 	local file="$1" unit="$2"
 	case "$unit" in
-		verify_sha256sums)
-			sed -n '/^verify_sha256sums()/,/^}/p' "$file"
-			;;
 		hash_of)
 			sed -n '/^hash_of()/,/^}/p' "$file"
 			;;
-		py_block)
-			# From the line containing <<'PY' (with optional tab-stripping
-			# hyphen, optional quoting, anything reasonable) to the next line
-			# that is exactly PY. awk's range pattern stops on first exit
-			# condition, which is what we want.
-			awk '/<<.*PY/{found=1} found{print; if(/^PY$/){exit}}' "$file"
-			;;
 		release_keys)
-			# One unit carrying both declarations rather than two units each
-			# carrying one: they are the trusted key set as a whole. A rotation
-			# touches both lines together; splitting them would report two
-			# separate drifts for the same rotation and the reader would have
-			# to reconstruct that the lines belong together. The sed range
-			# starts at the first key and stops at the second, so a missing
-			# RELEASE_PUBKEY2_B64 is reported as a partial extraction rather
-			# than silently accepted as the whole unit.
-			sed -n '/^RELEASE_PUBKEY_B64=/,/^RELEASE_PUBKEY2_B64=/p' "$file"
+			# One unit carrying the whole trust configuration rather than one
+			# unit per declaration: they are the trusted key set as a whole. A
+			# rotation touches the slots together; splitting them would report
+			# two separate drifts for the same rotation and the reader would
+			# have to reconstruct that the lines belong together. The sed range
+			# starts at the first key and stops at the required-products list,
+			# so a missing declaration is reported as a partial extraction
+			# rather than silently accepted as the whole unit.
+			sed -n '/^RELEASE_PUBKEY_B64=/,/^RELEASE_PQ_REQUIRED=/p' "$file"
 			;;
 		verify_attestation)
 			sed -n '/^verify_attestation()/,/^}/p' "$file"
@@ -226,14 +220,11 @@ extract_unit() { # $1=file $2=unit
 unit_is_complete() { # $1=last-line $2=unit
 	local last="$1" unit="$2"
 	case "$unit" in
-		verify_sha256sums|hash_of|verify_attestation|release_order|version_guard|digest_case_guard)
+		hash_of|verify_attestation|release_order|version_guard|digest_case_guard)
 			[[ "$last" =~ ^}[[:space:]]*$ ]]
 			;;
-		py_block)
-			[[ "$last" == "PY" ]]
-			;;
 		release_keys)
-			[[ "$last" =~ ^RELEASE_PUBKEY2_B64= ]]
+			[[ "$last" =~ ^RELEASE_PQ_REQUIRED= ]]
 			;;
 		limits)
 			[[ "$last" =~ ^MAX_ASSET_BYTES= ]]

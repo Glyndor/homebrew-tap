@@ -111,6 +111,19 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq python3-cryptography
+          # The ML-DSA-65 half of the release signature needs cryptography
+          # 50.0.2, which the distribution does not carry. It is installed only
+          # once the renderer's ML-DSA-65 key slot holds a key, the first
+          # moment a second signature can be checked at all: until then the
+          # renderer refuses a SHA256SUMS.mldsa65.sig before the library is
+          # needed, and this job installs nothing from PyPI. The wheel is
+          # pinned by hash and binary only, so nothing is resolved at install
+          # time and no build script runs in the job that holds no secret; the
+          # venv lives outside the workspace.
+          if grep -qE '^RELEASE_PQ_PUBKEY2?_B64="[A-Za-z0-9+/]+={0,2}"$' scripts/release/render-formulae.sh; then
+            python3 -m venv "$RUNNER_TEMP/mldsa-venv"
+            "$RUNNER_TEMP/mldsa-venv/bin/python" -m pip install --quiet --disable-pip-version-check --require-hashes --only-binary=:all: -r scripts/release/render-requirements.txt
+          fi
 
       - name: Render formulae from the latest signed releases
         id: render
@@ -118,6 +131,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # The install step built the virtual environment with the ML-DSA-65
+          # capable cryptography, and only when the renderer's key slot holds
+          # a key. Its python comes first on PATH so the renderer verifies the
+          # second signature with it; without a key there is no venv and the
+          # render runs on the distribution's python3-cryptography, which has
+          # no ML-DSA and needs none.
+          mldsa_venv="${RUNNER_TEMP:-}/mldsa-venv"
+          if [ -x "$mldsa_venv/bin/python3" ]; then
+            PATH="$mldsa_venv/bin:$PATH"
+          fi
           # Exit 3 means the generator skipped at least one product and rendered
           # the rest: its release was unreadable, its SHA256SUMS did not verify,
           # or an asset the table names was missing. Carry on and commit what did

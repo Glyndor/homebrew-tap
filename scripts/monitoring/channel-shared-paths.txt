@@ -23,6 +23,8 @@
 #   idea: they emit Ruby formulae in the tap and JSON manifests here.
 #   check-render-drift.sh compares the units they share, and a byte
 #   comparison of the files would be red forever.
+#   The release signature check they both source is the exception, and is
+#   listed: scripts/release/release-signature.sh is one text in both.
 #
 #   scripts/monitoring/check-suite-on-main.sh, which has three different
 #   implementations, one per channel, and is meant to.
@@ -46,6 +48,8 @@ scripts/quality/check-suites-wired.sh
 scripts/quality/check-test-coverage.sh
 scripts/quality/ci-job-scope.sh
 scripts/quality/lint-workflow-shell.sh
+scripts/release/release-signature.sh
+scripts/release/render-requirements.txt
 tests/ci/policy/rules/cancel-policy.test.sh
 tests/ci/docs/documented-test-command.test.sh
 tests/ci/policy/rules/locale-pinned.test.sh
@@ -65,6 +69,9 @@ tests/ci/suites/lint-job-scope.test.sh
 tests/ci/suites/shell-ci-scope.test.sh
 tests/fixtures/ci/schedule-freshness-fixture.sh
 tests/fixtures/monitoring/render-drift-fixture.sh
+tests/fixtures/release/mldsa65/vector.mldsa65.b64
+tests/fixtures/release/mldsa65/vector_1.0_amd64.deb.b64
+tests/fixtures/release/mldsa65/vector_1.0_amd64.deb.mldsa65.sig.b64
 tests/monitoring/check-channel-drift.test.sh
 tests/monitoring/check-render-drift/check-render-drift-drift.test.sh
 tests/monitoring/check-render-drift/check-render-drift-missing.test.sh
@@ -73,6 +80,7 @@ tests/monitoring/check-render-drift/check-render-drift-digest-case.test.sh
 tests/monitoring/check-render-drift/check-render-drift-version.test.sh
 tests/monitoring/check-render-drift.test.sh
 tests/monitoring/check-reusable-drift.test.sh
+tests/publication/update/update-mldsa-venv.test.sh
 tests/quality/check-action-pins.test.sh
 tests/quality/check-doc-anchors.test.sh
 tests/quality/check-editorconfig.test.sh
@@ -80,3 +88,5 @@ tests/quality/check-suites-wired.test.sh
 tests/quality/check-test-coverage.test.sh
 tests/quality/ci-job-scope.test.sh
 tests/quality/lint-workflow-shell.test.sh
+tests/release/release-signature.test.sh
+tests/release/release-signature/release-signature-mldsa.test.sh

@@ -65,8 +65,10 @@ jobs:
         ./tests/release/render-formulae/render-formulae-inputs.test.sh
         ./tests/release/render-formulae/render-formulae-tag-shape.test.sh
         ./tests/release/render-formulae/render-formulae-symlink.test.sh
+        ./tests/release/release-signature.test.sh
         ./tests/publication/update/update-workflow.test.sh
         ./tests/publication/update/update-key-isolation.test.sh
+        ./tests/publication/update/update-mldsa-venv.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/artifacts/check-formulae.test.sh
         ./tests/artifacts/check-formulae/check-formulae-roster.test.sh
@@ -136,6 +138,45 @@ jobs:
       # python3-yaml also serves tests/ci/reusable/reusable-workflow-lint.test.sh, whose
       # tooling-isolation step imports it exactly as the workflow-lint job does.
       apt-packages: shellcheck python3-yaml ruby
+
+  # The ML-DSA-65 half of the release signature check, verified for real. It
+  # needs cryptography 50.0.2 or later and the runner's python3-cryptography has
+  # no ML-DSA, so this suite cannot run in the shell job: the wheel is installed
+  # into a virtual environment from scripts/release/render-requirements.txt,
+  # pinned by hash and binary only, and that environment comes first on PATH for
+  # the suite and for the renderer it runs. Without the wheel the suite fails
+  # and says what is missing; it never skips.
+  #
+  # A job of its own rather than a second package list in the reusable: the
+  # reusable installs from the distribution, and this is the one suite that
+  # needs a library the distribution does not carry. It holds no secret.
+  mldsa:
+    name: ML-DSA-65 verifier
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # Measured 10 seconds locally for the venv, the three wheels and the suite.
+    # Ten minutes is far above that and far below the six-hour default a hang
+    # would otherwise cost.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Install the pinned cryptography wheel
+        run: |
+          set -euo pipefail
+          venv="$RUNNER_TEMP/mldsa-venv"
+          python3 -m venv "$venv"
+          "$venv/bin/python" -m pip install --quiet --disable-pip-version-check --require-hashes --only-binary=:all: -r scripts/release/render-requirements.txt
+          echo "$venv/bin" >> "$GITHUB_PATH"
+
+      - name: Run the ML-DSA-65 verifier suite
+        run: |
+          set -euo pipefail
+          ./tests/ci/suites/check-suite-completeness.test.sh ./tests/release/release-signature/release-signature-mldsa.test.sh
 
   products:
     name: products match the generator

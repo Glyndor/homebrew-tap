@@ -36,6 +36,31 @@ RELEASE_PUBKEY_B64="HFv7vg5FCY7YyKUDbJhaQSfB9SboJGSblJtFbLmLHzM"
 # with them.
 RELEASE_PUBKEY2_B64=""
 
+# The org's ML-DSA-65 release-signing public key, raw and unpadded base64.
+# Empty until the organization creates the key: until then no release carries a
+# second signature, and every release is admitted exactly as it was before the
+# renderer learned to read one.
+#
+# The second signature is a hybrid, never a replacement. The Ed25519 signature
+# is checked first and always; the ML-DSA-65 one is checked when the release
+# carries it, and always for a product the required list below names.
+RELEASE_PQ_PUBKEY_B64=""
+
+# Second ML-DSA-65 slot, empty until a rotation is in flight, with the same
+# make-before-break overlap the Ed25519 slots have: a release signed by either
+# configured key verifies.
+RELEASE_PQ_PUBKEY2_B64=""
+
+# The products whose ML-DSA-65 signature is required, separated by spaces.
+# Empty today.
+#
+# A second signature that may be left out protects nothing: whoever can forge
+# the Ed25519 signature simply does not attach the other one. So a release of
+# a product named here is refused without its ML-DSA-65 signature. Every name
+# must be a product of the roster below, and one that names no product stops
+# the run before any release is read.
+RELEASE_PQ_REQUIRED=""
+
 # Bounds on the bytes this script reads off the network. The signature proves
 # what the publisher meant, but it does not bound how much of it there is; the
 # release assets are attacker-influenced (whoever can publish a release asset
@@ -57,6 +82,15 @@ RELEASE_PUBKEY2_B64=""
 #   the same way whether too large or too small. The check is an equality,
 #   not a comparison: anything that is not 64 bytes is wrong here.
 #
+#   MAX_PQ_SIG_BYTES = 4096. The cap on the second signature's transfer. An
+#   ML-DSA-65 signature is exactly 3309 bytes, and the cap sits above it so a
+#   sidecar of the wrong length is refused by the length check and not by the
+#   transfer, which says what is wrong with it.
+#
+#   PQ_SIG_LENGTH = 3309, exact. A raw ML-DSA-65 signature (FIPS 204) has no
+#   other valid length, so the second signature is held to the same equality
+#   as the first one.
+#
 #   MAX_ASSET_BYTES = 104857600 (100 MiB). The cap on the binary that
 #   verify_attestation downloads so its digest can be checked against
 #   SHA256SUMS and so the SLSA attestation can be verified against the
@@ -66,6 +100,8 @@ RELEASE_PUBKEY2_B64=""
 #   renderer holds the bytes while the attestation check runs.
 MAX_SUMS_BYTES=4096
 MAX_SIG_BYTES=64
+MAX_PQ_SIG_BYTES=4096
+PQ_SIG_LENGTH=3309
 MAX_ASSET_BYTES=104857600
 
 # The only way to override it is --pubkey, which tests/release/render-formulae.test.sh
@@ -86,12 +122,34 @@ while [ $# -gt 0 ]; do
 			RELEASE_PUBKEY2_B64="$2"
 			shift 2
 			;;
+		--pq-pubkey)
+			[ $# -ge 2 ] || { echo "--pq-pubkey needs a value" >&2; exit 2; }
+			RELEASE_PQ_PUBKEY_B64="$2"
+			shift 2
+			;;
+		--pq-pubkey2)
+			[ $# -ge 2 ] || { echo "--pq-pubkey2 needs a value" >&2; exit 2; }
+			RELEASE_PQ_PUBKEY2_B64="$2"
+			shift 2
+			;;
+		--pq-required)
+			[ $# -ge 2 ] || { echo "--pq-required needs a value" >&2; exit 2; }
+			RELEASE_PQ_REQUIRED="$2"
+			shift 2
+			;;
 		*)
 			echo "unknown argument: $1" >&2
 			exit 2
 			;;
 	esac
 done
+
+# The trust constants and the caps are fixed from here on. The release
+# signature check sourced below reads them, and nothing after the arguments
+# may change what it trusts or how much it reads.
+# shellcheck disable=SC2034 # read by scripts/release/release-signature.sh
+readonly RELEASE_PUBKEY_B64 RELEASE_PUBKEY2_B64 RELEASE_PQ_PUBKEY_B64 RELEASE_PQ_PUBKEY2_B64 RELEASE_PQ_REQUIRED \
+	MAX_SUMS_BYTES MAX_SIG_BYTES MAX_PQ_SIG_BYTES PQ_SIG_LENGTH
 
 # Products to publish, one per line:
 #   repo|formula|Class|SPDX licence|description|mac-arm64|mac-x86_64|linux-arm64|linux-x86_64|version check
@@ -131,93 +189,12 @@ root="$(cd "$(dirname "$0")/../.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-# Download a release's SHA256SUMS(+.sig) and verify the signature, failing closed.
-verify_sha256sums() { # $1=repo $2=tag
-	rm -f "$work/SHA256SUMS" "$work/SHA256SUMS.sig"
-	local asset limit
-	# Bound each transfer, not just the files the verifier eventually reads.
-	for asset in SHA256SUMS SHA256SUMS.sig; do
-		case "$asset" in
-			SHA256SUMS) limit="$MAX_SUMS_BYTES" ;;
-			SHA256SUMS.sig) limit="$MAX_SIG_BYTES" ;;
-		esac
-		if ! curl -fsSL --proto =https --proto-redir =https --connect-timeout 10 --max-time 120 \
-			--max-filesize "$limit" -o "$work/$asset" \
-			"https://github.com/$1/releases/download/$2/$asset"; then
-			echo "::error::$1 $2: failed to download $asset within the ${limit}-byte cap and 120-second time limit" >&2
-			return 1
-		fi
-	done
-	# Retain disk bounds before Python reads either file, including the exact
-	# Ed25519 signature length, even if the downloader does not enforce its cap.
-	# A size refusal remains distinct from a malformed key or invalid signature.
-	sums_size="$(stat -c%s "$work/SHA256SUMS")"
-	[ "$sums_size" -le "$MAX_SUMS_BYTES" ] || {
-		echo "::error::$1 $2: SHA256SUMS is $sums_size bytes, over the ${MAX_SUMS_BYTES}-byte cap" >&2
-		return 1
-	}
-	sig_size="$(stat -c%s "$work/SHA256SUMS.sig")"
-	[ "$sig_size" -eq "$MAX_SIG_BYTES" ] || {
-		echo "::error::$1 $2: SHA256SUMS.sig is $sig_size bytes; an Ed25519 signature is exactly ${MAX_SIG_BYTES} bytes" >&2
-		return 1
-	}
-	python3 - "$work/SHA256SUMS" "$work/SHA256SUMS.sig" \
-		"$RELEASE_PUBKEY_B64" "$RELEASE_PUBKEY2_B64" <<'PY'
-import base64, binascii, sys
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-
-msg = open(sys.argv[1], "rb").read()
-sig = open(sys.argv[2], "rb").read()
-
-
-def load(b64):
-    # Pad to a 4-character boundary rather than appending "==" blindly, and
-    # reject anything outside the base64 alphabet. Without validate=True,
-    # b64decode DISCARDS such characters: "AAAA!!!!BBBB" decodes to six bytes
-    # without complaint, so a corrupted key silently becomes a shorter one.
-    # Trim the ends before validating. The key reaches here as a shell
-    # argument, and a value pasted into --pubkey arrives with whatever
-    # whitespace came with it; validate=True would reject that as "not base64"
-    # and point at the key when the fault is a trailing newline. Only the ends:
-    # whitespace INSIDE the string is not a formatting convention for a base64
-    # key the way grouping is for a gpg fingerprint, so it stays an error.
-    b64 = b64.strip()
-    b64 += "=" * (-len(b64) % 4)
-    raw = base64.b64decode(b64, validate=True)
-    if len(raw) != 32:
-        raise ValueError(f"{len(raw)} bytes, not a 32-byte Ed25519 key")
-    return Ed25519PublicKey.from_public_bytes(raw)
-
-
-# Any configured key may be the one that signed this release; an empty slot is
-# not a key. Still fails closed -- exhausting the slots is an error, not a
-# fallthrough, so a stale pair aborts the render exactly as a single stale key
-# did before.
-raw_keys = [k for k in sys.argv[3:] if k]
-if not raw_keys:
-    sys.exit("no release key configured")
-
-# Loading is separate from verifying so that a broken trust anchor of ours is
-# not reported as a bad signature of theirs. Wrapping the verify call in
-# `except Exception` collapsed both into one message, and the operator then
-# went looking at the upstream release for a fault that was in this repository.
-# apt/scripts/verify-debs.sh already drew that line; this did not.
-try:
-    keys = [load(k) for k in raw_keys]
-except (ValueError, binascii.Error) as exc:
-    sys.exit(f"malformed release public key: {exc}")
-
-for key in keys:
-    try:
-        key.verify(sig, msg)
-    except InvalidSignature:
-        continue
-    print("SHA256SUMS signature verified")
-    sys.exit(0)
-sys.exit("SHA256SUMS does not verify against any configured release key")
-PY
-}
+# The release signature check, verify_sha256sums and
+# check_release_configuration, lives in a file of its own that the sibling
+# channel carries byte for byte: scripts/monitoring/channel-shared-paths.txt
+# lists it, so check-channel-drift compares the whole of it, comments included.
+# shellcheck disable=SC1091 # the path is resolved at run time, next to this file
+. "$(dirname "${BASH_SOURCE[0]}")/release-signature.sh"
 
 # Verify the build provenance of the release. The signature on SHA256SUMS
 # proves the digests the renderer is about to write into formulae; it does
@@ -690,8 +667,8 @@ render_product() { # $1=table entry
 	# accept and refuse the same tags.
 	version_guard "$repo" "$tag" "$version" || return 1
 
-	verify_sha256sums "$repo" "$tag" || {
-		echo "::error::$repo $tag: SHA256SUMS is missing, oversized, or does not verify against the org release key" >&2
+	verify_sha256sums "$repo" "$tag" "$formula" || {
+		echo "::error::$repo $tag: SHA256SUMS is missing, oversized, or its signatures did not verify against the org release keys" >&2
 		return 1
 	}
 
@@ -870,6 +847,11 @@ RB
 
 	echo "rendered Formula/$formula.rb -> $version"
 }
+
+# Exit 2 is this repository's convention for a local configuration error, and
+# it stops the run before anything is rendered: a broken trust anchor or a
+# required product this repository does not publish is not a bad release.
+check_release_configuration || exit 2
 
 # Formula/ is a directory of the repository, and it is where every formula
 # below is written. If it is a symlink, all of those writes land somewhere

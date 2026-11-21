@@ -249,6 +249,15 @@ if [ "${CURL_STUB_FAIL:-}" = "1" ]; then
 	echo "curl stub: configured to fail for $url" >&2
 	exit 22
 fi
+# A test can play a server that answers the second signature with another
+# status, or a transfer that breaks: CURL_STUB_PQ_STATUS is the status the
+# stub reports for it, and CURL_STUB_PQ_RC the exit status it ends with. The
+# body is the fixture's, when the release has one.
+if [ "$asset" = "SHA256SUMS.mldsa65.sig" ] && [ -n "${CURL_STUB_PQ_STATUS:-}" ]; then
+	if [ -f "$fixture" ]; then cp "$fixture" "$output"; fi
+	[ -z "$write_out" ] || printf '%s' "$CURL_STUB_PQ_STATUS"
+	exit "${CURL_STUB_PQ_RC:-0}"
+fi
 if [ ! -f "$fixture" ]; then
 	# The second signature is optional, so its absence is answered with the
 	# status code a real server gives for an asset that is not there, and

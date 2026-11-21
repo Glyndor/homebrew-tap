@@ -65,6 +65,7 @@ jobs:
         ./tests/release/render-formulae/render-formulae-inputs.test.sh
         ./tests/release/render-formulae/render-formulae-tag-shape.test.sh
         ./tests/release/render-formulae/render-formulae-symlink.test.sh
+        ./tests/release/release-signature.test.sh
         ./tests/publication/update/update-workflow.test.sh
         ./tests/publication/update/update-key-isolation.test.sh
         ./tests/artifacts/check-products-consistent.test.sh

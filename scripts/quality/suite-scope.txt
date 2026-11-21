@@ -175,6 +175,15 @@ tests/release/render-formulae/render-formulae-symlink.test.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
+# The release signature check both renderers source, driven through the
+# renderer, without the ML-DSA-65 library. The suite that needs the library
+# runs in its own job and has no entry, so it always runs.
+tests/release/release-signature.test.sh
+	scripts/release/release-signature.sh
+	scripts/release/render-formulae.sh
+	tests/fixtures/release/**
+	tests/release/release-signature.test.sh
+
 # --- the publication workflow ------------------------------------------------
 
 tests/publication/update/update-workflow.test.sh

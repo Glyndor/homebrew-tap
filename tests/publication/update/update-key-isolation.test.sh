@@ -97,8 +97,15 @@ elif mint is None or not place < mint:
     print("(c) the digests are checked after the key is used")
 if roster is None or publish is None or not roster < publish:
     print("(c) the commit job does not hold the files to the roster before the commit step")
-if place is not None and (steps[place].get("env") or {}).get("RENDERED_DIGESTS") != "${{ needs.render.outputs.digests }}":
-    print("(c) the digests do not come from the render job's outputs")
+if place is not None:
+    env = steps[place].get("env") or {}
+    if env.get("RENDERED_DIGESTS") != "${{ needs.render.outputs.digests }}":
+        print("(c) the digests do not come from the render job's outputs")
+    # The other half of "the same parent": the head the checkout is compared
+    # with. Bound to an output that comes back empty, the comparison is with
+    # nothing and the updater stops publishing without a red run.
+    if env.get("RENDERED_HEAD") != "${{ needs.render.outputs.head }}":
+        print("(c) the head does not come from the render job's outputs")
 if any("formulae.sha256" in l for s in steps for l in runs(s)):
     print("(c) the commit job reads the manifest the artifact carries")
 render = jobs.get("render") or {}
@@ -106,6 +113,8 @@ recorder = next((s for s in render.get("steps") or [] if s.get("id") == "digests
 if (render.get("outputs") or {}).get("digests") != "${{ steps.digests.outputs.digests }}" \
         or not any(l.strip().startswith("bash ./scripts/artifacts/formulae-digests.sh list ") for l in runs(recorder)):
     print("(c) the render job does not record the digests in its outputs")
+if (render.get("outputs") or {}).get("head") != "${{ steps.digests.outputs.head }}":
+    print("(c) the render job does not record its head in its outputs")
 PY
 }
 
@@ -158,6 +167,10 @@ plant no-roster "(c) the commit job does not hold the files to the roster" \
 	'c = named("commit", "Check the rendered"); c["run"] = c["run"].replace("bash ./scripts/artifacts/check-formulae.sh", ":")'
 plant digests-from-validate "(c) the digests do not come from the render job's outputs" \
 	'named("commit", "Check the rendered")["env"]["RENDERED_DIGESTS"] = "${{ needs.validate.outputs.digests }}"'
+plant head-from-validate "(c) the head does not come from the render job's outputs" \
+	'named("commit", "Check the rendered")["env"]["RENDERED_HEAD"] = "${{ needs.validate.outputs.head }}"'
+plant no-head-record "(c) the render job does not record its head" \
+	'del jobs["render"]["outputs"]["head"]'
 plant digests-from-artifact "(c) the commit job reads the manifest the artifact carries" \
 	'c = named("commit", "Check the rendered"); c["run"] = c["run"].replace("\"$expected\"\n", "\"$RUNNER_TEMP/rendered/formulae.sha256\"\n")'
 plant no-record "(c) the render job does not record the digests" \

@@ -65,6 +65,14 @@ templates-no-os-field	scripts/governance/check-issue-templates.sh	if [ -z "$os_f
 coverage-missing-test	scripts/quality/check-test-coverage.sh	[ -f "$root/tests/$name.test.sh" ] || missing+=("scripts/$rel")	true || missing+=("scripts/$rel")	tests/quality/check-test-coverage.test.sh
 suites-wired-watcher-dropped	.github/workflows/tests.yml	./tests/ci/suites/ci-runs-every-test.test.sh	./tests/quality/check-test-coverage.test.sh	tests/quality/check-suites-wired.test.sh
 suites-wired-unwired	scripts/quality/check-suites-wired.sh	for path in sorted(suites - wired - set(exempt)):	for path in []:	tests/quality/check-suites-wired.test.sh
+suites-wired-needs	scripts/quality/check-suites-wired.sh	                    if "needs" in job else "") \	                    if False else "") \	tests/quality/check-suites-wired.test.sh
+lint-caller-needs	.github/workflows/reusable-workflow-lint.yml	                      if "needs" in job:	                      if False:	tests/ci/reusable/reusable-workflow-lint.test.sh
+suites-wired-base-exemptions	scripts/quality/check-suites-wired.sh	    return {path: why for path, why in exempt.items() if path in base}	    return exempt	tests/quality/check-suites-wired.test.sh
+lint-base-exemptions	.github/workflows/reusable-workflow-lint.yml	            && git show "HEAD^1:$exemptions" > "$script.exempt" 2>/dev/null; then	            && cp "$exemptions" "$script.exempt" 2>/dev/null; then	tests/quality/check-suites-wired.test.sh
+suites-wired-operators	scripts/quality/check-suites-wired.sh	OPERATOR_RE = re.compile(r"[|&;<>`]|\$\(")	OPERATOR_RE = re.compile(r"(?!)")	tests/quality/check-suites-wired.test.sh
+suites-wired-heredoc	scripts/quality/check-suites-wired.sh	                        if "<<" in run else "") \	                        if False else "") \	tests/quality/check-suites-wired.test.sh
+suites-wired-skip-paths	scripts/quality/check-suites-wired.sh	                             skip_gate, where)	                             job_gate, where)	tests/quality/check-suites-wired.test.sh
+suites-wired-skip-literal	scripts/quality/check-suites-wired.sh	    if [[ "$f" == $pattern ]]; then	    if [[ "$f" == "$pattern" ]]; then	tests/quality/check-suites-wired.test.sh
 pins-sha	scripts/quality/check-action-pins.sh	if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then	if false; then	tests/quality/check-action-pins.test.sh
 channel-usable-path	scripts/monitoring/check-channel-drift.sh	[[ "$1" =~ ^[A-Za-z0-9._/-]+$ ]] || return 1	[[ "$1" =~ ^.*$ ]] || return 1	tests/monitoring/check-channel-drift.test.sh
 channel-empty-body	scripts/monitoring/check-channel-drift.sh	if [ ! -s "$tmp/remote" ]; then	if false; then	tests/monitoring/check-channel-drift.test.sh
@@ -87,6 +95,7 @@ render-attestation-empty	scripts/release/render-formulae.sh	if not isinstance(da
 render-tag-digit	scripts/release/render-formulae.sh	[0-9]*) ;;	*) ;;	tests/release/render-formulae/render-formulae-tag-shape.test.sh
 render-sums-cap	scripts/release/render-formulae.sh	[ "$sums_size" -le "$MAX_SUMS_BYTES" ] || {	true || {	tests/release/render-formulae/render-formulae-trust.test.sh
 render-sig-cap	scripts/release/render-formulae.sh	[ "$sig_size" -eq "$MAX_SIG_BYTES" ] || {	true || {	tests/release/render-formulae/render-formulae-trust.test.sh
+update-head-binding	.github/workflows/update.yml	RENDERED_HEAD: ${{ needs.render.outputs.head }}	RENDERED_HEAD: ${{ needs.validate.outputs.head }}	tests/publication/update/update-key-isolation.test.sh
 anchors-undeclared	scripts/quality/check-doc-anchors.sh	if ! grep -Fxq -- "$name" <<<"$declared"; then	if false; then	tests/quality/check-doc-anchors.test.sh
 anchors-coordinate	scripts/quality/check-doc-anchors.sh	grep -n -oE '[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*:[0-9][0-9,-]*' "$1" || true	true	tests/quality/check-doc-anchors.test.sh
 version-compare	scripts/artifacts/check-version-monotonic.sh	if precedence(new_version, name) < old:	if False:	tests/artifacts/check-version-monotonic.test.sh

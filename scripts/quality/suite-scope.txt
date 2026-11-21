@@ -582,3 +582,10 @@ tests/ci/docs/documented-shellcheck-scope.test.sh
 
 tests/mutation/run-mutations.test.sh
 	tests/mutation/**
+
+# The floor under the catalogue reads the catalogue, the runner's list of
+# excluded suites and the names of the scripts it walks, nothing in them.
+tests/mutation/catalog-reaches-every-script.test.sh
+	tests/mutation/catalog.txt
+	tests/mutation/run-mutations.sh
+	scripts/**

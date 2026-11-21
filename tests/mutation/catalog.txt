@@ -135,6 +135,11 @@ pq-guard-roster	scripts/release/release-signature.sh	if [ "$product" = "$name" ]
 pq-guard-call	scripts/release/render-formulae.sh	check_release_configuration || exit 2	true || exit 2	tests/release/release-signature.test.sh
 ed-guard-key-length	scripts/release/release-signature.sh	[ "$bytes" -eq 32 ] || {	true || {	tests/release/release-signature.test.sh
 ed-guard-no-key	scripts/release/release-signature.sh	[ "$ed_keys" -gt 0 ] || {	true || {	tests/release/release-signature.test.sh
+key-base64-python	scripts/release/release-signature.sh	    return base64.b64decode(b64, validate=True)	    return base64.b64decode(b64)	tests/release/release-signature.test.sh
+ed-key-length-python	scripts/release/release-signature.sh	    if len(raw) != 32:	    if False:	tests/release/release-signature.test.sh
+pq-key-length-python	scripts/release/release-signature.sh	    if len(raw) != 1952:	    if False:	tests/release/release-signature.test.sh
+trust-constants-readonly	scripts/release/render-formulae.sh	readonly RELEASE_PUBKEY_B64 RELEASE_PUBKEY2_B64 RELEASE_PQ_PUBKEY_B64 RELEASE_PQ_PUBKEY2_B64 RELEASE_PQ_REQUIRED \	: RELEASE_PUBKEY_B64 RELEASE_PUBKEY2_B64 RELEASE_PQ_PUBKEY_B64 RELEASE_PQ_PUBKEY2_B64 RELEASE_PQ_REQUIRED \	tests/release/release-signature.test.sh
+trust-caps-readonly	scripts/release/render-formulae.sh	MAX_SUMS_BYTES MAX_SIG_BYTES MAX_PQ_SIG_BYTES PQ_SIG_LENGTH	MAX_SUMS_BYTES MAX_SIG_BYTES MAX_PQ_SIG_BYTES	tests/release/release-signature.test.sh
 pq-venv-second-slot	.github/workflows/update.yml	^RELEASE_PQ_PUBKEY2?_B64=	^RELEASE_PQ_PUBKEY(_2)?_B64=	tests/publication/update/update-mldsa-venv.test.sh
 pq-venv-path	.github/workflows/update.yml	PATH="$mldsa_venv/bin:$PATH"	:	tests/publication/update/update-mldsa-venv.test.sh
 render-served-unique	scripts/release/render-formulae.sh	if len(versions) != 1:	if len(versions) < 1:	tests/release/render-formulae/render-formulae-version.test.sh

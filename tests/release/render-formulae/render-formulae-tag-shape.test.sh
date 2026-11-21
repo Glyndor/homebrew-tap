@@ -7,6 +7,13 @@
 # metadata only), refuses them. The refusal keeps exit 1, not the skip code 3:
 # update.yml must stop before it commits anything from that run.
 #
+# A tag whose version does not start with a digit (vabc, v-1.0.0) is refused
+# earlier and differently: by version_guard, before anything is downloaded, and
+# as a skipped product (exit 3), not as the abort of the whole publication.
+# The character guard in front of it accepts both, so without its own case the
+# digit check could be deleted and the tag would still be refused, later, by the
+# ordering check, after every asset had been fetched and attested.
+#
 # The fixture both this file and its siblings need lives in
 # tests/fixtures/release/render-fixture.sh.
 
@@ -44,6 +51,18 @@ for tag in v1.2 v1 v1.0.0+; do
 	check "$tag is refused (exit 1)" "1" "$rc"
 	check "$tag is named as no SemVer version" "1" "$(grep -c "is not a valid SemVer release version" <<<"$out")"
 	check "$tag writes no formula" "0" "$(find "$WORK/bad-$tag/Formula" -name podup.rb | wc -l)"
+done
+
+# A tag the character guard accepts but whose version does not start with a digit:
+# refused before any download, and as a skip of the product.
+for tag in vabc v-1.0.0; do
+	publish Glyndor/podup "$tag" podup-darwin-arm64 podup-darwin-x86_64
+	render "$WORK/nodigit-$tag"
+	check "$tag is refused as a skipped product (exit 3)" "3" "$rc"
+	check "$tag is named as not starting with a digit" "1" "$(grep -c 'does not start with a digit' <<<"$out")"
+	check "$tag is NOT left to the SemVer ordering check" "0" "$(grep -c 'is not a valid SemVer release version' <<<"$out")"
+	check "$tag asks for no attestation" "0" "$(wc -l < "$ATTEST_STUB_LOG")"
+	check "$tag writes no formula" "0" "$(find "$WORK/nodigit-$tag/Formula" -name podup.rb | wc -l)"
 done
 
 echo

@@ -67,6 +67,7 @@ tests/ci/reusable/reusable-dependabot-freshness.test.sh
 tests/ci/reusable/reusable-empty-diff.test.sh
 tests/ci/reusable/reusable-line-limit.test.sh
 tests/ci/reusable/reusable-schedule-freshness.test.sh
+tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.test.sh
 tests/ci/reusable/reusable-shell-ci.test.sh
 tests/ci/reusable/reusable-workflow-lint.test.sh
 tests/ci/suites/check-suite-completeness.test.sh

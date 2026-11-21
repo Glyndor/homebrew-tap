@@ -66,6 +66,7 @@ tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh -
 tests/mutation/run-mutations.test.sh -
 
 # python3-yaml
+tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.test.sh python3-yaml
 tests/publication/update/update-key-isolation.test.sh python3-yaml
 tests/ci/suites/ci-runs-every-test.test.sh python3-yaml
 tests/quality/check-suites-wired.test.sh python3-yaml

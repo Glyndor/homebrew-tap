@@ -44,7 +44,9 @@ for u in ups:
     tok = "actions/create-github-app-token"
     own = [n for n, g in groups.items() if tok in (g.get("patterns") or [])]
     broad = [n for n, g in groups.items() if "*" in (g.get("patterns") or [])]
-    if uses_token:
+    # The app-token action is a GitHub Action, so only that ecosystem is asked to
+    # keep it in a group of its own; an entry for another ecosystem cannot hold it.
+    if uses_token and u.get("package-ecosystem") == "github-actions":
         if not own:
             problems.append("the app-token action has no group of its own")
         for n in own:

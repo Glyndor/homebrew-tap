@@ -257,3 +257,7 @@ netflags-comment-skipped	tests/ci/policy/rules/workflow-network-calls-are-bounde
 netflags-empty-scan	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh	if curls == 0:	if False:	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
 grace-deepen	.github/workflows/reusable-schedule-freshness.yml	git fetch --quiet --unshallow --no-tags origin >/dev/null 2>&1 || true	true	tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.test.sh
 grace-checkout-depth	.github/workflows/reusable-schedule-freshness.yml	fetch-depth: 1	fetch-depth: 0	tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.test.sh
+claims-path-exists	tests/ci/docs/documented-claims.test.sh	[ -e "$2/$path" ] || printf	true || printf	tests/ci/docs/documented-claims.test.sh
+claims-venv-package	tests/ci/docs/documented-claims.test.sh	&& ! printf '%s' "$need" | grep -q 'python3-venv'	&& false	tests/ci/docs/documented-claims.test.sh
+claims-rollback-gh	tests/ci/docs/documented-claims.test.sh	grep -qE '`gh`' "$1" ||	true ||	tests/ci/docs/documented-claims.test.sh
+claims-counts-equal	tests/ci/docs/documented-claims.test.sh	"$first" = "$second" ] && [ -n "$first" ]	-n "$first" ] && [ -n "$first" ]	tests/ci/docs/documented-claims.test.sh

@@ -57,6 +57,7 @@ scripts/release/products.sh
 scripts/release/render-requirements.txt
 tests/ci/policy/rules/cancel-policy.test.sh
 tests/ci/docs/documented-test-command.test.sh
+tests/ci/docs/documented-claims.test.sh
 tests/ci/policy/rules/locale-pinned.test.sh
 tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
 tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh

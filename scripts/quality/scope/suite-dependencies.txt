@@ -111,6 +111,7 @@ tests/release/render-formulae/render-formulae-products.test.sh ruby
 # shellcheck
 tests/quality/lint/lint-workflow-shell.test.sh shellcheck
 tests/ci/docs/documented-test-command.test.sh shellcheck
+tests/ci/docs/documented-claims.test.sh -
 
 # shellcheck, python3-yaml
 tests/ci/reusable/reusable-shell-ci.test.sh shellcheck python3-yaml

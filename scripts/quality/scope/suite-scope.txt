@@ -678,6 +678,16 @@ tests/ci/docs/documented-test-command.test.sh
 	CONTRIBUTING.md
 	.github/PULL_REQUEST_TEMPLATE.md
 
+# The documents are read for the paths they name and the commands they print.
+
+tests/ci/docs/documented-claims.test.sh
+	CONTRIBUTING.md
+	README.md
+	docs/**
+	scripts/**
+	tests/**
+	.github/workflows/**
+
 # The shellcheck line of that command is read from CONTRIBUTING.md alone.
 tests/ci/docs/documented-shellcheck-scope.test.sh
 	CONTRIBUTING.md

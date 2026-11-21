@@ -1,0 +1,11 @@
+# Approved release rollbacks: one line per rollback, `<formula path> <committed version> <version to go back to>`.
+#
+# Example: Formula/podup.rb 1.2.0 1.1.0
+#
+# scripts/artifacts/check-version-monotonic.sh reads this file from the BASE commit of a
+# pull request, never from the pull request itself, so a line has to be merged on its own
+# before the rollback that uses it. A line is single-use: the rollback pull request deletes
+# it. Blank lines and lines that start with # are ignored; any other line has to be three
+# fields, a path ending in .rb and two SemVer versions, or the gate stops.
+#
+# No rollback is approved while this list has no line below.

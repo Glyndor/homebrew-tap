@@ -85,6 +85,8 @@ permissions: {}
 jobs:
   freshness:
     name: dependabot freshness
+    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
+    # compares strings, so a new image cannot change its verdict.
     runs-on: ubuntu-latest
     # Measured 5 to 29 seconds; queries the GitHub API for recent
     # Dependabot pull requests.

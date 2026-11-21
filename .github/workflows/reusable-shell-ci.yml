@@ -58,7 +58,10 @@ concurrency:
 jobs:
   shellcheck:
     name: shellcheck
-    runs-on: ubuntu-latest
+    # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on
+    # 2026-11-20. The image is named because this job's verdict depends on the
+    # tools it ships, so a new image arrives as a commit and not overnight.
+    runs-on: ubuntu-26.04
     # Measured 8 to 9 seconds today. Ten minutes is the floor this org uses
     # for a job whose honest run is seconds: far above any real run, far
     # below the six-hour default a hang would otherwise burn.
@@ -241,7 +244,10 @@ jobs:
   test:
     name: test
     if: inputs.test-command != ''
-    runs-on: ubuntu-latest
+    # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on
+    # 2026-11-20. The image is named because this job's verdict depends on the
+    # tools it ships, so a new image arrives as a commit and not overnight.
+    runs-on: ubuntu-26.04
     # Worst measured run across the three channels is 83s in apt; the suite
     # grows with the tree, so this is the one job that earns more than the
     # floor.

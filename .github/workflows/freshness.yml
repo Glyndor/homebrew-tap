@@ -259,6 +259,8 @@ jobs:
       group: freshness-tests-on-main-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: newest completed Tests run on main
+    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
+    # compares strings, so a new image cannot change its verdict.
     runs-on: ubuntu-latest
     # The script polls up to 80 times with 15 s between attempts in push
     # mode, 20 minutes at most: a queued suite measured ten minutes on
@@ -303,6 +305,8 @@ jobs:
     concurrency:
       group: freshness-tool-versions-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    # ubuntu-latest on purpose: this job only asks GitHub or git for data and
+    # compares strings, so a new image cannot change its verdict.
     runs-on: ubuntu-latest
     # Two `gh release list` calls and a checkout, seconds when measured
     # locally against stubs; the real calls are two API requests. Ten minutes

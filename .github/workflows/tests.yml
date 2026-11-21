@@ -160,7 +160,10 @@ jobs:
   # needs a library the distribution does not carry. It holds no secret.
   mldsa:
     name: ML-DSA-65 verifier
-    runs-on: ubuntu-latest
+    # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on
+    # 2026-11-20. The image is named because this job's verdict depends on the
+    # tools it ships, so a new image arrives as a commit and not overnight.
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     # Measured 10 seconds locally for the venv, the three wheels and the suite.
@@ -188,7 +191,10 @@ jobs:
 
   products:
     name: products match the generator
-    runs-on: ubuntu-latest
+    # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on
+    # 2026-11-20. The image is named because this job's verdict depends on the
+    # tools it ships, so a new image arrives as a commit and not overnight.
+    runs-on: ubuntu-26.04
     # Measured 3 to 6 seconds.
     timeout-minutes: 10
     steps:
@@ -239,7 +245,10 @@ jobs:
 
   formulae:
     name: brew style
-    runs-on: ubuntu-latest
+    # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on
+    # 2026-11-20. The image is named because this job's verdict depends on the
+    # tools it ships, so a new image arrives as a commit and not overnight.
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     env:
       # Mirror the audit job: keep the run deterministic and offline. Without

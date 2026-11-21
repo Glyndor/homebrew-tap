@@ -73,6 +73,9 @@ formulae-shell-stray	scripts/artifacts/check-formulae.sh	if [ -n "$stray" ]; the
 formulae-shell-empty	scripts/artifacts/check-formulae.sh	if [ ${#formulae[@]} -eq 0 ]; then	if false; then	tests/artifacts/check-formulae.test.sh
 formulae-shell-ok-record	scripts/artifacts/check-formulae.sh	if [ "$marker" = "ok" ]; then	if false; then	tests/artifacts/check-formulae.test.sh
 formulae-shell-list	scripts/artifacts/check-formulae.sh	\( -type f -o -type l \) -iname '*.rb' -print0	\( -type f \) -iname '*.rb' -print0	tests/artifacts/check-formulae.test.sh
+formulae-shell-roster-unread	scripts/artifacts/check-formulae.sh	if [ ! -r "$renderer" ]; then	if false; then	tests/artifacts/check-formulae.test.sh
+formulae-shell-no-directory	scripts/artifacts/check-formulae.sh	if [ ! -d "$root/Formula" ]; then	if false; then	tests/artifacts/check-formulae.test.sh
+formulae-shell-verdict	scripts/artifacts/check-formulae.sh	if [ "$verdict" != "0" ]; then	if false; then	tests/artifacts/check-formulae.test.sh
 products-odd-name	scripts/artifacts/check-products-consistent.sh	if [ -n "$odd" ]; then	if false; then	tests/artifacts/check-products-consistent.test.sh
 products-not-regular	scripts/artifacts/check-products-consistent.sh	if [ -n "$not_regular" ]; then	if false; then	tests/artifacts/check-products-consistent.test.sh
 products-no-roster	scripts/artifacts/check-products-consistent.sh	[ -n "$declared" ] || {	false || {	tests/artifacts/check-products-consistent.test.sh
@@ -130,6 +133,7 @@ channel-max-filesize	scripts/monitoring/check-channel-drift.sh	--max-filesize 10
 channel-https	scripts/monitoring/check-channel-drift.sh	--proto =https --proto-redir =https --connect-timeout 10 --max-time 60 --max-filesize 1048576	--connect-timeout 10 --max-time 60 --max-filesize 1048576	tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
 reusable-https	scripts/monitoring/check-reusable-drift.sh	--proto =https --proto-redir =https --connect-timeout 10 --max-time 60 --max-filesize 1048576	--connect-timeout 10 --max-time 60 --max-filesize 1048576	tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
 render-drift-https	scripts/monitoring/check-render-drift.sh	--proto =https --proto-redir =https --connect-timeout 10 --max-time 60 --max-filesize 1048576	--connect-timeout 10 --max-time 60 --max-filesize 1048576	tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
+render-drift-compared-zero	scripts/monitoring/check-render-drift.sh	if [ "$compared" -eq 0 ]; then	if false; then	tests/monitoring/check-render-drift.test.sh
 suite-on-main-cancelled	scripts/monitoring/check-suite-on-main.sh	select(.status == "completed" and .conclusion != "cancelled")	select(.status == "completed")	tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
 suite-on-main-empty	scripts/monitoring/check-suite-on-main.sh	if [ -z "$picked" ]; then	if false; then	tests/monitoring/check-suite-on-main.test.sh
 render-version-guard	scripts/release/render-formulae.sh	"" | *[!0-9A-Za-z.+-]* | .* | *.)	"" | .* | *.)	tests/release/render-formulae/render-formulae-version.test.sh
@@ -143,11 +147,18 @@ render-digest-match	scripts/release/render-formulae.sh	[ "$actual" = "$expected"
 render-every-asset	scripts/release/render-formulae.sh	for verify_asset in "$mac_arm" "$mac_intel" "$linux_arm" "$linux_intel"; do	for verify_asset in "$mac_arm"; do	tests/release/render-formulae/render-formulae-attestation.test.sh
 render-attestation-empty	scripts/release/render-formulae.sh	if not isinstance(data, list) or not data:	if False:	tests/release/render-formulae/render-formulae-attestation.test.sh
 render-tag-digit	scripts/release/render-formulae.sh	[0-9]*) ;;	*) ;;	tests/release/render-formulae/render-formulae-tag-shape.test.sh
+renderer-formula-widen	scripts/release/render-formulae.sh	'^[a-z0-9][a-z0-9._+@-]*$'	'^[a-z0-9][a-z0-9._+@~-]*$'	tests/release/render-formulae/render-formulae-roster-policy.test.sh
+renderer-class-widen	scripts/release/render-formulae.sh	'^[A-Z][A-Za-z0-9]*$'	'^[A-Z][A-Za-z0-9_]*$'	tests/release/render-formulae/render-formulae-roster-policy.test.sh
+renderer-repository-widen	scripts/release/render-formulae.sh	'^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$'	'^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._:-]*$'	tests/release/render-formulae/render-formulae-roster-policy.test.sh
+renderer-organization-widen	scripts/release/render-formulae.sh	Glyndor/*) ;;	*/*) ;;	tests/release/render-formulae/render-formulae-roster-policy.test.sh
+renderer-asset-widen	scripts/release/render-formulae.sh	'^[A-Za-z0-9][A-Za-z0-9._-]*$'	'^[A-Za-z0-9][A-Za-z0-9._:-]*$'	tests/release/render-formulae/render-formulae-roster-policy.test.sh
+renderer-metadata-widen	scripts/release/render-formulae.sh	*\"* | *\\* | *'#{'* | *'#$'* | *'#@'*)	*\"* | *\\* | *'#{'* | *'#$'*)	tests/release/render-formulae/render-formulae-roster-policy.test.sh
 render-sums-cap	scripts/release/release-signature.sh	[ "$sums_size" -le "$MAX_SUMS_BYTES" ] || {	true || {	tests/release/render-formulae/render-formulae-trust.test.sh
 render-sig-cap	scripts/release/release-signature.sh	[ "$sig_size" -eq "$MAX_SIG_BYTES" ] || {	true || {	tests/release/render-formulae/render-formulae-trust.test.sh
 update-head-binding	.github/workflows/update.yml	RENDERED_HEAD: ${{ needs.render.outputs.head }}	RENDERED_HEAD: ${{ needs.validate.outputs.head }}	tests/publication/update/update-key-isolation.test.sh
 anchors-undeclared	scripts/quality/hygiene/check-doc-anchors.sh	if ! grep -Fxq -- "$name" <<<"$declared"; then	if false; then	tests/quality/hygiene/check-doc-anchors.test.sh
 anchors-coordinate	scripts/quality/hygiene/check-doc-anchors.sh	grep -n -oE '[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*:[0-9][0-9,-]*' "$1" || true	true	tests/quality/hygiene/check-doc-anchors.test.sh
+anchors-documents-zero	scripts/quality/hygiene/check-doc-anchors.sh	if [ "$documents" -eq 0 ]; then	if false; then	tests/quality/hygiene/check-doc-anchors.test.sh
 version-compare	scripts/artifacts/check-version-monotonic.sh	if precedence(new_version, name) < old:	if False:	tests/artifacts/check-version-monotonic.test.sh
 version-no-formula	scripts/artifacts/check-version-monotonic.sh	if not names:	if False:	tests/artifacts/check-version-monotonic.test.sh
 version-approval-single-use	scripts/artifacts/check-version-monotonic.sh	if core(here) == core(goes_to):	if False:	tests/artifacts/check-version-monotonic.test.sh

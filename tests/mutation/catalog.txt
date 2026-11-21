@@ -139,6 +139,7 @@ pq-guard-key-length	scripts/release/release-signature.sh	[ "$bytes" -eq 1952 ] |
 pq-guard-whitespace	scripts/release/release-signature.sh	*[[:space:]]*)	"no whitespace check")	tests/release/release-signature.test.sh
 pq-guard-one-line	scripts/release/release-signature.sh	*$'\n'*)	"no line check")	tests/release/release-signature.test.sh
 pq-guard-roster	scripts/release/release-signature.sh	if [ "$product" = "$name" ]; then	if true; then	tests/release/release-signature.test.sh
+pq-guard-required-without-key	scripts/release/release-signature.sh	if [ "${#required[@]}" -gt 0 ] && [ -z "$RELEASE_PQ_PUBKEY_B64$RELEASE_PQ_PUBKEY2_B64" ]; then	if false; then	tests/release/release-signature.test.sh
 pq-guard-call	scripts/release/render-formulae.sh	check_release_configuration || exit 2	true || exit 2	tests/release/release-signature.test.sh
 ed-guard-key-length	scripts/release/release-signature.sh	[ "$bytes" -eq 32 ] || {	true || {	tests/release/release-signature.test.sh
 ed-guard-no-key	scripts/release/release-signature.sh	[ "$ed_keys" -gt 0 ] || {	true || {	tests/release/release-signature.test.sh

@@ -135,8 +135,8 @@ render "$R" --pq-pubkey "$KEY" --pq-required podup
 check "a required product without its second signature is refused" "3 0" "$rc $(written "$R")"
 check "and the refusal says the signature is missing" "1" "$(said 'no ML-DSA-65 signature for podup')"
 check "and names the product that requires it" "1" "$(said 'podup requires the hybrid release signature')"
-render "$R" --pq-required '  podup  '
-check "a name padded with blanks is still a name, even with no key configured" "3 1" \
+render "$R" --pq-pubkey "$KEY" --pq-required '  podup  '
+check "a name padded with blanks is still a name" "3 1" \
 	"$rc $(said 'podup requires the hybrid release signature')"
 
 # --- row 5: a second signature and no ML-DSA-65 key configured ------------------
@@ -250,6 +250,17 @@ for entry in 'Podup' 'pod up' 'podup,other' '-podup' 'p' 'podup #'; do
 done
 guard "a required list on two lines stops the run" \
 	"the required-products list spans more than one line" --pq-pubkey "$KEY" --pq-required "podup"$'\n'"other"
+render "$R" --pq-required podup
+check "a required product with no ML-DSA-65 key configured stops the run" "2 1 0 0" \
+	"$rc $(said 'the required-products list names podup, and no ML-DSA-65 release public key is configured') $(said 'SHA256SUMS signature verified') $(written "$R")"
+guard "and so does one named with blanks around it" \
+	"the required-products list names podup, and no ML-DSA-65 release public key is configured" --pq-required '  podup  '
+render "$R" --pq-pubkey2 "$KEY" --pq-required podup
+check "a key in the second slot alone is a key configured for the list" "3 1 0" \
+	"$rc $(said 'no ML-DSA-65 signature for podup') $(said 'no ML-DSA-65 release public key is configured')"
+render "$R" --pq-pubkey "$KEY"
+check "and a key with an empty list, the state between the two steps, starts and admits" "0 1" \
+	"$rc $(said 'SHA256SUMS signature verified')"
 check "and the stop is a configuration error, not a tampered release" "0" "$(said 'release was not admitted')"
 
 # The Ed25519 slots are held to the same check. A malformed one used to reach the

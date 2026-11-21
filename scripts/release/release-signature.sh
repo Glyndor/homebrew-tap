@@ -370,6 +370,18 @@ check_release_configuration() {
 			return 1
 		}
 	done
+	# The two switches are set in one order: the public key reaches the
+	# verifier first, and a product is required only after a release of it
+	# has been verified with both signatures. A key with an empty list is the
+	# state between those steps, and is valid: a second signature is checked
+	# when a release carries one, and none is demanded yet. A list with no key
+	# is not a state of that order. Every release of a required product would
+	# be refused, reported as that product's release and not as this file, so
+	# it stops here.
+	if [ "${#required[@]}" -gt 0 ] && [ -z "$RELEASE_PQ_PUBKEY_B64$RELEASE_PQ_PUBKEY2_B64" ]; then
+		echo "::error::the required-products list names ${required[*]}, and no ML-DSA-65 release public key is configured to check the signature it requires; the key is committed before any product is required" >&2
+		return 1
+	fi
 }
 
 # release_key_bytes <algorithm> <base64>: the number of bytes a configured key

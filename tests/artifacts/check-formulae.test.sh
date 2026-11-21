@@ -144,6 +144,54 @@ rc=0; gate "$T" || rc=$?
 check "a roster line the reader refuses is an error, even after a good row" "1 1" \
 	"$rc $(said 'is not one double-quoted row')"
 
+# --- the guards that close the check when it could not look -------------------
+#
+# Each of these refuses before, or after, the python reads a formula. Another
+# guard also fails a tree like this one (the python names the roster it cannot
+# read, `find` aborts the script on a missing directory), so each case names the
+# message of THIS guard and not only the exit status.
+T="$(mktree no-renderer)"; rm "$T/scripts/release/render-formulae.sh"
+rc=0; gate "$T" || rc=$?
+check "a tree whose renderer cannot be read is refused" "1" "$rc"
+check "and the refusal is the one for an unknown roster" "1" \
+	"$(said 'cannot read the PRODUCTS roster at scripts/release/render-formulae.sh; refusing to validate against an unknown roster')"
+
+T="$(mktree no-formula-dir)"; rm -rf "$T/Formula"
+rc=0; gate "$T" || rc=$?
+check "a tree with no Formula/ directory is refused" "1" "$rc"
+check "and the refusal says there is no Formula/ directory" "1" "$(said 'no Formula/ directory under')"
+check "and it is not the refusal for a tap with no formula in it" "0" "$(said 'no formulae found under Formula/')"
+
+# The verdict is the count the python makes where it makes the records. A stub
+# stands in for the python so a record with no message (which the shell skips)
+# can be paired with a count that includes it, and the committed formula stays
+# valid in every other respect.
+stub_checker() { # $1=tree $2.. = lines the stub prints
+	local t="$1"; shift
+	{
+		printf '#!/usr/bin/env python3\n'
+		for line in "$@"; do printf 'print("%s")\n' "$line"; done
+	} > "$t/scripts/artifacts/check-formulae.py"
+}
+T="$(mktree verdict-counts-unprinted)"; stub_checker "$T" 'ok\tFormula/podup.rb' 'Formula/podup.rb\t' 'VERDICT\t1'
+rc=0; gate "$T" || rc=$?
+check "a verdict that counts a problem nobody printed is refused" "1" "$rc"
+check "and the message says one problem was not printed" "1" "$(said "reported '1' problem(s) that were not printed")"
+
+T="$(mktree verdict-missing)"; stub_checker "$T" 'ok\tFormula/podup.rb'
+rc=0; gate "$T" || rc=$?
+check "a run that never reports a verdict is refused" "1" "$rc"
+check "and the message says no verdict arrived" "1" "$(said "reported 'no' problem(s) that were not printed")"
+
+T="$(mktree verdict-printed)"; stub_checker "$T" 'Formula/podup.rb\tsomething is wrong' 'VERDICT\t1'
+rc=0; gate "$T" || rc=$?
+check "a problem that was printed is refused" "1" "$rc"
+check "and it is not also reported as unprinted" "0" "$(said 'that were not printed')"
+
+T="$(mktree verdict-zero)"; stub_checker "$T" 'ok\tFormula/podup.rb' 'VERDICT\t0'
+rc=0; gate "$T" || rc=$?
+check "the same stub with a verdict of zero is accepted" "0" "$rc"
+
 # --- one definition of a formula file, shared with check-products-consistent ---
 T="$(mktree subdir)"; mkdir "$T/Formula/e"; cp "$T/Formula/podup.rb" "$T/Formula/e/podup.rb"
 rc=0; gate "$T" || rc=$?

@@ -163,6 +163,16 @@ tests/release/render-formulae/render-formulae-inputs.test.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
+tests/release/render-formulae/render-formulae-roster-policy.test.sh
+	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
+	scripts/release/products.sh
+	scripts/artifacts/check-formulae.sh
+	scripts/artifacts/check-formulae.py
+	Formula/**
+	tests/fixtures/release/**
+	tests/release/render-formulae/**
+
 tests/release/render-formulae/render-formulae-tag-shape.test.sh
 	scripts/release/render-formulae.sh
 	scripts/release/release-signature.sh

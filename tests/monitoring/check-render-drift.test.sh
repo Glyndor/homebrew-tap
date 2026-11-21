@@ -95,19 +95,61 @@ echo "=== a local file with none of the units fails rather than comparing nothin
 # within its limit on every pull request while never opening a workflow.
 #
 # What this case pins is that a file carrying none of the units is a failure
-# rather than a quiet pass. What it does NOT pin, and cannot, is the
-# `compared -eq 0` branch on its own. Measured: emptying the local file sets
-# the absent counter as well, because each unit is separately reported as not
-# found, so both branches fire together and removing either one still leaves
-# the run red. That guard is a backstop for a future edit that empties the
-# unit list, where nothing would be absent because nothing was looked for. It
-# is correct to keep and it is not independently testable from out here.
+# rather than a quiet pass. It does not reach the `compared -eq 0` branch:
+# emptying the local file sets the absent counter as well, because each unit is
+# separately reported as not found, so both branches fire together and removing
+# either one still leaves the run red. The next case reaches that branch alone.
 local_without_units
 run_with_remote "$(remote_asis)"
 expect_eq "$exit_code" "1" "a local file carrying no units fails"
 expect_not_contains "$combined" "the verification logic agrees" \
 	"and does not print the success line"
 restore_local
+
+echo
+echo "=== an empty unit list is refused for having compared nothing, and for no other reason ==="
+#
+# The case above empties the file, so every unit is reported absent and the
+# absent counter fails the run whatever the branch under test does. Emptying
+# the list the check walks leaves nothing absent and nothing unreachable: the
+# only thing left to refuse the run is the guard that says no unit was compared.
+# The copy of the check is made with a python edit that must change it, and an
+# unedited copy is run the same way first, so the difference is the list.
+emptied="$WORK/emptied/check-render-drift.sh"
+untouched="$WORK/untouched/check-render-drift.sh"
+mkdir -p "$WORK/emptied" "$WORK/untouched"
+cp "$SCRIPT" "$untouched"
+python3 -I - "$SCRIPT" "$emptied" <<'PY'
+import re
+import sys
+
+text = open(sys.argv[1]).read()
+edited, count = re.subn(r"^UNITS=\(\n(?:\t\w+\n)+\)$", "UNITS=()", text, count=1, flags=re.M)
+if count != 1:
+    sys.exit("the unit list was not found, so nothing was emptied")
+open(sys.argv[2], "w").write(edited)
+PY
+expect_eq "$(cmp -s "$SCRIPT" "$emptied" && echo same || echo changed)" "changed" \
+	"the copy of the check has its unit list emptied"
+
+real_local >/dev/null
+run_copy() { # $1 = copy of the check
+	set +e
+	CURL_STUB_FILE="$WORK/$LOCAL_FILE" PATH="$WORK/bin:$PATH" \
+		bash "$1" "$WORK" >"$WORK/out" 2>"$WORK/err"
+	echo $? >"$WORK/exit"
+	set -e
+	read_run
+}
+run_copy "$untouched"
+expect_eq "$exit_code" "0" "an unedited copy of the check passes on the same tree"
+expect_contains "$combined" "compared 7 render unit" "and it compares every unit"
+run_copy "$emptied"
+expect_eq "$exit_code" "1" "a check with no unit to compare fails"
+expect_contains "$err_body" "no render unit was compared" \
+	"and it says no unit was compared, not that a unit is missing"
+expect_not_contains "$err_body" "could not be found" "no unit is reported absent"
+expect_not_contains "$combined" "the verification logic agrees" "and the success line is not printed"
 
 echo
 echo "$pass passed, $fail failed"

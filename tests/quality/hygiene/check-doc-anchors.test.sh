@@ -125,6 +125,30 @@ assert_error 1 "no docs/ directory" \
 	"a tree without docs/ is refused rather than silently passing" \
 	-- "$GATE" "$WORK/nodocs"
 
+# --- a docs/ that holds no document -------------------------------------------
+#
+# A walk that found nothing prints the same success line as one that checked
+# everything, so the gate refuses to pass having read no document. docs/ exists
+# here, so the missing-directory guard above is not what answers. A tree with a
+# document that carries no reference is the same shape just inside the limit:
+# it is checked, holds nothing to resolve, and passes.
+mkdir -p "$WORK/emptydocs/docs"
+assert_error 1 "no document under" \
+	"a docs/ with no document is refused for having checked nothing" \
+	-- "$GATE" "$WORK/emptydocs"
+
+mkdir -p "$WORK/notmarkdown/docs"
+printf 'a diagram that is not a document\n' > "$WORK/notmarkdown/docs/diagram.txt"
+assert_error 1 "no document under" \
+	"a docs/ that holds only files that are not markdown is refused the same way" \
+	-- "$GATE" "$WORK/notmarkdown"
+
+mkdir -p "$WORK/onedoc/docs"
+printf 'A document with nothing to resolve.\n' > "$WORK/onedoc/docs/threat-model.md"
+assert_error 0 "0 reference(s) under docs/ resolve" \
+	"a document that cites nothing is checked and passes" \
+	-- "$GATE" "$WORK/onedoc"
+
 # --- the gate is inside its own input set ------------------------------------
 assert 0 "the gate has a test of its own here" \
 	-- test -f "$HERE/tests/quality/hygiene/check-doc-anchors.test.sh"

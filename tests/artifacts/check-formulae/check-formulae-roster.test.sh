@@ -32,7 +32,7 @@ mktree() { # $1=name -> a tree with the real check, renderer and formula
 	local t="$WORK/$1"
 	mkdir -p "$t/scripts/artifacts" "$t/scripts/release" "$t/Formula"
 	cp "$HERE/scripts/artifacts/check-formulae.sh" "$HERE/scripts/artifacts/check-formulae.py" "$t/scripts/artifacts/"
-	cp "$HERE/scripts/release/render-formulae.sh" "$t/scripts/release/"
+	cp "$HERE/scripts/release/render-formulae.sh" "$HERE/scripts/release/products.sh" "$t/scripts/release/"
 	cp "$HERE/Formula/podup.rb" "$t/Formula/podup.rb"
 	echo "$t"
 }

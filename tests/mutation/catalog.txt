@@ -61,7 +61,7 @@ formulae-repository	scripts/artifacts/check-formulae.py	if repo != row["repo"]:	
 formulae-asset	scripts/artifacts/check-formulae.py	if asset not in row["assets"]:	if False:	tests/artifacts/check-formulae.test.sh
 formulae-tag	scripts/artifacts/check-formulae.py	if not tag.startswith("v") or not VERSION_RE.match(tag[1:]):	if False:	tests/artifacts/check-formulae.test.sh
 formulae-body	scripts/artifacts/check-formulae.py	if line != wanted:	if False:	tests/artifacts/check-formulae.test.sh
-formulae-roster-missing	scripts/artifacts/check-formulae.py	        if not inside:	        if False:	tests/artifacts/check-formulae.test.sh
+formulae-roster-unread	scripts/artifacts/check-formulae.py	    if done.returncode != 0:	    if False:	tests/artifacts/check-formulae.test.sh
 formulae-roster-twice	scripts/artifacts/check-formulae.py	if row["formula"] in by_name:	if False:	tests/artifacts/check-formulae.test.sh
 formulae-roster-organization	scripts/artifacts/check-formulae.py	if not row["repo"].startswith("Glyndor/"):	if False:	tests/artifacts/check-formulae/check-formulae-roster.test.sh
 formulae-roster-fields	scripts/artifacts/check-formulae.py	if len(values) != len(FIELDS):	if False:	tests/artifacts/check-formulae/check-formulae-roster.test.sh
@@ -165,3 +165,6 @@ formulae-digests-place-copy-unchecked	scripts/artifacts/formulae-digests.sh	chec
 formulae-digests-bytewise-order	scripts/artifacts/formulae-digests.sh	export LC_ALL=C	export LC_ALL=en_US.UTF-8	tests/artifacts/formulae-digests.test.sh
 formulae-digests-formula-symlink	scripts/artifacts/formulae-digests.sh	[ ! -L "$root/Formula" ] || die	true || die	tests/artifacts/formulae-digests.test.sh
 formulae-digests-path-charset	scripts/artifacts/formulae-digests.sh	*[!A-Za-z0-9._+@/-]*) die	*[!A-Za-z0-9._+@/-]*) :	tests/artifacts/formulae-digests.test.sh
+products-row-shape	scripts/release/products.sh	if ($0 !~ /^[[:space:]]*"([^"\\]|\\.)*"[[:space:]]*$/) {	if (0) {	tests/release/products.test.sh
+products-no-row	scripts/release/products.sh	if (!rows) fail("the PRODUCTS table holds no row")	if (0) fail("the PRODUCTS table holds no row")	tests/release/products.test.sh
+products-unclosed	scripts/release/products.sh	if (!closed) fail(	if (0) fail(	tests/release/products.test.sh

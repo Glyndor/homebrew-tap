@@ -31,7 +31,7 @@ mktree() { # $1=name -> a tree with the real check, renderer and formula
 	local t="$WORK/$1"
 	mkdir -p "$t/scripts/artifacts" "$t/scripts/release" "$t/Formula"
 	cp "$HERE/scripts/artifacts/check-formulae.sh" "$HERE/scripts/artifacts/check-formulae.py" "$t/scripts/artifacts/"
-	cp "$HERE/scripts/release/render-formulae.sh" "$t/scripts/release/"
+	cp "$HERE/scripts/release/render-formulae.sh" "$HERE/scripts/release/products.sh" "$t/scripts/release/"
 	cp "$HERE/Formula/podup.rb" "$t/Formula/podup.rb"
 	echo "$t"
 }
@@ -133,6 +133,16 @@ check "an empty tap is an error, not a pass" "1" "$rc"
 T="$(mktree no-roster)"; printf '#!/usr/bin/env bash\n' > "$T/scripts/release/render-formulae.sh"
 rc=0; gate "$T" || rc=$?
 check "a renderer with no roster is an error" "1" "$rc"
+check "and the error says there is no roster" "1" "$(said 'no PRODUCTS roster')"
+
+# The roster is read by scripts/release/products.sh, and a table it refuses is
+# refused here with its reason, not read as far as the reader got.
+T="$(mktree bad-roster)"
+awk '/^\)/ && !done { print "\tGlyndor/podup|not|quoted"; done = 1 } { print }' \
+	"$HERE/scripts/release/render-formulae.sh" > "$T/scripts/release/render-formulae.sh"
+rc=0; gate "$T" || rc=$?
+check "a roster line the reader refuses is an error, even after a good row" "1 1" \
+	"$rc $(said 'is not one double-quoted row')"
 
 # --- one definition of a formula file, shared with check-products-consistent ---
 T="$(mktree subdir)"; mkdir "$T/Formula/e"; cp "$T/Formula/podup.rb" "$T/Formula/e/podup.rb"

@@ -60,10 +60,13 @@ flowchart LR
   V -.->|bad signature| X["run fails<br/>formulae unchanged"]
 ```
 
-Nothing is pushed here from a product, and no product holds a write
-credential on this repository. A bad signature fails the run and leaves the
-formulae untouched, so the failure mode is a tap that stops updating, never
-one that ships an unverified binary.
+Nothing is pushed here from a product: the tap pulls. The workflow also
+accepts a `repository_dispatch` event of type `release`, which starts the same
+run ahead of the hourly one. Sending it takes a token with write access to this
+repository, and the run reads nothing from the event, so it can bring an update
+forward but cannot change what is published. A bad signature fails the run and
+leaves the formulae untouched, so the failure mode is a tap that stops
+updating, never one that ships an unverified binary.
 
 ---
 

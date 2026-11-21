@@ -33,8 +33,12 @@ artifact, which is why the update lands as a commit rather than as a file on a
 bucket (`.github/workflows/update.yml#commit`). The
 binaries stay on each product's GitHub release; the formula pins their URL and
 SHA-256 (`Formula/podup.rb#Podup`). Nothing is
-pushed here by a product and no product holds a credential on this repository
-(`.github/workflows/update.yml#update`).
+pushed here by a product. The update workflow also accepts a `repository_dispatch`
+event of type `release`, which starts the same run ahead of the hourly one;
+sending it takes a token with write access to this repository, and the run reads
+no part of the event, so it moves an update forward in time and cannot change what
+is published (`.github/workflows/update.yml#update`,
+`tests/publication/update/update-workflow.test.sh#the update workflow reads nothing from a repository_dispatch payload`).
 
 ## Assets
 

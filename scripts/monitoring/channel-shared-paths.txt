@@ -53,6 +53,7 @@ scripts/release/render-requirements.txt
 tests/ci/policy/rules/cancel-policy.test.sh
 tests/ci/docs/documented-test-command.test.sh
 tests/ci/policy/rules/locale-pinned.test.sh
+tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
 tests/ci/policy/workflows/workflow-shape.test.sh
 tests/ci/policy/workflows/workflow-publish-triggers.test.sh
 tests/ci/reusable/reusable-dco.test.sh

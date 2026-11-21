@@ -28,4 +28,11 @@ jobs:
       # Nothing needed splitting to turn this on. Counted the way the check
       # counts -- comments and blank lines dropped -- the longest YAML in the
       # three channel repositories is 183 lines against a soft limit of 300.
-      extensions: "rs go ts tsx js jsx mjs cjs py sh astro vue svelte yml yaml"
+      #
+      # `txt` is there for the lists and maps the tools read. The largest file
+      # no gate opened was scripts/quality/scope/suite-scope.txt, the map that
+      # decides which suites a pull request runs, because no extension in the
+      # list named it. The counter reads `#` as a comment in a `.txt`, as those
+      # files use it. Counted that way the longest one holds 318 code
+      # lines against the hard limit of 500, measured 21 November 2026.
+      extensions: "rs go ts tsx js jsx mjs cjs py sh astro vue svelte yml yaml txt"

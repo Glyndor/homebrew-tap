@@ -243,7 +243,7 @@ catch, because a count per file cannot tell one guard from another.
 | `pr-hygiene.yml` | the pull request itself is malformed |
 | `freshness.yml` | something scheduled stopped happening elsewhere, or a tool pinned in a reusable fell behind its upstream release |
 | `dco.yml` | a commit of the pull request has no `Signed-off-by` trailer |
-| `line-limit.yml` | a source file is over the hard limit of 500 lines of code; passing the soft limit of 300 only warns |
+| `line-limit.yml` | a source file, or a `.txt` list or map, is over the hard limit of 500 lines of code; passing the soft limit of 300 only warns |
 | `workflow-lint.yml` | `actionlint` found a mistake in a workflow, a suite under `tests/` is run by no workflow, a caller can switch the required test job off, or a job that holds a secret installs third-party tooling |
 | `update.yml` | the scheduled regeneration, which commits to `main` |
 | `drift.yml` | a copy this repository shares with a sibling channel no longer agrees: a reusable workflow, the renderer's verification logic, or one of the scripts and tests the tap and the bucket carry as exact copies |

@@ -84,7 +84,7 @@ excluded_reason() { # <test path> -> the reason, or nothing when it can run
 	tests/ci/suites/check-suite-completeness.test.sh)
 		printf '%s' "it runs the other suites and reads the base commit with git show HEAD^1:..., and the copy has no git metadata"
 		;;
-	tests/quality/check-editorconfig.test.sh)
+	tests/quality/hygiene/check-editorconfig.test.sh)
 		printf '%s' "it walks the tracked files with git ls-files, and the copy has no git metadata"
 		;;
 	*)
@@ -96,7 +96,7 @@ excluded_reason() { # <test path> -> the reason, or nothing when it can run
 # The same list, in the order it is reported. The catalogue records it too.
 EXCLUDED_SUITES=(
 	tests/ci/suites/check-suite-completeness.test.sh
-	tests/quality/check-editorconfig.test.sh
+	tests/quality/hygiene/check-editorconfig.test.sh
 )
 
 # --- the catalogue ------------------------------------------------------------

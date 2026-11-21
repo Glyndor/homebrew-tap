@@ -10,7 +10,7 @@
 # suites without learning anything it did not already know.
 #
 # This file says, per suite, the paths whose change can alter what that suite
-# concludes. The decision is made by scripts/quality/ci-job-scope.sh, in its
+# concludes. The decision is made by scripts/quality/scope/ci-job-scope.sh, in its
 # `suites` mode, and the job and its required check `shell / test` still
 # report exactly as before.
 #
@@ -28,7 +28,7 @@
 #     rewrites the map or the resolver to narrow its own scope gets the full
 #     suite instead, because the base copy is what decides. This is the same
 #     rule the shellcheck job of the reusable already follows for
-#     scripts/quality/ci-job-scope.sh, and the rule for a gate script:
+#     scripts/quality/scope/ci-job-scope.sh, and the rule for a gate script:
 #     a gate script is read from the base commit, never from the checkout of
 #     the pull request it is judging.
 #
@@ -36,7 +36,7 @@
 #     change to any of the three runs the whole suite set, so the thing that
 #     decides what runs cannot be changed in order to decide less, and the
 #     thing that runs the suites cannot be changed in order to run fewer.
-#     The rule is in scripts/quality/ci-job-scope.sh rather than in an entry
+#     The rule is in scripts/quality/scope/ci-job-scope.sh rather than in an entry
 #     per suite here, so a suite added below later cannot forget it.
 #
 #   * The names of the suites here are the paths the workflow passes to
@@ -362,7 +362,7 @@ tests/ci/reusable/reusable-line-limit.test.sh
 
 tests/ci/reusable/reusable-shell-ci.test.sh
 	.github/workflows/reusable-shell-ci.yml
-	scripts/quality/suite-dependencies.txt
+	scripts/quality/scope/suite-dependencies.txt
 	.github/workflows/tests.yml
 
 tests/ci/reusable/reusable-empty-diff.test.sh
@@ -386,19 +386,19 @@ tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.
 
 tests/ci/reusable/reusable-workflow-lint.test.sh
 	.github/workflows/reusable-workflow-lint.yml
-	scripts/quality/check-test-job-not-switchable.sh
-	scripts/quality/check-tooling-isolation.sh
+	scripts/quality/lint/check-test-job-not-switchable.sh
+	scripts/quality/lint/check-tooling-isolation.sh
 
 # The two rules the workflow-lint gate adds. The test-job check also reads the
 # real caller and the reusable it calls.
 
-tests/quality/check-test-job-not-switchable.test.sh
-	scripts/quality/check-test-job-not-switchable.sh
+tests/quality/lint/check-test-job-not-switchable.test.sh
+	scripts/quality/lint/check-test-job-not-switchable.sh
 	.github/workflows/reusable-shell-ci.yml
 	.github/workflows/tests.yml
 
-tests/quality/check-tooling-isolation.test.sh
-	scripts/quality/check-tooling-isolation.sh
+tests/quality/lint/check-tooling-isolation.test.sh
+	scripts/quality/lint/check-tooling-isolation.sh
 
 # The tool-version watcher reads the pins from the two reusables that carry
 # them, and every workflow for a caller that would override them.
@@ -414,7 +414,7 @@ tests/monitoring/check-tool-versions.test.sh
 # its verdict by name: a script added without a test, or a test removed while
 # its script stays, changes what it concludes.
 
-tests/quality/check-test-coverage.test.sh
+tests/quality/coverage/check-test-coverage.test.sh
 	scripts/**
 	tests/**
 
@@ -423,7 +423,7 @@ tests/quality/check-test-coverage.test.sh
 # an input of its verdict: rename a function it names and the reference stops
 # resolving. The areas below are the ones it resolves into.
 
-tests/quality/check-doc-anchors.test.sh
+tests/quality/hygiene/check-doc-anchors.test.sh
 	docs/**
 	.github/**
 	CONTRIBUTING.md
@@ -434,35 +434,35 @@ tests/quality/check-doc-anchors.test.sh
 
 # The pin gate walks every workflow and every composite action.
 
-tests/quality/check-action-pins.test.sh
+tests/quality/lint/check-action-pins.test.sh
 	.github/workflows/**
 	.github/actions/**
-	scripts/quality/check-action-pins.sh
+	scripts/quality/lint/check-action-pins.sh
 
 # The editorconfig gate walks EVERY tracked file, so every tracked file is an
 # input of its verdict and it runs on every pull request.
 
-tests/quality/check-editorconfig.test.sh
+tests/quality/hygiene/check-editorconfig.test.sh
 	**
 
 # The lint gate extracts the shell embedded in the workflows and lints it.
 
-tests/quality/lint-workflow-shell.test.sh
-	scripts/quality/lint-workflow-shell.sh
+tests/quality/lint/lint-workflow-shell.test.sh
+	scripts/quality/lint/lint-workflow-shell.sh
 	.github/workflows/**
 
 # The classifier under test, and its own test.
 
-tests/quality/ci-job-scope.test.sh
-	scripts/quality/ci-job-scope.sh
+tests/quality/scope/ci-job-scope.test.sh
+	scripts/quality/scope/ci-job-scope.sh
 	tests/quality/**
 
 # The suites mode of the classifier, its map and its test. The test reads the
 # workflow to learn which suites exist, so the workflow is an input of it too.
 
-tests/quality/ci-job-scope-suites.test.sh
-	scripts/quality/ci-job-scope.sh
-	scripts/quality/suite-scope.txt
+tests/quality/scope/ci-job-scope-suites.test.sh
+	scripts/quality/scope/ci-job-scope.sh
+	scripts/quality/scope/suite-scope.txt
 	.github/workflows/tests.yml
 	tests/quality/**
 
@@ -572,9 +572,9 @@ tests/ci/suites/ci-runs-every-test.test.sh
 
 # check-suites-wired walks tests/ and parses every workflow, as the watcher
 # above does, and runs the checker and the workflow-lint step that calls it.
-tests/quality/check-suites-wired.test.sh
-	scripts/quality/check-suites-wired.sh
-	scripts/quality/suite-exemptions.txt
+tests/quality/coverage/check-suites-wired.test.sh
+	scripts/quality/coverage/check-suites-wired.sh
+	scripts/quality/coverage/suite-exemptions.txt
 	tests/**
 	.github/workflows/**
 
@@ -592,7 +592,7 @@ tests/ci/suites/shell-ci-scope.test.sh
 # classifier the step runs.
 
 tests/ci/suites/lint-job-scope.test.sh
-	scripts/quality/ci-job-scope.sh
+	scripts/quality/scope/ci-job-scope.sh
 	.github/workflows/reusable-line-limit.yml
 	.github/workflows/reusable-shell-ci.yml
 	.github/workflows/reusable-workflow-lint.yml

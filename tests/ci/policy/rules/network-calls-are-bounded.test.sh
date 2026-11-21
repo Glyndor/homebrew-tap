@@ -14,7 +14,7 @@
 # Comments do not carry arguments. Each curl must carry its own deadline on
 # the physical line that starts the invocation, even when the call continues.
 #
-# Like tests/quality/lint-workflow-shell.test.sh, the check is shown red against a
+# Like tests/quality/lint/lint-workflow-shell.test.sh, the check is shown red against a
 # planted violation before the live tree is read, so a test that ignored
 # its input still has to do this by passing.
 #

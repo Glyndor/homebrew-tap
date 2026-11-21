@@ -113,7 +113,7 @@ There is no `develop`. Branch from `main`, open a pull request against
 
 ## Tests
 
-The suites need `shellcheck`, `python3-yaml` and `ruby` installed, the packages `tests.yml` lists for CI. There shellcheck is the pinned release the shellcheck job uses, and a pull request installs only what the suites it selects need (`scripts/quality/suite-dependencies.txt`).
+The suites need `shellcheck`, `python3-yaml` and `ruby` installed, the packages `tests.yml` lists for CI. There shellcheck is the pinned release the shellcheck job uses, and a pull request installs only what the suites it selects need (`scripts/quality/scope/suite-dependencies.txt`).
 
 ```sh
 fail=0
@@ -145,7 +145,7 @@ That job also lints extensionless files whose first line is a shell shebang; it
 installs one `shellcheck` release pinned by version and checksum, where your
 local one is whatever you have installed; and it lints the shell inside the
 workflows, which `find` cannot see. Run
-`bash ./scripts/quality/lint-workflow-shell.sh` for that last part.
+`bash ./scripts/quality/lint/lint-workflow-shell.sh` for that last part.
 
 `tests/release/release-signature/release-signature-mldsa.test.sh` also needs
 `cryptography` 50.0.2 or later, for ML-DSA-65, which no Ubuntu release packages
@@ -163,27 +163,38 @@ export PATH="$HOME/.cache/tap-mldsa/bin:$PATH"
 CI runs that suite in its own job, `ML-DSA-65 verifier` in `tests.yml`.
 
 **Every script in `scripts/` needs a test.**
-`scripts/quality/check-test-coverage.sh` fails when one does not, itself included --
+`scripts/quality/coverage/check-test-coverage.sh` fails when one does not, itself included --
 it lives in `scripts/`, so deleting its test makes it report itself.
+
+**Where a script of `scripts/quality/` goes.** The folder is split by what the
+script decides, and `tests/quality/` mirrors it with the test at the same depth
+as its script, which the coverage check above enforces:
+
+| Folder | What its scripts decide |
+|---|---|
+| `hygiene/` | that the tree agrees with the rules the repository states: `.editorconfig` and the references in `docs/` |
+| `lint/` | static rules over workflows and shell: action pins, the shell inside `run:` blocks, a test job that cannot be switched off, tooling next to a secret |
+| `scope/` | which jobs and suites a change can affect, with the maps they read |
+| `coverage/` | that every script has a test and every suite is run by a workflow, with the list of suites that cannot be |
 
 **Every test must be wired into a workflow.**
 `tests/ci/suites/ci-runs-every-test.test.sh` fails when one is not. An unregistered test
 sits in `tests/`, passes by hand, and reads as coverage while CI never runs
 it. That happened in the sibling `apt` repository and went unnoticed for a day.
-So does the `workflow-lint` check, which runs `scripts/quality/check-suites-wired.sh`
+So does the `workflow-lint` check, which runs `scripts/quality/coverage/check-suites-wired.sh`
 outside the test job: a pull request that drops the watcher from the list along
 with other suites leaves the test job green, and turns that check red.
-A suite that cannot run on a pull request goes in `scripts/quality/suite-exemptions.txt`
+A suite that cannot run on a pull request goes in `scripts/quality/coverage/suite-exemptions.txt`
 with its reason. That list is read from the base commit too, so an entry takes
 effect from the pull request after the one that adds it.
 
-**A new suite needs an entry in `scripts/quality/suite-scope.txt`.**
+**A new suite needs an entry in `scripts/quality/scope/suite-scope.txt`.**
 On a pull request the runner skips the suites whose paths the change does not
 touch, so a suite with no entry would run every time and
-`tests/quality/ci-job-scope-suites.test.sh` fails until it has one. List every
+`tests/quality/scope/ci-job-scope-suites.test.sh` fails until it has one. List every
 path the suite reads: a missing path lets a change merge without the suite that
 should have judged it, while an extra one only costs a run. A change to the map,
-to `scripts/quality/ci-job-scope.sh` or to the runner runs everything, and both
+to `scripts/quality/scope/ci-job-scope.sh` or to the runner runs everything, and both
 files are shared byte for byte with the sibling channel repository, so they
 change in both together.
 

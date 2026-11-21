@@ -19,7 +19,7 @@
 # structure.
 #
 # The check is shown red against a planted violation before the live tree
-# is read, the same shape as tests/quality/lint-workflow-shell.test.sh: a script
+# is read, the same shape as tests/quality/lint/lint-workflow-shell.test.sh: a script
 # that compares the right thing against any tree passes just as happily as
 # a script that compares nothing.
 #

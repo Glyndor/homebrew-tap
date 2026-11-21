@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# The `suites` mode of scripts/quality/ci-job-scope.sh decides which suites a
+# The `suites` mode of scripts/quality/scope/ci-job-scope.sh decides which suites a
 # pull request can affect. A wrong skip lets a change merge untested, so most of
 # the cases here plant a way to slip through and require every suite to run, and
 # the few that require a skip only mean something because those prove the
@@ -17,9 +17,9 @@
 # Requires: bash, git, python3.
 set -uo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-RESOLVER="$HERE/scripts/quality/ci-job-scope.sh"
-SCOPE_MAP="$HERE/scripts/quality/suite-scope.txt"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+RESOLVER="$HERE/scripts/quality/scope/ci-job-scope.sh"
+SCOPE_MAP="$HERE/scripts/quality/scope/suite-scope.txt"
 WORKFLOW="$HERE/.github/workflows/tests.yml"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -41,11 +41,11 @@ MAP=$'tests/a/one.test.sh\n\tscripts/a/**\n\ttests/a/**\n\ntests/b/two.test.sh\n
 # repo <name>: a base commit with the map and the resolver, and the checkout on
 # a branch ready to take the pull request's changes.
 repo() {
-	R="$WORK/$1"; rm -rf "$R"; mkdir -p "$R/scripts/quality" "$R/scripts/a" "$R/scripts/b" "$R/tests/a" "$R/tests/b" "$R/tests/c" "$R/tests/ci/suites"
+	R="$WORK/$1"; rm -rf "$R"; mkdir -p "$R/scripts/quality/scope" "$R/scripts/a" "$R/scripts/b" "$R/tests/a" "$R/tests/b" "$R/tests/c" "$R/tests/ci/suites"
 	git -C "$R" init -q -b main
 	git -C "$R" config user.name t; git -C "$R" config user.email t@example.invalid; git -C "$R" config commit.gpgsign false
-	cp "$RESOLVER" "$R/scripts/quality/ci-job-scope.sh"
-	printf '%s' "$MAP" > "$R/scripts/quality/suite-scope.txt"
+	cp "$RESOLVER" "$R/scripts/quality/scope/ci-job-scope.sh"
+	printf '%s' "$MAP" > "$R/scripts/quality/scope/suite-scope.txt"
 	printf 'runner\n' > "$R/tests/ci/suites/check-suite-completeness.test.sh"
 	printf 'x\n' > "$R/scripts/a/x.sh"; printf 'x\n' > "$R/scripts/b/y.sh"; printf 'readme\n' > "$R/README.md"
 	printf 'docs\n' > "$R/DOCS.md"; printf 'x\n' > "$R/tests/a/one.test.sh"; printf 'x\n' > "$R/tests/b/two.test.sh"; printf 'x\n' > "$R/tests/c/three.test.sh"
@@ -56,8 +56,8 @@ repo() {
 # request, and branch the pull request from there. "-" removes the map.
 base_map() {
 	git -C "$R" checkout -q main
-	if [ "$1" = "-" ]; then git -C "$R" rm -q scripts/quality/suite-scope.txt
-	else printf '%s' "$1" > "$R/scripts/quality/suite-scope.txt"; fi
+	if [ "$1" = "-" ]; then git -C "$R" rm -q scripts/quality/scope/suite-scope.txt
+	else printf '%s' "$1" > "$R/scripts/quality/scope/suite-scope.txt"; fi
 	git -C "$R" add -A; git -C "$R" commit -qm "base map"
 	git -C "$R" branch -D pr -q; git -C "$R" checkout -q -b pr
 }
@@ -73,7 +73,7 @@ merge() {
 # resolver with a git of its own.
 decide() {
 	# shellcheck disable=SC2086
-	( cd "$R" && PATH="${1:+$1:}$PATH" bash scripts/quality/ci-job-scope.sh suites $SUITES 2>/dev/null | tr '\n' ' ' | sed 's/ $//' )
+	( cd "$R" && PATH="${1:+$1:}$PATH" bash scripts/quality/scope/ci-job-scope.sh suites $SUITES 2>/dev/null | tr '\n' ' ' | sed 's/ $//' )
 }
 # sabotage <file> <old> <new>: replace one piece of a file and stop loudly if
 # it is not there exactly once, so a case cannot pass because the sabotage did
@@ -105,7 +105,7 @@ check "a suite whose entry omits its own file still runs when only it changes" \
 	"tests/d/four.test.sh" "$(decide)"
 sed 's/if candidate in paths or affects/if affects/' "$RESOLVER" > "$WORK/resolver-cut.sh"
 check "the sabotage changed the resolver" "1" "$(cmp -s "$RESOLVER" "$WORK/resolver-cut.sh" && echo 0 || echo 1)"
-cp "$WORK/resolver-cut.sh" "$R/scripts/quality/ci-job-scope.sh"
+cp "$WORK/resolver-cut.sh" "$R/scripts/quality/scope/ci-job-scope.sh"
 check "without the condition that suite is skipped (the run is the condition's)" \
 	"" "$(decide)"
 SUITES="tests/a/one.test.sh tests/b/two.test.sh tests/c/three.test.sh"
@@ -134,14 +134,14 @@ check "a path with spaces under ** is matched" \
 
 repo spelling; echo more >> "$R/scripts/a/x.sh"; merge
 check "the workflow's ./ spelling is normalised" \
-	"tests/a/one.test.sh tests/c/three.test.sh" "$( ( cd "$R" && bash scripts/quality/ci-job-scope.sh suites ./tests/a/one.test.sh ./tests/b/two.test.sh ./tests/c/three.test.sh | tr '\n' ' ' | sed 's/ $//' ) )"
+	"tests/a/one.test.sh tests/c/three.test.sh" "$( ( cd "$R" && bash scripts/quality/scope/ci-job-scope.sh suites ./tests/a/one.test.sh ./tests/b/two.test.sh ./tests/c/three.test.sh | tr '\n' ' ' | sed 's/ $//' ) )"
 
 # --- the things a pull request must not be able to do to its own scope ---------
 
-repo map; printf 'tests/a/one.test.sh\n\tnothing/**\n' > "$R/scripts/quality/suite-scope.txt"; merge
+repo map; printf 'tests/a/one.test.sh\n\tnothing/**\n' > "$R/scripts/quality/scope/suite-scope.txt"; merge
 check "a pull request that rewrites the map runs every suite" "$ALL" "$(decide)"
 
-repo resolver; echo '# edited' >> "$R/scripts/quality/ci-job-scope.sh"; merge
+repo resolver; echo '# edited' >> "$R/scripts/quality/scope/ci-job-scope.sh"; merge
 check "a pull request that edits the resolver runs every suite" "$ALL" "$(decide)"
 
 repo runner; echo more >> "$R/tests/ci/suites/check-suite-completeness.test.sh"; merge
@@ -166,6 +166,22 @@ check "an empty diff runs every suite" "$ALL" "$(decide)"
 repo nomap; base_map -; echo more >> "$R/DOCS.md"; merge
 check "a base commit without the map runs every suite" "$ALL" "$(decide)"
 
+# The pull request that moves the map into its folder: the base carries it at
+# the path it had before, so the map is not where the resolver looks in the
+# base. Reading the pull request's own copy there would let it choose its scope,
+# and the one it brings says every suite can be skipped. Its text shares nothing
+# with the old one, so git sees a deletion and an addition and not a rename,
+# which would run everything for a different reason.
+repo moved
+git -C "$R" checkout -q main
+git -C "$R" mv scripts/quality/scope/suite-scope.txt scripts/quality/suite-scope.txt
+git -C "$R" commit -qm "the map before it moved"
+git -C "$R" branch -D pr -q; git -C "$R" checkout -q -b pr
+git -C "$R" rm -q scripts/quality/suite-scope.txt
+printf 'tests/a/one.test.sh\n\tnothing/**\ntests/b/two.test.sh\n\tnothing/**\ntests/c/three.test.sh\n\tnothing/**\n' > "$R/scripts/quality/scope/suite-scope.txt"
+echo more >> "$R/DOCS.md"; merge
+check "a base that holds the map at the path it had before the move runs every suite" "$ALL" "$(decide)"
+
 repo badmap; base_map $'tests/a/one.test.sh\n'; echo more >> "$R/DOCS.md"; merge
 check "a map entry with no pattern runs every suite" "$ALL" "$(decide)"
 
@@ -185,7 +201,7 @@ git -C "$R" mv scripts/a/x.sh scripts/a/renamed.sh
 git -C "$R" mv scripts/b/y.sh scripts/copy.sh
 merge
 check "a pull request with two renames runs every suite" "$ALL" "$(decide)"
-sabotage "$R/scripts/quality/ci-job-scope.sh" \
+sabotage "$R/scripts/quality/scope/ci-job-scope.sh" \
 	$'if status not in {b"A", b"M", b"D"} or not path_bytes:\n            return None' \
 	$'if False:\n            return None'
 check "without the rename status the suite of the second rename is skipped" \
@@ -201,7 +217,7 @@ mkdir -p "$R/fakebin"
 printf '#!/usr/bin/env bash\n[ "$1" = diff ] && exit 42\nexec %s "$@"\n' "$(command -v git)" > "$R/fakebin/git"
 chmod +x "$R/fakebin/git"
 check "a git that fails the diff runs every suite" "$ALL" "$(decide "$R/fakebin")"
-sabotage "$R/scripts/quality/ci-job-scope.sh" 'for name in sys.argv[2:]:' 'for name in sys.argv[2:3]:'
+sabotage "$R/scripts/quality/scope/ci-job-scope.sh" 'for name in sys.argv[2:]:' 'for name in sys.argv[2:3]:'
 check "without the whole list in the fallback only the first suite would run" \
 	"tests/a/one.test.sh" "$(decide "$R/fakebin")"
 
@@ -222,16 +238,16 @@ for s in $SUITES; do RUN_ARGS="$RUN_ARGS ./$s"; done
 # sentinel, so what the runner decided is visible in what it printed.
 runner_repo() {
 	R="$WORK/$1"; rm -rf "$R"
-	mkdir -p "$R/scripts/quality" "$R/scripts/a" "$R/scripts/b" "$R/tests/ci/suites" "$R/tests/a" "$R/tests/b" "$R/tests/c"
+	mkdir -p "$R/scripts/quality/scope" "$R/scripts/a" "$R/scripts/b" "$R/tests/ci/suites" "$R/tests/a" "$R/tests/b" "$R/tests/c"
 	git -C "$R" init -q -b main
 	git -C "$R" config user.name t; git -C "$R" config user.email t@e.invalid; git -C "$R" config commit.gpgsign false
 	base_resolver="${2:-$RESOLVER}"
 	case "$base_resolver" in
 		none) ;;
-		*) cp "$base_resolver" "$R/scripts/quality/ci-job-scope.sh" ;;
+		*) cp "$base_resolver" "$R/scripts/quality/scope/ci-job-scope.sh" ;;
 	esac
 	cp "$RUNNER" "$R/tests/ci/suites/check-suite-completeness.test.sh"
-	printf '%s' "$MAP" > "$R/scripts/quality/suite-scope.txt"
+	printf '%s' "$MAP" > "$R/scripts/quality/scope/suite-scope.txt"
 	for s in $SUITES; do
 		# shellcheck disable=SC2016 # the stand-in suite reads this variable when it runs
 		printf '#!/usr/bin/env bash\nprintf "DONE %%s 0 0\\n" "${BASH_SOURCE[0]##*/}"\n' > "$R/$s"
@@ -268,7 +284,7 @@ check "a pull request that edits the runner runs every suite" "3 0" "$(runner_ru
 # The resolver is taken from the base commit. When the base has none, the
 # scope cannot be established and every suite runs.
 runner_repo baseresolver none
-printf '#!/usr/bin/env bash\necho tests/c/three.test.sh\n' > "$R/scripts/quality/ci-job-scope.sh"
+printf '#!/usr/bin/env bash\necho tests/c/three.test.sh\n' > "$R/scripts/quality/scope/ci-job-scope.sh"
 echo more >> "$R/DOCS.md"; merge
 check "a pull request that adds the resolver runs every suite" "3 0" "$(runner_run pull_request)"
 
@@ -303,11 +319,11 @@ check "every suite the workflow names has an entry in the map" "" "$missing"
 # real_repo <name>: a repository carrying the resolver and the map this
 # repository ships, so the decision is taken with the real map.
 real_repo() {
-	R="$WORK/$1"; rm -rf "$R"; mkdir -p "$R/scripts/quality" "$R/scripts/release" "$R/docs" "$R/tests/fixtures/monitoring"
+	R="$WORK/$1"; rm -rf "$R"; mkdir -p "$R/scripts/quality/scope" "$R/scripts/release" "$R/docs" "$R/tests/fixtures/monitoring"
 	git -C "$R" init -q -b main
 	git -C "$R" config user.name t; git -C "$R" config user.email t@example.invalid; git -C "$R" config commit.gpgsign false
-	cp "$RESOLVER" "$R/scripts/quality/ci-job-scope.sh"
-	cp "$SCOPE_MAP" "$R/scripts/quality/suite-scope.txt"
+	cp "$RESOLVER" "$R/scripts/quality/scope/ci-job-scope.sh"
+	cp "$SCOPE_MAP" "$R/scripts/quality/scope/suite-scope.txt"
 	printf 'readme\n' > "$R/README.md"; printf 'contributing\n' > "$R/CONTRIBUTING.md"
 	printf 'fixture\n' > "$R/tests/fixtures/monitoring/order.txt"
 	printf 'docs\n' > "$R/docs/threat-model.md"; printf 'x\n' > "$R/scripts/release/render-formulae.sh"
@@ -317,7 +333,7 @@ real_repo() {
 # real_decide: the suites the resolver keeps, one per line.
 real_decide() {
 	# shellcheck disable=SC2086
-	( cd "$R" && bash scripts/quality/ci-job-scope.sh suites $REAL_SUITES 2>/dev/null )
+	( cd "$R" && bash scripts/quality/scope/ci-job-scope.sh suites $REAL_SUITES 2>/dev/null )
 }
 # has: 1 when the suite is among the ones the decision kept.
 #
@@ -363,18 +379,18 @@ got="$(real_decide)"
 check "a README-only change runs the suite that reads the README" "1" \
 	"$(has tests/governance/check-issue-templates.test.sh "$got")"
 check "a README-only change runs the doc-anchor suite" "1" \
-	"$(has tests/quality/check-doc-anchors.test.sh "$got")"
+	"$(has tests/quality/hygiene/check-doc-anchors.test.sh "$got")"
 check "a README-only change does not run the suite that reads CONTRIBUTING" "1" \
 	"$(lacks tests/ci/docs/documented-test-command.test.sh "$got")"
 check "a README-only change does not run a suite that reads neither" "1" \
-	"$(lacks tests/quality/check-action-pins.test.sh "$got")"
+	"$(lacks tests/quality/lint/check-action-pins.test.sh "$got")"
 
 real_repo contributing; echo more >> "$R/CONTRIBUTING.md"; merge
 got="$(real_decide)"
 check "a CONTRIBUTING-only change runs the documented-command suite" "1" \
 	"$(has tests/ci/docs/documented-test-command.test.sh "$got")"
 check "a CONTRIBUTING-only change runs the doc-anchor suite" "1" \
-	"$(has tests/quality/check-doc-anchors.test.sh "$got")"
+	"$(has tests/quality/hygiene/check-doc-anchors.test.sh "$got")"
 check "a CONTRIBUTING-only change does not run the suite that reads the README" "1" \
 	"$(lacks tests/governance/check-issue-templates.test.sh "$got")"
 
@@ -383,7 +399,7 @@ got="$(real_decide)"
 check "a change to the renderer runs the renderer suites" "1" \
 	"$(has tests/release/render-formulae.test.sh "$got")"
 check "and the suites that read every script" "1" \
-	"$(has tests/quality/check-doc-anchors.test.sh "$got")"
+	"$(has tests/quality/hygiene/check-doc-anchors.test.sh "$got")"
 check "and none of the suites that read neither" "1" \
 	"$(lacks tests/ci/docs/documented-test-command.test.sh "$got")"
 

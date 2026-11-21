@@ -146,7 +146,7 @@ PY
 for pattern in $caller_list; do
 	prefix="${pattern%%[*?[]*}"
 	hits="$(grep -rlF -- "$prefix" "$HERE/tests" "$HERE/scripts" 2>/dev/null \
-		| grep -v -e '/shell-ci-scope.test.sh$' -e '/quality/ci-job-scope.test.sh$' | tr '\n' ' ')"
+		| grep -v -e '/shell-ci-scope.test.sh$' -e '/quality/scope/ci-job-scope.test.sh$' | tr '\n' ' ')"
 	check "the suite does not read ${pattern} (found in: ${hits:-nowhere})" "" "$hits"
 done
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Tests for scripts/quality/check-test-coverage.sh -- the gate that fails when a script
+# Tests for scripts/quality/coverage/check-test-coverage.sh -- the gate that fails when a script
 # in scripts/ has no test in tests/.
 #
 # The gate lives in scripts/, so it appears in its own input set. That is the
@@ -12,8 +12,8 @@
 # Requires: nothing beyond coreutils.
 set -u
 
-HERE="$(cd "$(dirname "$0")/../.." && pwd)"
-GATE="$HERE/scripts/quality/check-test-coverage.sh"
+HERE="$(cd "$(dirname "$0")/../../.." && pwd)"
+GATE="$HERE/scripts/quality/coverage/check-test-coverage.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 pass=0; fail=0
@@ -89,6 +89,26 @@ mkscript "$WORK/py/tests/area/beta.test.sh"
 assert 0 "and it passes once the test sits in the same folder" \
 	-- "$GATE" "$WORK/py"
 
+# --- a script in a folder needs its test in the same folder -----------------
+#
+# scripts/quality/ is split by responsibility, so a script sits two folders
+# down and its test has to sit two folders down in tests/. A test left at the
+# depth the script had before it moved, or one of the same name in a sibling
+# folder, does not cover it: that is what a script moved without its test, or
+# a test that tests another script of the same name, looks like.
+mkscript "$WORK/deep/scripts/quality/lint/alpha.sh"
+mkscript "$WORK/deep/tests/quality/alpha.test.sh"
+assert_error 1 "scripts/quality/lint/alpha.sh" \
+	"a test left at the old depth does not cover a script that moved into a folder" \
+	-- "$GATE" "$WORK/deep"
+mkscript "$WORK/deep/tests/quality/scope/alpha.test.sh"
+assert_error 1 "scripts/quality/lint/alpha.sh" \
+	"nor does a test of the same name in a sibling folder" \
+	-- "$GATE" "$WORK/deep"
+mkscript "$WORK/deep/tests/quality/lint/alpha.test.sh"
+assert 0 "and the script passes once its test sits in its folder" \
+	-- "$GATE" "$WORK/deep"
+
 # --- a tests/ file with no script is not an error ---------------------------
 #
 # The gate asserts one direction. tests/ also holds tests for things that are
@@ -104,7 +124,7 @@ assert 0 "a test with no matching script is not flagged" \
 #
 # The glob stays literal when nothing matches. Without the existence check the
 # gate would report a script called '*.sh'.
-mkdir -p "$WORK/empty/scripts" "$WORK/empty/scripts/quality" "$WORK/empty/tests" "$WORK/empty/tests/quality"
+mkdir -p "$WORK/empty/scripts/quality/coverage" "$WORK/empty/tests/quality/coverage"
 assert 0 "an empty scripts/ directory passes rather than inventing a name" \
 	-- "$GATE" "$WORK/empty"
 
@@ -116,12 +136,12 @@ assert_error 1 "no scripts/ directory" \
 
 # --- the gate is inside its own input set -----------------------------------
 #
-# This is the case the design exists for. Delete tests/quality/check-test-coverage.test.sh
-# and the gate names scripts/quality/check-test-coverage.sh as uncovered, which turns
+# This is the case the design exists for. Delete tests/quality/coverage/check-test-coverage.test.sh
+# and the gate names scripts/quality/coverage/check-test-coverage.sh as uncovered, which turns
 # the run below red. The gate cannot pass while being the only unchecked thing
 # in the repository.
 assert 0 "the gate has a test of its own here" \
-	-- test -f "$HERE/tests/quality/check-test-coverage.test.sh"
+	-- test -f "$HERE/tests/quality/coverage/check-test-coverage.test.sh"
 
 assert 0 "the gate passes against this repository, itself included" \
 	-- "$GATE" "$HERE"
@@ -132,9 +152,9 @@ assert 0 "the gate passes against this repository, itself included" \
 # file exists. So put a copy of the gate in a tree where it has no test and
 # require it to name itself. That is the property -- the gate is inside its own
 # input set -- rather than the symptom.
-mkdir -p "$WORK/self/scripts" "$WORK/self/scripts/quality" "$WORK/self/tests" "$WORK/self/tests/quality"
-cp "$GATE" "$WORK/self/scripts/quality/check-test-coverage.sh"
-assert_error 1 "scripts/quality/check-test-coverage.sh" \
+mkdir -p "$WORK/self/scripts/quality/coverage" "$WORK/self/tests/quality/coverage"
+cp "$GATE" "$WORK/self/scripts/quality/coverage/check-test-coverage.sh"
+assert_error 1 "scripts/quality/coverage/check-test-coverage.sh" \
 	"the gate reports itself when it is the uncovered script" \
 	-- "$GATE" "$WORK/self"
 

@@ -568,6 +568,10 @@ tests/ci/docs/documented-test-command.test.sh
 	CONTRIBUTING.md
 	.github/PULL_REQUEST_TEMPLATE.md
 
+# The shellcheck line of that command is read from CONTRIBUTING.md alone.
+tests/ci/docs/documented-shellcheck-scope.test.sh
+	CONTRIBUTING.md
+
 # --- the mutation catalogue --------------------------------------------------
 
 # The suite that tests the runner of the mutation catalogue drives the runner

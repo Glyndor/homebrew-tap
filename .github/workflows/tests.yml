@@ -69,6 +69,7 @@ jobs:
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/artifacts/check-formulae.test.sh
         ./tests/artifacts/check-formulae/check-formulae-roster.test.sh
+        ./tests/artifacts/formulae-digests.test.sh
         ./tests/artifacts/check-version-monotonic.test.sh
         ./tests/ci/policy/rules/locale-pinned.test.sh
         ./tests/quality/check-test-coverage.test.sh

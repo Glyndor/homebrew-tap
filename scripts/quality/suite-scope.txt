@@ -201,6 +201,13 @@ tests/artifacts/check-formulae/check-formulae-roster.test.sh
 	scripts/artifacts/check-formulae.sh
 	scripts/release/render-formulae.sh
 
+# The digest manifest builds its own trees, so only the script and its suite
+# can move its verdict.
+
+tests/artifacts/formulae-digests.test.sh
+	scripts/artifacts/formulae-digests.sh
+	tests/artifacts/formulae-digests.test.sh
+
 # The rollback gate compares the formulae with the base commit, so a formula
 # that goes back to an older release is what it looks for.
 

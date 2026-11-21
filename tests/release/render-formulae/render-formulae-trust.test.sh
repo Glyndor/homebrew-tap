@@ -166,24 +166,28 @@ publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
 # `except Exception: continue` around the verify call collapsed "this key did
 # not sign it" and "this key is not a key" into one message. The operator then
 # read "does not verify against any configured release key" and went looking at
-# the upstream release for a fault that was in this repository.
+# the upstream release for a fault that was in this repository. The
+# configuration guard of scripts/release/release-signature.sh now stops the run
+# on a malformed key before any release is read, with exit status 2; the
+# verifier's own check of the key, behind that guard, is reached by
+# tests/release/release-signature.test.sh.
 #
 # The three shapes below are the ones that reach it: not base64 at all, too
 # short, and the right alphabet but the wrong length. Each must say the key is
 # malformed and say which way.
 
 for bad_case in \
-	"AAAA!!!!AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|Only base64 data is allowed|not base64" \
-	"AAAA|3 bytes|too short" \
-	"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|33 bytes|one byte too long"; do
+	"AAAA!!!!AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|is not valid base64|not base64" \
+	"AAAA|is 3 bytes, not the 32 bytes|too short" \
+	"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|is 33 bytes, not the 32 bytes|one byte too long"; do
 	bad_key="${bad_case%%|*}"; rest="${bad_case#*|}"
 	needle="${rest%%|*}"; label="${rest#*|}"
 	rc=0
 	out="$( cd "$WORK/r1" && "$WORK/r1/scripts/release/render-formulae.sh" \
 		--pubkey "$bad_key" 2>&1 )" || rc=$?
-	check "a key that is $label is refused" "3" "$rc"
-	check "and it is named as malformed, not as a failed signature ($label)" "1" \
-		"$(printf '%s' "$out" | grep -c 'malformed release public key')"
+	check "a key that is $label stops the run before any release is read" "2" "$rc"
+	check "and it is named as our key, not as a failed signature ($label)" "1 0" \
+		"$(printf '%s' "$out" | grep -c 'the Ed25519 release public key') $(printf '%s' "$out" | grep -c 'does not verify against any configured release key')"
 	check "and the message says how it is malformed ($label)" "1" \
 		"$(printf '%s' "$out" | grep -cF "$needle")"
 done
@@ -202,9 +206,9 @@ check "a key pasted with whitespace on the ends still verifies" "0" "$rc"
 rc=0
 out="$( cd "$WORK/r1" && "$WORK/r1/scripts/release/render-formulae.sh" \
 	--pubkey "$(printf '%s' "$PUBKEY" | sed 's/^\(..........\)/\1 /')" 2>&1 )" || rc=$?
-check "but whitespace inside the key is still refused" "3" "$rc"
-check "and it is named as malformed" "1" \
-	"$(printf '%s' "$out" | grep -c 'malformed release public key')"
+check "but whitespace inside the key still stops the run" "2" "$rc"
+check "and it is named as our key" "1" \
+	"$(printf '%s' "$out" | grep -c 'the Ed25519 release public key contains whitespace')"
 
 # The mirror image, so the cases above are not satisfied by a renderer that
 # calls every key malformed: a well-formed key that simply did not sign this

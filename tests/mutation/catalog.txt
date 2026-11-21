@@ -127,12 +127,14 @@ pq-signature-length	scripts/release/release-signature.sh	[ "$pq_size" -eq "$PQ_S
 pq-required-missing	scripts/release/release-signature.sh	if not pq_present:	if False:	tests/release/release-signature.test.sh
 pq-no-key	scripts/release/release-signature.sh	if not pq_keys_b64:	if False:	tests/release/release-signature.test.sh
 pq-no-library	scripts/release/release-signature.sh	    sys.exit(3)	    sys.exit(0)	tests/release/release-signature.test.sh
-pq-guard-base64	scripts/release/release-signature.sh	bytes="$(printf '%s' "$padded" | base64 -d 2>/dev/null | wc -c)" || {	bytes="$(printf '%s' "$padded" | wc -c)" || {	tests/release/release-signature.test.sh
+key-guard-base64	scripts/release/release-signature.sh	printf '%s' "$padded" | base64 -d > /dev/null 2>&1 || {	true || {	tests/release/release-signature.test.sh
 pq-guard-key-length	scripts/release/release-signature.sh	[ "$bytes" -eq 1952 ] || {	true || {	tests/release/release-signature.test.sh
 pq-guard-whitespace	scripts/release/release-signature.sh	*[[:space:]]*)	"no whitespace check")	tests/release/release-signature.test.sh
 pq-guard-one-line	scripts/release/release-signature.sh	*$'\n'*)	"no line check")	tests/release/release-signature.test.sh
 pq-guard-roster	scripts/release/release-signature.sh	if [ "$product" = "$name" ]; then	if true; then	tests/release/release-signature.test.sh
 pq-guard-call	scripts/release/render-formulae.sh	check_release_configuration || exit 2	true || exit 2	tests/release/release-signature.test.sh
+ed-guard-key-length	scripts/release/release-signature.sh	[ "$bytes" -eq 32 ] || {	true || {	tests/release/release-signature.test.sh
+ed-guard-no-key	scripts/release/release-signature.sh	[ "$ed_keys" -gt 0 ] || {	true || {	tests/release/release-signature.test.sh
 pq-venv-second-slot	.github/workflows/update.yml	^RELEASE_PQ_PUBKEY2?_B64=	^RELEASE_PQ_PUBKEY(_2)?_B64=	tests/publication/update/update-mldsa-venv.test.sh
 pq-venv-path	.github/workflows/update.yml	PATH="$mldsa_venv/bin:$PATH"	:	tests/publication/update/update-mldsa-venv.test.sh
 render-served-unique	scripts/release/render-formulae.sh	if len(versions) != 1:	if len(versions) < 1:	tests/release/render-formulae/render-formulae-version.test.sh

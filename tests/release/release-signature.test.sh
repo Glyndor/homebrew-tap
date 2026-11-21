@@ -249,6 +249,26 @@ guard "a required list on two lines stops the run" \
 	"the required-products list spans more than one line" --pq-pubkey "$KEY" --pq-required "podup"$'\n'"other"
 check "and the stop is a configuration error, not a tampered release" "0" "$(said 'release was not admitted')"
 
+# The Ed25519 slots are held to the same check. A malformed one used to reach the
+# verifier, which refused every release in turn as if each were bad.
+read -r ED_SHORT < <(python3 -I -c '
+import base64, sys
+k = sys.argv[1] + "=" * (-len(sys.argv[1]) % 4)
+print(base64.b64encode(base64.b64decode(k)[:31]).decode().rstrip("="))' "$PUBKEY")
+ED_STRAY="${PUBKEY:0:10}!!!!${PUBKEY:10}"
+guard "an Ed25519 key with characters outside base64 stops the run" \
+	"the Ed25519 release public key is not valid base64" --pubkey "$ED_STRAY"
+guard "a 31-byte Ed25519 key stops the run" \
+	"the Ed25519 release public key is 31 bytes, not the 32 bytes" --pubkey "$ED_SHORT"
+guard "a bad Ed25519 key in the second slot stops the run too" \
+	"the Ed25519 release public key is 31 bytes" --pubkey2 "$ED_SHORT"
+guard "whitespace inside an Ed25519 key stops the run" \
+	"the Ed25519 release public key contains whitespace" --pubkey "${PUBKEY:0:20} ${PUBKEY:20}"
+guard "no Ed25519 key at all stops the run" \
+	"no Ed25519 release public key is configured" --pubkey ""
+render "$R" --pubkey "  $PUBKEY  "
+check "and an Ed25519 key with blanks on its ends is read as the key" "0 1" "$rc $(said 'SHA256SUMS signature verified')"
+
 # --- the committed constants ---------------------------------------------------
 committed() { sed -n "s/^$1=\"\\(.*\\)\"\$/\\1/p" "$HERE/$RENDERER"; }
 if [ -z "$(committed RELEASE_PQ_REQUIRED)" ] || [ -n "$(committed RELEASE_PQ_PUBKEY_B64)$(committed RELEASE_PQ_PUBKEY2_B64)" ]; then

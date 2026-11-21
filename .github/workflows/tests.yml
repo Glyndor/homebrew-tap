@@ -102,6 +102,7 @@ jobs:
         ./tests/monitoring/check-channel-drift.test.sh
         ./tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
         ./tests/ci/policy/workflows/workflow-shape.test.sh
+        ./tests/ci/policy/workflows/persist-credentials.test.sh
         ./tests/ci/policy/workflows/workflow-publish-triggers.test.sh
         ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
         ./tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh

@@ -47,16 +47,21 @@ unpinned() {
 	local f line
 	while IFS= read -r f; do
 		[ -e "$f" ] || continue
-		grep -qE '^[[:space:]]*export[[:space:]]+LC_ALL=C\b' "$f" && continue
+		# A file-wide export covers a script. A workflow is not read that way: its
+		# steps are separate shells, so an export in one step pins that step only,
+		# and a sort has to carry LC_ALL=C on its own line.
+		case "$f" in
+			*.sh) grep -qE '^[[:space:]]*export[[:space:]]+LC_ALL=C\b' "$f" && continue ;;
+		esac
 		grep -nE '(^|[|;&(]|\s)sort\b' "$f" 2>/dev/null \
 			| grep -v '^[0-9]*:[[:space:]]*#' \
 			| grep -v 'LC_ALL=C[[:space:]]*sort' \
 			| while IFS= read -r line; do echo "$f:$line"; done
-	done < <(find scripts -type f -name '*.sh' 2>/dev/null | LC_ALL=C sort)
+	done < <({ find scripts -type f -name '*.sh' 2>/dev/null; find .github/workflows -maxdepth 1 -type f -name '*.yml' 2>/dev/null; } | LC_ALL=C sort)
 }
 
 found="$(unpinned || true)"
-check "every sort in scripts/ pins its collation" "" "$found"
+check "every sort in scripts/ and in the workflows pins its collation" "" "$found"
 
 # The check must be able to see a violation, or it is a grep that always agrees.
 # Rather than write to a tracked file, run the same pattern over a fixture.
@@ -67,13 +72,25 @@ printf '#!/bin/sh\nexport LC_ALL=C\nprintf "b\\na\\n" | sort -u\n' > "$probe/scr
 printf '#!/bin/sh\nprintf "b\\na\\n" | LC_ALL=C sort -u\n' > "$probe/scripts/inline.sh"
 mkdir -p "$probe/scripts/area/sub"
 printf '#!/bin/sh\nprintf "b\\na\\n" | sort -u\n' > "$probe/scripts/area/sub/deep.sh"
+# A workflow's run: block sorts too. A file-wide export does not cover it, and a
+# comment that names sort -u is not a call.
+mkdir -p "$probe/.github/workflows"
+printf 'jobs:\n  j:\n    steps:\n      - run: |\n          git ls-files | sort -u\n' > "$probe/.github/workflows/bad.yml"
+printf 'jobs:\n  j:\n    steps:\n      - run: |\n          git ls-files | LC_ALL=C sort -u\n          # sort -u is unpinned here, said in prose\n' > "$probe/.github/workflows/good.yml"
+printf 'jobs:\n  j:\n    steps:\n      - run: |\n          export LC_ALL=C\n          git ls-files | sort -zu\n' > "$probe/.github/workflows/exported.yml"
 seen="$( cd "$probe" || exit 1; unpinned | grep -c . )"
+yml_bad="$( cd "$probe" || exit 1; unpinned | grep -c 'workflows/bad.yml' )"
+yml_good="$( cd "$probe" || exit 1; unpinned | grep -c 'workflows/good.yml' )"
+yml_exported="$( cd "$probe" || exit 1; unpinned | grep -c 'workflows/exported.yml' )"
 named="$( cd "$probe" || exit 1; unpinned | grep -c 'bad.sh' )"
 deep="$( cd "$probe" || exit 1; unpinned | grep -c 'area/sub/deep.sh' )"
 rm -rf "$probe"
-check "and it reports the unpinned sorts at every depth" "2" "$seen"
+check "and it reports the unpinned sorts at every depth, workflows included" "4" "$seen"
 check "and names the file it is in" "1" "$named"
 check "and names the one in a nested folder" "1" "$deep"
+check "and names the sort of a workflow's run block" "1" "$yml_bad"
+check "and does not name a workflow that pins it on the line, or one that only says sort in a comment" "0" "$yml_good"
+check "and does not take an export in one step for a pin on the sort of another line" "1" "$yml_exported"
 
 echo
 echo "$pass passed, $fail failed"

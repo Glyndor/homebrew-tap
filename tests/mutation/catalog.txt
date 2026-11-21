@@ -269,3 +269,9 @@ step-script-missing	tests/fixtures/ci/step-script.sh	sys.exit("step_script: no s
 step-script-block	tests/fixtures/ci/step-script.sh	sys.exit("step_script: the step %r of %s has no block scalar run:" % (name, path))	pass	tests/ci/suites/step-script.test.sh
 step-script-next-step	tests/fixtures/ci/step-script.sh	    if re.match(r"^\s*-\s+(name|uses):", lines[i]) and i > start + 1:	    if False:	tests/ci/suites/step-script.test.sh
 pq-requirement-rule	tests/release/release-signature.test.sh	if [ -z "$(committed RELEASE_PQ_REQUIRED "$1")" ] || [ -n	if true || [ -n	tests/release/release-signature.test.sh
+sort-pinned-shell-ci-1	.github/workflows/reusable-shell-ci.yml	LC_ALL=C sort -u || true)"	sort -u || true)"	tests/ci/policy/rules/locale-pinned.test.sh
+sort-pinned-dependabot-freshness-2	.github/workflows/reusable-dependabot-freshness.yml	LC_ALL=C sort -u \	sort -u \	tests/ci/policy/rules/locale-pinned.test.sh
+sort-pinned-dependabot-freshness-3	.github/workflows/reusable-dependabot-freshness.yml	LC_ALL=C sort -V | tail -n 1 || true)"	sort -V | tail -n 1 || true)"	tests/ci/policy/rules/locale-pinned.test.sh
+sort-pinned-dependabot-freshness-4	.github/workflows/reusable-dependabot-freshness.yml	LC_ALL=C sort -V | tail -n 1)" != "$tag" ]; then	sort -V | tail -n 1)" != "$tag" ]; then	tests/ci/policy/rules/locale-pinned.test.sh
+sort-pinned-dependabot-freshness-5	.github/workflows/reusable-dependabot-freshness.yml	LC_ALL=C sort -V | tail -n 1)" != "$version" ]; then	sort -V | tail -n 1)" != "$version" ]; then	tests/ci/policy/rules/locale-pinned.test.sh
+sort-pinned-dependabot-freshness-6	.github/workflows/reusable-dependabot-freshness.yml	LC_ALL=C sort -u | wc -l | tr -d ' ')"	sort -u | wc -l | tr -d ' ')"	tests/ci/policy/rules/locale-pinned.test.sh

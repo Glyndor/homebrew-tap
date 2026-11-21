@@ -47,7 +47,7 @@
 
 set -euo pipefail
 
-root="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+root="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
 if [ ! -d "$root/docs" ]; then
 	echo "no docs/ directory under $root" >&2
 	exit 1

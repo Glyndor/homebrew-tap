@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# Tests for scripts/quality/check-doc-anchors.sh -- the gate that fails when a
+# Tests for scripts/quality/hygiene/check-doc-anchors.sh -- the gate that fails when a
 # reference under docs/ does not resolve, and when one of them is still a line
 # coordinate.
 #
 # The gate lives in scripts/, so it appears in its own input set: that is the
-# whole design, and it is the same shape as tests/quality/check-test-coverage.test.sh.
+# whole design, and it is the same shape as tests/quality/coverage/check-test-coverage.test.sh.
 # Exempting it, or deleting this file, turns the coverage gate red.
 #
 # The cases below are the failures the gate exists for, each asserted on the
@@ -15,8 +15,8 @@
 # Requires: nothing beyond coreutils.
 set -u
 
-HERE="$(cd "$(dirname "$0")/../.." && pwd)"
-GATE="$HERE/scripts/quality/check-doc-anchors.sh"
+HERE="$(cd "$(dirname "$0")/../../.." && pwd)"
+GATE="$HERE/scripts/quality/hygiene/check-doc-anchors.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 pass=0
@@ -127,7 +127,7 @@ assert_error 1 "no docs/ directory" \
 
 # --- the gate is inside its own input set ------------------------------------
 assert 0 "the gate has a test of its own here" \
-	-- test -f "$HERE/tests/quality/check-doc-anchors.test.sh"
+	-- test -f "$HERE/tests/quality/hygiene/check-doc-anchors.test.sh"
 
 assert 0 "the gate passes against this repository" \
 	-- "$GATE" "$HERE"

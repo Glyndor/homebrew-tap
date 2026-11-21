@@ -70,6 +70,9 @@ permissions:
   contents: read
 
 jobs:
+  # Over the limit, the silence is an alarm only when something was behind: the
+  # reusable compares the pinned actions and the pinned pip requirements the
+  # dependabot.yml of this repository names with their newest release.
   dependabot-freshness:
     uses: ./.github/workflows/reusable-dependabot-freshness.yml
     with:

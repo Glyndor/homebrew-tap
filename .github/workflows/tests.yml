@@ -48,7 +48,7 @@ jobs:
     uses: ./.github/workflows/reusable-shell-ci.yml
     with:
       # No path is listed, so nothing is ever skipped. The suite reads every
-      # document under docs/ through scripts/quality/check-doc-anchors.sh, so a
+      # document under docs/ through scripts/quality/hygiene/check-doc-anchors.sh, so a
       # pull request that touches nothing but prose is exactly the one that can
       # break a reference; README.md is read by check-issue-templates for
       # the same reason. tests/ci/suites/shell-ci-scope.test.sh fails if this
@@ -76,25 +76,27 @@ jobs:
         ./tests/artifacts/formulae-digests.test.sh
         ./tests/artifacts/check-version-monotonic.test.sh
         ./tests/ci/policy/rules/locale-pinned.test.sh
-        ./tests/quality/check-test-coverage.test.sh
-        ./tests/quality/check-action-pins.test.sh
-        ./tests/quality/check-doc-anchors.test.sh
+        ./tests/quality/coverage/check-test-coverage.test.sh
+        ./tests/quality/lint/check-action-pins.test.sh
+        ./tests/quality/hygiene/check-doc-anchors.test.sh
         ./tests/governance/check-dco-on-main.test.sh
         ./tests/governance/check-issue-templates.test.sh
         ./tests/ci/suites/ci-runs-every-test.test.sh
-        ./tests/quality/check-suites-wired.test.sh
-        ./tests/quality/lint-workflow-shell.test.sh
+        ./tests/quality/coverage/check-suites-wired.test.sh
+        ./tests/quality/lint/lint-workflow-shell.test.sh
         ./tests/ci/reusable/reusable-line-limit.test.sh
         ./tests/ci/reusable/reusable-shell-ci.test.sh
         ./tests/ci/suites/shell-ci-scope.test.sh
-        ./tests/quality/ci-job-scope.test.sh
-        ./tests/quality/ci-job-scope-suites.test.sh
+        ./tests/quality/scope/ci-job-scope.test.sh
+        ./tests/quality/scope/ci-job-scope-suites.test.sh
+        ./tests/quality/scope/ci-job-scope-suite-needed.test.sh
+        ./tests/ci/suites/mldsa-job-scope.test.sh
         ./tests/ci/suites/lint-job-scope.test.sh
         ./tests/ci/policy/rules/cancel-policy.test.sh
         ./tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
         ./tests/ci/reusable/reusable-empty-diff.test.sh
         ./tests/ci/reusable/reusable-dco.test.sh
-        ./tests/quality/check-editorconfig.test.sh
+        ./tests/quality/hygiene/check-editorconfig.test.sh
         ./tests/monitoring/check-reusable-drift.test.sh
         ./tests/monitoring/check-channel-drift.test.sh
         ./tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
@@ -117,8 +119,8 @@ jobs:
         ./tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.test.sh
         ./tests/ci/reusable/reusable-workflow-lint.test.sh
         ./tests/monitoring/check-tool-versions.test.sh
-        ./tests/quality/check-test-job-not-switchable.test.sh
-        ./tests/quality/check-tooling-isolation.test.sh
+        ./tests/quality/lint/check-test-job-not-switchable.test.sh
+        ./tests/quality/lint/check-tooling-isolation.test.sh
         ./tests/ci/policy/rules/brew-jobs-are-bounded.test.sh
         ./tests/ci/policy/workflows/audit-scope.test.sh
         ./tests/publication/audit/audit-runs-on-a-schedule.test.sh
@@ -134,19 +136,19 @@ jobs:
         ./tests/mutation/catalog-reaches-every-script.test.sh
         ./tests/ci/docs/documented-test-command.test.sh
         ./tests/ci/docs/documented-shellcheck-scope.test.sh
-      # shellcheck: tests/quality/lint-workflow-shell.test.sh plants a violation and
+      # shellcheck: tests/quality/lint/lint-workflow-shell.test.sh plants a violation and
       # requires the linter to report it, so it needs the linter. The reusable
       # installs the release the shellcheck job pins, never the distribution's,
       # so the suite asks the linter the gate uses. On a pull request only the
       # packages of the suites it selects are installed, as
-      # scripts/quality/suite-dependencies.txt lists them.
+      # scripts/quality/scope/suite-dependencies.txt lists them.
       # python3-yaml: tests/ci/policy/rules/brew-jobs-are-bounded.test.sh parses the workflows
       # rather than grepping them, so a job's env and bound are read from the
       # job they belong to. tests/ci/policy/rules/jobs-are-bounded.test.sh reads the same way
       # for the timeout-minutes rule.
       # python3-yaml also serves the suites of the two workflow-lint scripts,
-      # tests/quality/check-test-job-not-switchable.test.sh and
-      # tests/quality/check-tooling-isolation.test.sh, which import it exactly
+      # tests/quality/lint/check-test-job-not-switchable.test.sh and
+      # tests/quality/lint/check-tooling-isolation.test.sh, which import it exactly
       # as the workflow-lint job does.
       apt-packages: shellcheck python3-yaml ruby
 
@@ -161,6 +163,21 @@ jobs:
   # A job of its own rather than a second package list in the reusable: the
   # reusable installs from the distribution, and this is the one suite that
   # needs a library the distribution does not carry. It holds no secret.
+  #
+  # What it costs and when it runs. Measured 10 seconds locally for the venv,
+  # the three wheels and the suite; on a runner the wheels come from PyPI, so
+  # the network is most of it. It runs on a pull request and on a push to main,
+  # and on each only when something that can change its verdict changed: the
+  # verifier and what it sources, the requirements file with its hashes, the
+  # suites and fixtures of ML-DSA, this workflow and the decision itself, all
+  # named in scripts/quality/scope/suite-scope.txt. Any other event runs it,
+  # and so does any doubt.
+  #
+  # It is a required check, so it is never skipped as a job: no `paths:` on the
+  # workflow, no `if:` or `needs:` on the job. It always starts, decides in its
+  # first step and reports under its own name, and only the wheel install and
+  # the suite are conditional. Its `concurrency` is the workflow's: a newer push
+  # supersedes the run on a pull request and nothing else is ever cancelled.
   mldsa:
     name: ML-DSA-65 verifier
     # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on
@@ -179,7 +196,45 @@ jobs:
           persist-credentials: false
           fetch-depth: 2
 
+      # The resolver is read from the commit the change is measured against, so
+      # a change cannot narrow its own scope: the base of a pull request, the
+      # commit a push replaced. A base that does not carry it, one that cannot
+      # be read, an answer that is not true or false and any failure run the
+      # suite. A decision that skips is written to the step summary, so a run
+      # that was skipped by decision reads differently from one that ran.
+      - name: Decide whether the ML-DSA-65 suite has anything to look at
+        id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          SUITE: tests/release/release-signature/release-signature-mldsa.test.sh
+        run: |
+          set -euo pipefail
+          needed=true
+          base=""
+          if [ "$EVENT" = pull_request ]; then
+            base=HEAD^1
+          elif [ "$EVENT" = push ] && [[ "$BEFORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            base="$BEFORE_SHA"
+          fi
+          script="$(mktemp "$RUNNER_TEMP/mldsa-scope.XXXXXX")" || script=""
+          trap '[ -z "$script" ] || rm -f "$script"' EXIT
+          if [ -n "$base" ] && [ -n "$script" ] \
+            && git show "$base:scripts/quality/scope/ci-job-scope.sh" > "$script" 2>/dev/null; then
+            if decision="$(bash "$script" suite-needed "$SUITE")" \
+              && [[ "$decision" == true || "$decision" == false ]]; then
+              needed="$decision"
+            fi
+          fi
+          echo "needed=$needed" >> "$GITHUB_OUTPUT"
+          if [ "$needed" = false ]; then
+            echo "No input of the ML-DSA-65 verifier changed; the wheel install and the suite are skipped by decision." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Running the ML-DSA-65 verifier suite (changed inputs, or the scope was not established)."
+          fi
+
       - name: Install the pinned cryptography wheel
+        if: steps.scope.outputs.needed != 'false'
         run: |
           set -euo pipefail
           venv="$RUNNER_TEMP/mldsa-venv"
@@ -187,9 +242,20 @@ jobs:
           "$venv/bin/python" -m pip install --quiet --disable-pip-version-check --require-hashes --only-binary=:all: -r scripts/release/render-requirements.txt
           echo "$venv/bin" >> "$GITHUB_PATH"
 
+      # The decision is read inside the script and not in an `if:` on the step:
+      # scripts/quality/coverage/check-suites-wired.sh counts a suite as wired
+      # only when it is named in a step with no condition, which is what stops
+      # a pull request from switching a suite off by adding one. Anything but
+      # "false" runs the suite.
       - name: Run the ML-DSA-65 verifier suite
+        env:
+          NEEDED: ${{ steps.scope.outputs.needed }}
         run: |
           set -euo pipefail
+          if [ "$NEEDED" = false ]; then
+            echo "ML-DSA-65 verifier: skipped by decision, nothing the suite reads changed."
+            exit 0
+          fi
           ./tests/ci/suites/check-suite-completeness.test.sh ./tests/release/release-signature/release-signature-mldsa.test.sh
 
   products:

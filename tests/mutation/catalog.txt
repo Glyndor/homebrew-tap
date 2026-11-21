@@ -261,3 +261,5 @@ claims-path-exists	tests/ci/docs/documented-claims.test.sh	[ -e "$2/$path" ] || 
 claims-venv-package	tests/ci/docs/documented-claims.test.sh	&& ! printf '%s' "$need" | grep -q 'python3-venv'	&& false	tests/ci/docs/documented-claims.test.sh
 claims-rollback-gh	tests/ci/docs/documented-claims.test.sh	grep -qE '`gh`' "$1" ||	true ||	tests/ci/docs/documented-claims.test.sh
 claims-counts-equal	tests/ci/docs/documented-claims.test.sh	"$first" = "$second" ] && [ -n "$first" ]	-n "$first" ] && [ -n "$first" ]	tests/ci/docs/documented-claims.test.sh
+roster-extra-column	scripts/release/render-formulae.sh	[ "${#pipes}" -le 9 ] || {	true || {	tests/release/render-formulae/render-formulae-roster-policy.test.sh
+roster-duplicate	scripts/release/render-formulae.sh	if [ -n "${seen_formulae[$formula]:-}" ]; then	if false; then	tests/release/render-formulae/render-formulae-roster-policy.test.sh

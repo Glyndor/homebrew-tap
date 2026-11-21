@@ -45,7 +45,7 @@ permissions:
 # pull requests cancel: a run on `main` is the one freshness reads, and a
 # cancelled one would leave it with nothing to read.
 concurrency:
-  group: audit-${{ github.event_name }}-${{ github.ref }}
+  group: audit-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

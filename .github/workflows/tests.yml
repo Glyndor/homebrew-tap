@@ -114,7 +114,8 @@ jobs:
         ./tests/ci/reusable/reusable-dependabot-freshness.test.sh
         ./tests/ci/reusable/reusable-schedule-freshness.test.sh
         ./tests/ci/reusable/reusable-workflow-lint.test.sh
-        ./tests/ci/reusable/reusable-workflow-lint-install.test.sh
+        ./tests/quality/check-test-job-not-switchable.test.sh
+        ./tests/quality/check-tooling-isolation.test.sh
         ./tests/ci/policy/rules/brew-jobs-are-bounded.test.sh
         ./tests/ci/policy/workflows/audit-scope.test.sh
         ./tests/publication/audit/audit-runs-on-a-schedule.test.sh
@@ -138,8 +139,10 @@ jobs:
       # rather than grepping them, so a job's env and bound are read from the
       # job they belong to. tests/ci/policy/rules/jobs-are-bounded.test.sh reads the same way
       # for the timeout-minutes rule.
-      # python3-yaml also serves tests/ci/reusable/reusable-workflow-lint.test.sh, whose
-      # tooling-isolation step imports it exactly as the workflow-lint job does.
+      # python3-yaml also serves the suites of the two workflow-lint scripts,
+      # tests/quality/check-test-job-not-switchable.test.sh and
+      # tests/quality/check-tooling-isolation.test.sh, which import it exactly
+      # as the workflow-lint job does.
       apt-packages: shellcheck python3-yaml ruby
 
   # The ML-DSA-65 half of the release signature check, verified for real. It

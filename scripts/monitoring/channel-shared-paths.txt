@@ -46,7 +46,9 @@ scripts/quality/check-action-pins.sh
 scripts/quality/check-doc-anchors.sh
 scripts/quality/check-editorconfig.sh
 scripts/quality/check-suites-wired.sh
+scripts/quality/check-test-job-not-switchable.sh
 scripts/quality/check-test-coverage.sh
+scripts/quality/check-tooling-isolation.sh
 scripts/quality/ci-job-scope.sh
 scripts/quality/lint-workflow-shell.sh
 scripts/release/release-signature.sh
@@ -65,7 +67,6 @@ tests/ci/reusable/reusable-line-limit.test.sh
 tests/ci/reusable/reusable-schedule-freshness.test.sh
 tests/ci/reusable/reusable-shell-ci.test.sh
 tests/ci/reusable/reusable-workflow-lint.test.sh
-tests/ci/reusable/reusable-workflow-lint-install.test.sh
 tests/ci/suites/check-suite-completeness.test.sh
 tests/ci/suites/ci-runs-every-test.test.sh
 tests/ci/suites/lint-job-scope.test.sh
@@ -89,7 +90,9 @@ tests/quality/check-action-pins.test.sh
 tests/quality/check-doc-anchors.test.sh
 tests/quality/check-editorconfig.test.sh
 tests/quality/check-suites-wired.test.sh
+tests/quality/check-test-job-not-switchable.test.sh
 tests/quality/check-test-coverage.test.sh
+tests/quality/check-tooling-isolation.test.sh
 tests/quality/ci-job-scope.test.sh
 tests/quality/lint-workflow-shell.test.sh
 tests/release/release-signature.test.sh

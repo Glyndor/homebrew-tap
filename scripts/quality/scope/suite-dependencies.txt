@@ -27,6 +27,7 @@ tests/release/render-formulae/render-formulae-attestation.test.sh -
 tests/release/render-formulae/render-formulae-linux-attestation.test.sh -
 tests/release/render-formulae/render-formulae-inputs.test.sh -
 tests/release/render-formulae/render-formulae-tag-shape.test.sh -
+tests/release/render-formulae/render-formulae-roster-policy.test.sh -
 tests/release/render-formulae/render-formulae-symlink.test.sh -
 tests/release/release-signature.test.sh -
 # Run by the ML-DSA-65 job of tests.yml, which installs nothing from apt.

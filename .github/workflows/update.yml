@@ -437,6 +437,12 @@ jobs:
         with:
           app-id: ${{ vars.UPDATER_APP_ID }}
           private-key: ${{ secrets.UPDATER_APP_PRIVATE_KEY }}
+          # The token is asked for with the one permission the commit needs.
+          # Without this it carries whatever the installation grants, and
+          # those settings live on GitHub where this tree cannot check them:
+          # widening the installation for another use would widen this token
+          # with no change here.
+          permission-contents: write
 
       - name: Commit the update to main (GitHub-signed)
         if: needs.render.outputs.changed == '1'

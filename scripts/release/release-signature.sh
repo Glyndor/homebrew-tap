@@ -60,6 +60,12 @@ verify_sha256sums() { # $1=repo $2=tag $3=product
 	# error: a release that publishes only the Ed25519 signature is admitted
 	# exactly as it was before, unless its product is in the required list.
 	#
+	# It is asked for even when no ML-DSA-65 key is configured and no product
+	# is required, which today means one more request per product and run that
+	# answers 404. Skipping it then would admit a release that carries a second
+	# signature nobody can check, and that release is refused on purpose: the
+	# key reaches the verifier before any product signs with it.
+	#
 	# The status code is what tells the two apart, and it is read with the
 	# transfer instead of guessed from curl's exit status: a 404 means the
 	# release carries no second signature, while any other failure means the

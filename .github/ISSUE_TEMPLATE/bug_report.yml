@@ -35,8 +35,8 @@ body:
     id: os
     attributes:
       label: Operating system
-      description: macOS version and architecture, plus your Homebrew version (`brew --version`).
-      placeholder: e.g. macOS 15 Apple Silicon, macOS 14 Intel
+      description: Operating system (macOS or Linux) and architecture, plus your Homebrew version (`brew --version`).
+      placeholder: e.g. macOS 15 Apple Silicon, Ubuntu 24.04 x86_64
     validations:
       required: true
   - type: input

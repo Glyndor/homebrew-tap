@@ -17,15 +17,17 @@ The Homebrew counterpart to the signed apt repository at
 brew install glyndor/tap/podup
 ```
 
-Upgrades arrive with `brew upgrade`, like any other formula.
+Upgrades arrive with `brew upgrade`, like any other formula. The tap looks for
+a new release on an hourly schedule, which GitHub often runs late, so a
+release is usually served within a few hours.
 
 | Package | What it is | macOS | Linux |
 | --- | --- | --- | --- |
 | [`podup`](https://github.com/Glyndor/podup) | Docker-compose translator and runner for rootless Podman | this tap | this tap |
-| [`helmly-agent`](https://github.com/Glyndor/helmly-agent) | Hardened server agent for the Glyndor panel: signed commands over WireGuard and mTLS | not served here | not served here |
 
-On Linux this tap serves the same signed binaries the products publish for
-`x86_64` and `arm64`.
+On Linux this tap serves the same signed binaries the product publishes for
+`x86_64` and `arm64`. Other Glyndor products ship through
+[apt.glyndor.net](https://apt.glyndor.net).
 
 ## What you are trusting
 
@@ -42,7 +44,7 @@ is refused.
 
 ```mermaid
 flowchart LR
-  R["Product release<br/>SHA256SUMS + .sig"] -->|hourly pull| V["Verify signature<br/>org Ed25519 release key"]
+  R["Product release<br/>SHA256SUMS + .sig"] -->|scheduled pull| V["Verify signature<br/>org Ed25519 release key"]
   V -->|verified| P["Check each asset<br/>checksum + provenance for the tag"]
   P --> G["Re-render Formula/*.rb<br/>version, URLs, checksums"]
   G --> C["Validate, then commit to main<br/>GitHub-signed"]

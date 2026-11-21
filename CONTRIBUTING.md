@@ -17,6 +17,12 @@ release signature verified before anything is written. Edit
 `scripts/release/render-formulae.sh`, never the formulae themselves: the next scheduled
 run overwrites them, so a hand edit disappears without a trace.
 
+The renderer verifies the Ed25519 release signature, and the ML-DSA-65
+signature a release may carry beside it. The second one is a hybrid and never
+a replacement, so the Ed25519 signature is checked first and always. No product
+carries that second signature yet, so every release today is admitted on the
+Ed25519 signature alone.
+
 **Its git content IS the published artifact.** A commit on `main` is what
 `brew install` reads. There is no build step between them and no CDN in front.
 

@@ -43,6 +43,7 @@ pushed here by a product and no product holds a credential on this repository
 | The formulae | `Formula/*.rb` on `main` | what `brew` executes as the installing user |
 | The rendered checksums | `sha256` lines inside each formula (`Formula/podup.rb#Podup`) | the only thing that binds a download to the release the tap verified |
 | The organization's release key (public half) | `scripts/release/render-formulae.sh#RELEASE_PUBKEY_B64`, with a second slot at `scripts/release/render-formulae.sh#RELEASE_PUBKEY2_B64` | the trust anchor that admits a release into the tap |
+| The organization's ML-DSA-65 release key (public half) | `scripts/release/render-formulae.sh#RELEASE_PQ_PUBKEY_B64`, with a second slot at `scripts/release/render-formulae.sh#RELEASE_PQ_PUBKEY2_B64` and the list of products whose second signature is required at `scripts/release/render-formulae.sh#RELEASE_PQ_REQUIRED` | the second half of the hybrid release signature; empty today, and no product carries that signature yet |
 | `main` itself | this repository | every `brew update` reads it, and the bot writes to it without a pull request |
 
 ## Trust boundaries and actors
@@ -82,6 +83,7 @@ pushed here by a product and no product holds a credential on this repository
 |---|---|---|
 | A tampered or substituted release asset (a binary swapped after publication, or a `SHA256SUMS` rewritten to match it) | the checksum never comes from the asset; it is read from a `SHA256SUMS` whose detached Ed25519 signature verified first, and `brew` refuses a download whose bytes do not match the pinned digest (`scripts/release/render-formulae.sh#verify_sha256sums`, `scripts/release/render-formulae.sh#verify_attestation`) | test: `tests/release/render-formulae.test.sh#an unverifiable signature skips the product`; `tests/release/render-formulae.test.sh#an asset missing from the manifest skips the product`; `tests/release/render-formulae/render-formulae-trust.test.sh#an asset listed twice is rejected`; `tests/release/render-formulae/render-formulae-trust.test.sh#a non-hexadecimal checksum is rejected`; `tests/release/render-formulae/render-formulae-trust.test.sh#a short digest is rejected` (a manifest that verifies but is malformed) |
 | A release signed by a wrong or rotated key | verification fails closed against every configured slot; exhausting the slots is an error, not a fallthrough, and the product keeps the formula it had (`scripts/release/render-formulae.sh#verify_sha256sums`, `scripts/release/render-formulae.sh#render_product`) | test: `tests/release/render-formulae/render-formulae-trust.test.sh#two wrong keys still fail closed`; `tests/release/render-formulae/render-formulae-trust.test.sh#a well-formed key that did not sign it fails as a signature`; `tests/release/render-formulae.test.sh#the skipped product keeps the formula it had` |
+| A release carries a second signature, an ML-DSA-65 one, and it is not checked, or it is left out where it is required | the Ed25519 signature is checked first and always, and a second signature is checked whenever the release carries it: one that does not verify is refused, one that arrives with no key configured is refused, and a product named in `RELEASE_PQ_REQUIRED` is refused without one (`scripts/release/render-formulae.sh#verify_sha256sums`, `scripts/release/render-formulae.sh#RELEASE_PQ_REQUIRED`) | test: none yet; the six cases of the hybrid signature are being written |
 | The trust anchor is swapped from outside the script | the key is a constant overridden only by `--pubkey` and `--pubkey2`; no environment variable reaches it (`scripts/release/render-formulae.sh#RELEASE_PUBKEY_B64`) | test: `tests/release/render-formulae/render-formulae-trust.test.sh#the environment cannot swap the trust anchor` |
 | A compromised product repository publishes a malicious release under a valid signature | the tap verifies that the manifest is the one the product published and that what it interpolates is well formed: a tag carrying Ruby is refused before it reaches the generated formula (`scripts/release/render-formulae.sh#version_guard`), and a digest must be one entry of 64 hex characters (`scripts/release/render-formulae.sh#hash_of`). It cannot tell a malicious binary from a good one when both are correctly signed, and the release job of the product holds the signing key whose public half is `scripts/release/render-formulae.sh#RELEASE_PUBKEY_B64`, so this is a residual risk, stated below | test: `tests/release/render-formulae/render-formulae-version.test.sh#a release tag carrying Ruby is refused`; `tests/release/render-formulae/render-formulae-version.test.sh#and the error names the tag rather than the signature`; none for the binary itself |
 | One product's broken release removes or holds back another's | each product renders on its own; a failure leaves that product's formula as it was, the rest still commit, and the job fails last so the skip is loud (`scripts/release/render-formulae.sh#render_product`, `.github/workflows/update.yml#Render formulae from the latest signed releases`, `.github/workflows/update.yml#Fail if any product was skipped`) | test: `tests/publication/update/update-workflow.test.sh#exit 3 does NOT abort the step`; `tests/publication/update/update-workflow.test.sh#the failure step is last, after the commit` |
@@ -165,6 +167,13 @@ verification functions, the SemVer comparison
 (`scripts/release/render-formulae.sh#version_guard`), so a key, a comparison
 or a guard changed in one channel and not the other is reported as drift.
 
+The ML-DSA-65 key has the same two slots
+(`scripts/release/render-formulae.sh#RELEASE_PQ_PUBKEY_B64`,
+`scripts/release/render-formulae.sh#RELEASE_PQ_PUBKEY2_B64`) and the same
+overlap, and the two channels carry the same key material: a rotation that
+lands in one of them and not the other is reported as drift by
+`scripts/monitoring/check-render-drift.sh#UNITS`.
+
 ## Residual risks
 
 - **A human who merges past a red check.** `dco` and the rest are required,
@@ -238,7 +247,7 @@ or a guard changed in one channel and not the other is reported as drift.
 git grep -n 'persist-credentials' .github/workflows | wc -l    # equals the next line
 git grep -c 'actions/checkout@' .github/workflows | awk -F: '{s+=$2} END {print s}'   # equals the line above
 git grep -hn '^\s*-\? *uses:' .github/workflows | grep -v 'uses: actions/\|uses: ./.github/workflows/reusable-'   # nothing
-grep -n 'RELEASE_PUBKEY' scripts/release/render-formulae.sh     # the two key slots
+grep -n 'RELEASE_PUBKEY\|RELEASE_PQ' scripts/release/render-formulae.sh   # the key slots and the required list
 bash scripts/quality/check-doc-anchors.sh                      # every reference above resolves
 bash scripts/artifacts/check-formulae.sh                       # what the formulae may say
 bash tests/release/render-formulae.test.sh

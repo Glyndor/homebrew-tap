@@ -160,7 +160,11 @@ python3 -m venv --system-site-packages ~/.cache/tap-mldsa
 export PATH="$HOME/.cache/tap-mldsa/bin:$PATH"
 ```
 
-CI runs that suite in its own job, `ML-DSA-65 verifier` in `tests.yml`.
+CI runs that suite in its own job, `ML-DSA-65 verifier` in `tests.yml`. The job
+always starts and reports under that name, and decides in its first step whether
+anything the suite reads changed: when nothing did, the wheel install and the
+suite are skipped and the job says so in its summary. It asks the same question
+on a pull request and on a push to main, and any doubt runs the suite.
 
 **Every script in `scripts/` needs a test.**
 `scripts/quality/coverage/check-test-coverage.sh` fails when one does not, itself included --
@@ -196,7 +200,9 @@ path the suite reads: a missing path lets a change merge without the suite that
 should have judged it, while an extra one only costs a run. A change to the map,
 to `scripts/quality/scope/ci-job-scope.sh` or to the runner runs everything, and both
 files are shared byte for byte with the sibling channel repository, so they
-change in both together.
+change in both together. A suite that only a job of its own runs, such as the
+ML-DSA-65 one, has its entry here too: that job asks
+`ci-job-scope.sh suite-needed` before it installs anything.
 
 **A test you have not watched fail is not a test.** Before claiming a check
 works, delete or invert the control it covers and confirm it goes red for the

@@ -315,6 +315,19 @@ check "the failure step is last, after the commit" "1" \
 check "the mint step has no if: so a broken credential fails the next scheduled run" "0" \
 	"$(awk '/name: Mint a token/,/uses: actions\/create-github-app-token/' "$WORKFLOW" | grep -c 'if:')"
 
+# --- the repository_dispatch trigger carries nothing the run reads ------------
+#
+# The workflow accepts a repository_dispatch event so a product could start the
+# run ahead of the hourly schedule. That is safe to leave in place only while
+# the run takes nothing from the event: the formulae come from the signed
+# releases, and a payload that reached a step would be input from whoever holds
+# a token with write access. README.md and docs/threat-model.md both say the
+# event cannot change what is published; this is what holds them to it.
+check "the update workflow reads nothing from a repository_dispatch payload" "0" \
+	"$(grep -c 'client_payload' "$WORKFLOW")"
+check "and the trigger is still there for the sentence that describes it" "1" \
+	"$(grep -c '^  repository_dispatch:' "$WORKFLOW")"
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

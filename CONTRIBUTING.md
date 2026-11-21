@@ -128,7 +128,7 @@ if [ -x tests/ci/suites/check-suite-completeness.test.sh ]; then
 else
   echo "FAILED: tests/ci/suites/check-suite-completeness.test.sh is not executable"; fail=1
 fi
-find scripts tests -name '*.sh' -print0 | xargs -0 shellcheck || fail=1
+find . -type f \( -name '*.sh' -o -name '*.bash' \) -not -path './.git/*' -print0 | xargs -0 shellcheck || fail=1
 [ "$fail" -eq 0 ] && echo "all green" || echo "SOMETHING FAILED"
 [ "$fail" -eq 0 ]
 ```
@@ -136,8 +136,16 @@ find scripts tests -name '*.sh' -print0 | xargs -0 shellcheck || fail=1
 Keep the last line. The runner carries on past a failure -- it runs every suite and
 counts the failures -- but its exit status says only that something failed. The
 `FAIL` lines it prints are what say which, and they scroll. The final test turns
-them back into an exit status a script can read, a pre-push hook included. This is
-the command the workflow runs, so a local run and a CI run judge the same thing.
+them back into an exit status a script can read, a pre-push hook included.
+
+The command runs every suite under `tests/`, which is the `shell` job of
+`tests.yml` plus the ML-DSA-65 suite below, and its `find` reaches the same
+`.sh` and `.bash` files as the `shellcheck` job of CI. Three things stay with CI.
+That job also lints extensionless files whose first line is a shell shebang; it
+installs one `shellcheck` release pinned by version and checksum, where your
+local one is whatever you have installed; and it lints the shell inside the
+workflows, which `find` cannot see. Run
+`bash ./scripts/quality/lint-workflow-shell.sh` for that last part.
 
 `tests/release/release-signature/release-signature-mldsa.test.sh` also needs
 `cryptography` 50.0.2 or later, for ML-DSA-65, which no Ubuntu release packages
@@ -210,7 +218,9 @@ and red immediately after. Stage first, then check.
 | `audit.yml` | Homebrew's own rules reject the rendered formulae |
 | `pr-hygiene.yml` | the pull request itself is malformed |
 | `freshness.yml` | something scheduled stopped happening elsewhere |
-| `dco.yml`, `line-limit.yml`, `workflow-lint.yml` | one rule each |
+| `dco.yml` | a commit of the pull request has no `Signed-off-by` trailer |
+| `line-limit.yml` | a source file is over the hard limit of 500 lines of code; passing the soft limit of 300 only warns |
+| `workflow-lint.yml` | `actionlint` found a mistake in a workflow, a suite under `tests/` is run by no workflow, a caller can switch the required test job off, or a job that holds a secret installs third-party tooling |
 | `update.yml` | the scheduled regeneration, which commits to `main` |
 | `drift.yml` | a copy this repository shares with a sibling channel no longer agrees: a reusable workflow, the renderer's verification logic, or one of the scripts and tests the tap and the bucket carry as exact copies |
 | `dco-on-main.yml` | a human commit reached `main` without a `Signed-off-by` trailer; detection after the push, not prevention |

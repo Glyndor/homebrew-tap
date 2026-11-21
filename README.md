@@ -17,7 +17,9 @@ The Homebrew counterpart to the signed apt repository at
 brew install glyndor/tap/podup
 ```
 
-Upgrades arrive with `brew upgrade`, like any other formula.
+Upgrades arrive with `brew upgrade`, like any other formula. The tap looks for
+a new release on an hourly schedule, which GitHub often runs late, so a
+release is usually served within a few hours.
 
 | Package | What it is | macOS | Linux |
 | --- | --- | --- | --- |
@@ -42,7 +44,7 @@ is refused.
 
 ```mermaid
 flowchart LR
-  R["Product release<br/>SHA256SUMS + .sig"] -->|hourly pull| V["Verify signature<br/>org Ed25519 release key"]
+  R["Product release<br/>SHA256SUMS + .sig"] -->|scheduled pull| V["Verify signature<br/>org Ed25519 release key"]
   V -->|verified| P["Check each asset<br/>checksum + provenance for the tag"]
   P --> G["Re-render Formula/*.rb<br/>version, URLs, checksums"]
   G --> C["Validate, then commit to main<br/>GitHub-signed"]

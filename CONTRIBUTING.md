@@ -15,8 +15,7 @@ It is the Homebrew tap for Glyndor's products. It carries no product source:
 `Formula/*.rb` is generated from each product's latest signed release, with the
 release signature verified before anything is written. Edit
 `scripts/release/render-formulae.sh`, never the formulae themselves: the next scheduled
-run overwrites them, so a hand edit survives until the next hourly run and
-then disappears without a trace.
+run overwrites them, so a hand edit disappears without a trace.
 
 **Its git content IS the published artifact.** A commit on `main` is what
 `brew install` reads. There is no build step between them and no CDN in front.
@@ -35,7 +34,8 @@ can. `glyndor-updater` is that app, installed on this repository with
 `contents: write` and nothing else. The job mints a short-lived token from the
 app's private key (`UPDATER_APP_PRIVATE_KEY`, a repository secret; the id is
 the variable `UPDATER_APP_ID`) on every scheduled run, so a removed
-installation or a broken key turns into a red run within the hour.
+installation or a broken key turns into a red run on the next schedule, not at
+the next release.
 
 The ruleset on `main` otherwise applies to everyone, humans included, with no
 bypass for them: pull request required (squash only), required checks with the
@@ -176,7 +176,7 @@ and red immediately after. Stage first, then check.
 | `pr-hygiene.yml` | the pull request itself is malformed |
 | `freshness.yml` | something scheduled stopped happening elsewhere |
 | `dco.yml`, `line-limit.yml`, `workflow-lint.yml` | one rule each |
-| `update.yml` | the hourly regeneration, which commits to `main` |
+| `update.yml` | the scheduled regeneration, which commits to `main` |
 | `drift.yml` | a copy this repository shares with a sibling channel no longer agrees: a reusable workflow, the renderer's verification logic, or one of the scripts and tests the tap and the bucket carry as exact copies |
 | `dco-on-main.yml` | a human commit reached `main` without a `Signed-off-by` trailer; detection after the push, not prevention |
 | `mutation.yml` | a guard of the scripts stopped dying when it was broken on purpose: the suite that watches it no longer notices |

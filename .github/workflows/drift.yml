@@ -75,7 +75,7 @@ jobs:
           persist-credentials: false
 
       - name: Compare the reusable copies against the sibling channels
-        run: ./scripts/monitoring/check-reusable-drift.sh
+        run: bash ./scripts/monitoring/check-reusable-drift.sh
 
       # The files this repository and the bucket carry as exact copies: the same
       # shell, the same CI policy, the same tests. The list of them lives in
@@ -84,7 +84,7 @@ jobs:
       # hide the day's copy comparison, and the two answer different questions.
       - name: Compare the shared scripts and tests against the bucket's copies
         if: ${{ !cancelled() }}
-        run: ./scripts/monitoring/check-channel-drift.sh
+        run: bash ./scripts/monitoring/check-channel-drift.sh
 
       # The render scripts are not copies of each other -- one emits Ruby, the
       # other JSON -- but they carry the same verification logic, and that half
@@ -95,4 +95,4 @@ jobs:
         # Whether or not the reusable comparison above failed: a red there must not
         # hide the day's render comparison, which is a separate question.
         if: ${{ !cancelled() }}
-        run: ./scripts/monitoring/check-render-drift.sh
+        run: bash ./scripts/monitoring/check-render-drift.sh

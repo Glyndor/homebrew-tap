@@ -151,7 +151,7 @@ jobs:
           # tested. Inline in this file it was unreachable by anything but a
           # real CI run, which meant it had never been watched fail.
           # tests/artifacts/check-products-consistent.test.sh covers it.
-          ./scripts/artifacts/check-products-consistent.sh
+          bash ./scripts/artifacts/check-products-consistent.sh
 
       - name: Every formula must match what the generator emits
         run: |
@@ -172,7 +172,7 @@ jobs:
           # A step here rather than a new job: a job id is part of the name of
           # a required status check, and a new one would not be required until
           # the ruleset changed. This step rides inside a check that already is.
-          ./scripts/artifacts/check-formulae.sh
+          bash ./scripts/artifacts/check-formulae.sh
 
       - name: A formula never goes back to an older release
         if: github.event_name == 'pull_request'
@@ -183,7 +183,7 @@ jobs:
           # The renderer refuses a rollback, a hand edit does not. The base is
           # fetched on its own: the checkout is shallow and has no history.
           git fetch --no-tags --depth=1 origin "$BASE_SHA"
-          ./scripts/artifacts/check-version-monotonic.sh "$BASE_SHA"
+          bash ./scripts/artifacts/check-version-monotonic.sh "$BASE_SHA"
 
   formulae:
     name: brew style

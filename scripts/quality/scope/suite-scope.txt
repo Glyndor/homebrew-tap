@@ -142,6 +142,12 @@ tests/release/render-formulae/render-formulae-version.test.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
+# hash_of is read out of the renderer and run over a SHA256SUMS the suite writes.
+
+tests/release/render-formulae/render-formulae-hash-of.test.sh
+	scripts/release/render-formulae.sh
+	tests/release/render-formulae/render-formulae-hash-of.test.sh
+
 tests/release/render-formulae/render-formulae-products.test.sh
 	scripts/release/render-formulae.sh
 	scripts/release/release-signature.sh

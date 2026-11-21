@@ -247,3 +247,4 @@ group-per-run-audit	.github/workflows/audit.yml	audit-${{ github.workflow }}-${{
 group-rule-push	tests/ci/policy/rules/cancel-policy.test.sh	grep -qE '^  (push|workflow_call):' "$f" || continue	grep -qE '^  (workflow_call):' "$f" || continue	tests/ci/policy/rules/cancel-policy.test.sh
 group-rule-reusable	tests/ci/policy/rules/cancel-policy.test.sh	grep -qE '^  (push|workflow_call):' "$f" || continue	grep -qE '^  (push):' "$f" || continue	tests/ci/policy/rules/cancel-policy.test.sh
 group-rule-form	tests/ci/policy/rules/cancel-policy.test.sh	*"$PER_RUN"*) continue ;;	*"github.run_id"*) continue ;;	tests/ci/policy/rules/cancel-policy.test.sh
+hash-of-string-compare	scripts/release/render-formulae.sh	$2 "" == a ""	$2 == a	tests/release/render-formulae/render-formulae-hash-of.test.sh

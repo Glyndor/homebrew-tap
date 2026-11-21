@@ -335,7 +335,9 @@ PY
 # attacker-influenced, because whoever can publish a release controls them.
 hash_of() { # $1=asset
 	local matches count digest
-	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
+	# Compared as text. awk compares two fields that look like numbers as numbers,
+	# so an asset called 1e5 would match the line of one called 100000.
+	matches="$(awk -v a="$1" '$2 "" == a "" { print $1 }' "$work/SHA256SUMS")"
 	[ -n "$matches" ] || return 1
 	count="$(printf '%s\n' "$matches" | wc -l)"
 	[ "$count" -eq 1 ] || {

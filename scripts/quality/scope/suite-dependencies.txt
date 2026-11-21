@@ -24,6 +24,7 @@ tests/ci/docs/documented-shellcheck-scope.test.sh -
 tests/release/render-formulae/render-formulae-trust.test.sh -
 tests/release/render-formulae/render-formulae-transfer-limits.test.sh -
 tests/release/render-formulae/render-formulae-version.test.sh -
+tests/release/render-formulae/render-formulae-hash-of.test.sh -
 tests/release/render-formulae/render-formulae-attestation.test.sh -
 tests/release/render-formulae/render-formulae-linux-attestation.test.sh -
 tests/release/render-formulae/render-formulae-inputs.test.sh -

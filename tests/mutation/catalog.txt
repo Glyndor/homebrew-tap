@@ -277,3 +277,5 @@ sort-pinned-dependabot-freshness-5	.github/workflows/reusable-dependabot-freshne
 sort-pinned-dependabot-freshness-6	.github/workflows/reusable-dependabot-freshness.yml	LC_ALL=C sort -u | wc -l | tr -d ' ')"	sort -u | wc -l | tr -d ' ')"	tests/ci/policy/rules/locale-pinned.test.sh
 pr-superseded-no-concurrency	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh	found.append(f"{name}: job {key} has no concurrency and the workflow has none")	found.append("")	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
 pr-superseded-cancel	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh	if str(conc.get("cancel-in-progress", "")).strip() != WANT_CANCEL:	if False:	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
+pins-enumerated-as-keys	.github/workflows/reusable-dependabot-freshness.yml	grep -rhE '^[[:space:]]*(-[[:space:]]+)?uses:	grep -rhE 'uses:	tests/ci/reusable/reusable-dependabot-freshness.test.sh
+pins-counted-as-keys	.github/workflows/reusable-dependabot-freshness.yml	grep -rhoE '^[[:space:]]*(-[[:space:]]+)?uses:	grep -rhoE 'uses:	tests/ci/reusable/reusable-dependabot-freshness.test.sh

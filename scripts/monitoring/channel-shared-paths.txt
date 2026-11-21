@@ -42,6 +42,7 @@
 scripts/quality/check-action-pins.sh
 scripts/quality/check-doc-anchors.sh
 scripts/quality/check-editorconfig.sh
+scripts/quality/check-suites-wired.sh
 scripts/quality/check-test-coverage.sh
 scripts/quality/ci-job-scope.sh
 scripts/quality/lint-workflow-shell.sh
@@ -75,6 +76,7 @@ tests/monitoring/check-reusable-drift.test.sh
 tests/quality/check-action-pins.test.sh
 tests/quality/check-doc-anchors.test.sh
 tests/quality/check-editorconfig.test.sh
+tests/quality/check-suites-wired.test.sh
 tests/quality/check-test-coverage.test.sh
 tests/quality/ci-job-scope.test.sh
 tests/quality/lint-workflow-shell.test.sh

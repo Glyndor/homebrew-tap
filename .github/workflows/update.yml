@@ -120,7 +120,7 @@ jobs:
           # pinned by hash and binary only, so nothing is resolved at install
           # time and no build script runs in the job that holds no secret; the
           # venv lives outside the workspace.
-          if grep -qE '^RELEASE_PQ_PUBKEY(_2)?_B64="[A-Za-z0-9+/]+={0,2}"$' scripts/release/render-formulae.sh; then
+          if grep -qE '^RELEASE_PQ_PUBKEY2?_B64="[A-Za-z0-9+/]+={0,2}"$' scripts/release/render-formulae.sh; then
             python3 -m venv "$RUNNER_TEMP/mldsa-venv"
             "$RUNNER_TEMP/mldsa-venv/bin/python" -m pip install --quiet --disable-pip-version-check --require-hashes --only-binary=:all: -r scripts/release/render-requirements.txt
           fi

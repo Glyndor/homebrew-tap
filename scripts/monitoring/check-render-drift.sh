@@ -18,13 +18,8 @@
 #
 # WHAT IS COMPARED
 #
-#   Nine named units inside the script:
+#   Seven named units inside the script:
 #
-#       verify_sha256sums  the function that fetches SHA256SUMS + .sig and
-#                         verifies the Ed25519 signature against the
-#                         configured release keys
-#       py_block          the embedded python block, from <<'PY' to PY, that
-#                         does the actual signature verification
 #       hash_of           the function that pulls a single asset's hex digest
 #                         out of the verified SHA256SUMS
 #       release_keys      the top-level release trust declarations:
@@ -71,6 +66,13 @@
 #                         verified SHA256SUMS, because the renderer compares it
 #                         with the lowercase digest of the download
 #
+#   The signature check itself is not among them. verify_sha256sums, the
+#   python block that verifies both signatures, and the configuration guard
+#   live in scripts/release/release-signature.sh, which the two channels carry
+#   as one text: scripts/monitoring/channel-shared-paths.txt lists it, so
+#   check-channel-drift.sh compares it byte for byte, comments included. They
+#   were two units here until they moved into that file.
+#
 #   render_product is EXCLUDED by name, with the reason given below. The two
 #   repositories render to different formats, so the function legitimately
 #   differs. A check that went red on it would be switched off within a week;
@@ -116,8 +118,6 @@ REMOTE_FILE="scripts/release/render-manifests.sh"
 # Units that MUST stay byte-identical (after stripping comments and blanks).
 # Everything inside this array is the contract.
 UNITS=(
-	verify_sha256sums
-	py_block
 	hash_of
 	release_keys
 	verify_attestation
@@ -160,18 +160,8 @@ strip_prose() { # $1=file
 extract_unit() { # $1=file $2=unit
 	local file="$1" unit="$2"
 	case "$unit" in
-		verify_sha256sums)
-			sed -n '/^verify_sha256sums()/,/^}/p' "$file"
-			;;
 		hash_of)
 			sed -n '/^hash_of()/,/^}/p' "$file"
-			;;
-		py_block)
-			# From the line containing <<'PY' (with optional tab-stripping
-			# hyphen, optional quoting, anything reasonable) to the next line
-			# that is exactly PY. awk's range pattern stops on first exit
-			# condition, which is what we want.
-			awk '/<<.*PY/{found=1} found{print; if(/^PY$/){exit}}' "$file"
 			;;
 		release_keys)
 			# One unit carrying the whole trust configuration rather than one
@@ -230,11 +220,8 @@ extract_unit() { # $1=file $2=unit
 unit_is_complete() { # $1=last-line $2=unit
 	local last="$1" unit="$2"
 	case "$unit" in
-		verify_sha256sums|hash_of|verify_attestation|release_order|version_guard|digest_case_guard)
+		hash_of|verify_attestation|release_order|version_guard|digest_case_guard)
 			[[ "$last" =~ ^}[[:space:]]*$ ]]
-			;;
-		py_block)
-			[[ "$last" == "PY" ]]
 			;;
 		release_keys)
 			[[ "$last" =~ ^RELEASE_PQ_REQUIRED= ]]

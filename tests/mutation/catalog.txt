@@ -87,14 +87,14 @@ render-symlink	scripts/release/render-formulae.sh	if [ -L "$target" ]; then	if f
 render-directory	scripts/release/render-formulae.sh	if [ -d "$target" ]; then	if false; then	tests/release/render-formulae/render-formulae-symlink.test.sh
 render-source-ref	scripts/release/render-formulae.sh	--source-ref "refs/tags/$tag" \	--source-ref "refs/tags/v0.0.0-ATTACKER" \	tests/release/render-formulae/render-formulae-attestation.test.sh
 render-signer-workflow	scripts/release/render-formulae.sh	--signer-workflow "$repo/.github/workflows/release.yml" \	--signer-workflow "$repo/.github/workflows/attacker.yml" \	tests/release/render-formulae/render-formulae-attestation.test.sh
-render-signature	scripts/release/render-formulae.sh	key.verify(sig, msg)	pass	tests/release/render-formulae/render-formulae-trust.test.sh
+render-signature	scripts/release/release-signature.sh	key.verify(sig, msg)	pass	tests/release/render-formulae/render-formulae-trust.test.sh
 render-downgrade	scripts/release/render-formulae.sh	if [ "$order" = "lower" ]; then	if false; then	tests/release/render-formulae/render-formulae-attestation.test.sh
 render-digest-match	scripts/release/render-formulae.sh	[ "$actual" = "$expected" ] ||	true ||	tests/release/render-formulae/render-formulae-attestation.test.sh
 render-every-asset	scripts/release/render-formulae.sh	for verify_asset in "$mac_arm" "$mac_intel" "$linux_arm" "$linux_intel"; do	for verify_asset in "$mac_arm"; do	tests/release/render-formulae/render-formulae-attestation.test.sh
 render-attestation-empty	scripts/release/render-formulae.sh	if not isinstance(data, list) or not data:	if False:	tests/release/render-formulae/render-formulae-attestation.test.sh
 render-tag-digit	scripts/release/render-formulae.sh	[0-9]*) ;;	*) ;;	tests/release/render-formulae/render-formulae-tag-shape.test.sh
-render-sums-cap	scripts/release/render-formulae.sh	[ "$sums_size" -le "$MAX_SUMS_BYTES" ] || {	true || {	tests/release/render-formulae/render-formulae-trust.test.sh
-render-sig-cap	scripts/release/render-formulae.sh	[ "$sig_size" -eq "$MAX_SIG_BYTES" ] || {	true || {	tests/release/render-formulae/render-formulae-trust.test.sh
+render-sums-cap	scripts/release/release-signature.sh	[ "$sums_size" -le "$MAX_SUMS_BYTES" ] || {	true || {	tests/release/render-formulae/render-formulae-trust.test.sh
+render-sig-cap	scripts/release/release-signature.sh	[ "$sig_size" -eq "$MAX_SIG_BYTES" ] || {	true || {	tests/release/render-formulae/render-formulae-trust.test.sh
 update-head-binding	.github/workflows/update.yml	RENDERED_HEAD: ${{ needs.render.outputs.head }}	RENDERED_HEAD: ${{ needs.validate.outputs.head }}	tests/publication/update/update-key-isolation.test.sh
 anchors-undeclared	scripts/quality/check-doc-anchors.sh	if ! grep -Fxq -- "$name" <<<"$declared"; then	if false; then	tests/quality/check-doc-anchors.test.sh
 anchors-coordinate	scripts/quality/check-doc-anchors.sh	grep -n -oE '[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*:[0-9][0-9,-]*' "$1" || true	true	tests/quality/check-doc-anchors.test.sh

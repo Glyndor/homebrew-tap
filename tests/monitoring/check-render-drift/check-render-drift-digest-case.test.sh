@@ -32,7 +32,7 @@ echo "=== an untouched copy agrees, and the unit is among those compared ==="
 real_local >/dev/null
 run_with_remote "$(remote_asis)"
 expect_eq "$exit_code" "0" "exit 0 when the two copies are the same script"
-expect_contains "$combined" "compared 9 render unit" "and all nine units were compared"
+expect_contains "$combined" "compared 7 render unit" "and all seven units were compared"
 
 echo
 echo "=== a guard that stops refusing upper case is drift, named as digest_case_guard ==="
@@ -40,7 +40,7 @@ real_local >/dev/null
 run_with_remote "$(remote_replacing '*[A-F]*)' '*[Z]*)')"
 expect_eq "$exit_code" "1" "exit 1 when the guard is sabotaged in one channel"
 expect_contains "$err_body" "digest_case_guard has drifted" "names the digest_case_guard unit"
-expect_contains "$err_body" "1 of 9 compared render unit(s) have drifted" "counts one drifted unit of nine"
+expect_contains "$err_body" "1 of 7 compared render unit(s) have drifted" "counts one drifted unit of seven"
 expect_not_contains "$err_body" "could not be found" "and no unit is reported missing"
 
 echo

@@ -100,10 +100,12 @@ chmod +x "$WORK/bin/curl"
 
 # --- the synthetic render script the check reads ----------------------------
 #
-# Every named unit the check compares is present: verify_sha256sums, py_block,
-# hash_of, release_keys, verify_attestation, limits, release_order,
-# version_guard and digest_case_guard. The script carries NO comments, so the comment-only case has
-# to add them on the remote side.
+# Every named unit the check compares is present: hash_of, release_keys,
+# verify_attestation, limits, release_order, version_guard and
+# digest_case_guard. The signature check is not here: it lives in
+# scripts/release/release-signature.sh, which check-channel-drift compares
+# instead. The script carries NO comments, so the comment-only case has to add
+# them on the remote side.
 mkdir -p "$WORK/$(dirname "$LOCAL_FILE")"
 
 write_synthetic() {
@@ -121,19 +123,6 @@ MAX_SIG_BYTES=64
 MAX_PQ_SIG_BYTES=4096
 PQ_SIG_LENGTH=3309
 MAX_ASSET_BYTES=104857600
-
-verify_sha256sums() {
-	rm -f "$work/SHA256SUMS"
-	gh release download "$2" --repo "$1" --pattern SHA256SUMS --dir "$work"
-	python3 - <<'PY'
-import sys
-def load(b64):
-	b64 = b64.strip()
-	return b64
-msg = open(sys.argv[1], "rb").read()
-print("verify", msg)
-PY
-}
 
 hash_of() {
 	local matches

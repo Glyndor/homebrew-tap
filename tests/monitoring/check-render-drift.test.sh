@@ -45,7 +45,7 @@ echo
 echo "=== identical units pass and success line reports the compared count ==="
 run_with_remote "$(remote_asis)"
 expect_eq "$exit_code" "0" "exit 0 when units are identical"
-expect_contains "$combined" "compared 9 render unit" "success line names compared 9"
+expect_contains "$combined" "compared 7 render unit" "success line names compared 7"
 expect_contains "$combined" "verification logic agrees" "success line says logic agrees"
 
 echo
@@ -54,7 +54,7 @@ echo "=== a change inside render_product passes, because that unit is excluded =
 # The check must stay green and still report every unit compared.
 run_with_remote "$(remote_with 's/echo "ruby"/echo "json"/')"
 expect_eq "$exit_code" "0" "exit 0 when only render_product differs"
-expect_contains "$combined" "compared 9 render unit" "still compares 9 units"
+expect_contains "$combined" "compared 7 render unit" "still compares 7 units"
 expect_not_contains "$err_body" "drifted" "no drift message"
 expect_not_contains "$err_body" "render_product" "the excluded unit is not named as a missing unit either"
 
@@ -65,7 +65,7 @@ remote_file="$(remote_with_comment '^hash_of\(\) \{$')"
 expect_contains "$(cat "$remote_file")" "a remote-only comment" "the comment reached the file under test"
 run_with_remote "$remote_file"
 expect_eq "$exit_code" "0" "exit 0 on comment-only diff"
-expect_contains "$combined" "compared 9 render unit" "still compares 9 units"
+expect_contains "$combined" "compared 7 render unit" "still compares 7 units"
 
 echo
 echo "=== unit_is_complete refuses an unknown unit ==="

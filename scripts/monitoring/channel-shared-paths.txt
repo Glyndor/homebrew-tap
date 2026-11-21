@@ -23,6 +23,8 @@
 #   idea: they emit Ruby formulae in the tap and JSON manifests here.
 #   check-render-drift.sh compares the units they share, and a byte
 #   comparison of the files would be red forever.
+#   The release signature check they both source is the exception, and is
+#   listed: scripts/release/release-signature.sh is one text in both.
 #
 #   scripts/monitoring/check-suite-on-main.sh, which has three different
 #   implementations, one per channel, and is meant to.
@@ -46,6 +48,7 @@ scripts/quality/check-suites-wired.sh
 scripts/quality/check-test-coverage.sh
 scripts/quality/ci-job-scope.sh
 scripts/quality/lint-workflow-shell.sh
+scripts/release/release-signature.sh
 scripts/release/render-requirements.txt
 tests/ci/policy/rules/cancel-policy.test.sh
 tests/ci/docs/documented-test-command.test.sh

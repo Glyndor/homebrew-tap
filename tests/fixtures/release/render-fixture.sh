@@ -348,6 +348,8 @@ SIGN
 # A copy of the generator whose PRODUCTS table is replaced wholesale. Replacing
 # the block rather than editing fields keeps these tests working when the table
 # gains a column; it gained two while the generator was being rewritten.
+# The renderer sources scripts/release/release-signature.sh from its own
+# folder, so every copy made here carries that file beside it.
 generator_with() { # $1=destination $2...=table rows
 	local dest="$1"; shift
 	local rows
@@ -358,6 +360,7 @@ generator_with() { # $1=destination $2...=table rows
 		!inside        { print }
 	' "$GENERATOR" > "$dest"
 	chmod +x "$dest"
+	cp "$(dirname "$GENERATOR")/release-signature.sh" "$(dirname "$dest")/"
 }
 
 run() { # $1=script $2=repo root ; prints nothing, returns the exit status
@@ -367,6 +370,7 @@ run() { # $1=script $2=repo root ; prints nothing, returns the exit status
 # A repo root with a Formula/ directory, for the generator to write into.
 new_root() { # $1=path
 	rm -rf "$1"; mkdir -p "$1/scripts" "$1/scripts/release" "$1/Formula"
+	cp "$(dirname "$GENERATOR")/release-signature.sh" "$1/scripts/release/"
 }
 
 # The one product row both files build their tables from. shellcheck cannot

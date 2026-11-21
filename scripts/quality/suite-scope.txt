@@ -113,26 +113,31 @@ tests/ci/suites/check-suite-completeness.test.sh
 
 tests/release/render-formulae.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae.test.sh
 
 tests/release/render-formulae/render-formulae-trust.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
 tests/release/render-formulae/render-formulae-transfer-limits.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
 tests/release/render-formulae/render-formulae-version.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
 tests/release/render-formulae/render-formulae-products.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
@@ -141,27 +146,32 @@ tests/release/render-formulae/render-formulae-products.test.sh
 
 tests/release/render-formulae/render-formulae-attestation.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 	.github/workflows/update.yml
 
 tests/release/render-formulae/render-formulae-linux-attestation.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
 tests/release/render-formulae/render-formulae-inputs.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
 tests/release/render-formulae/render-formulae-tag-shape.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 
 tests/release/render-formulae/render-formulae-symlink.test.sh
 	scripts/release/render-formulae.sh
+	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 	tests/release/render-formulae/**
 

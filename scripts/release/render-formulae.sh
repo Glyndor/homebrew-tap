@@ -1121,6 +1121,16 @@ check_release_configuration() {
 	local -a required=()
 	for entry in "$RELEASE_PQ_PUBKEY_B64" "$RELEASE_PQ_PUBKEY2_B64"; do
 		[ -n "$entry" ] || continue
+		# One line of base64, the way the verifier and update.yml read it.
+		# `base64 -d` skips a newline, so a key broken over two lines decoded
+		# here while the verifier refused it, and every second signature
+		# would have failed on a key this check had passed.
+		case "$entry" in
+			*[[:space:]]*)
+				echo "::error::the ML-DSA-65 release public key contains whitespace; it is one line of base64" >&2
+				return 1
+				;;
+		esac
 		# A key is stored unpadded, the way the Ed25519 one is, and a base64
 		# decoder refuses a group it cannot finish. The padding is restored
 		# here so the key is decoded the way the verifier decodes it.
@@ -1142,6 +1152,16 @@ check_release_configuration() {
 			return 1
 		}
 	done
+	# The list is one line. `read` takes the first line only, here and in
+	# verify_sha256sums, so a product named on a second line would be dropped
+	# by both without a word, and check-render-drift compares only the first
+	# line of the declaration as well.
+	case "$RELEASE_PQ_REQUIRED" in
+		*$'\n'*)
+			echo "::error::the required-products list spans more than one line; name the products on one line, separated by spaces" >&2
+			return 1
+			;;
+	esac
 	read -r -a required <<<"$RELEASE_PQ_REQUIRED"
 	for name in "${required[@]}"; do
 		found=""

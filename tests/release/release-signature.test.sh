@@ -382,12 +382,24 @@ render "$R"
 check "and the same renderer without it renders" "0 1" "$rc $(written "$R")"
 
 # --- the committed constants ---------------------------------------------------
-committed() { sed -n "s/^$1=\"\\(.*\\)\"\$/\\1/p" "$HERE/$RENDERER"; }
-if [ -z "$(committed RELEASE_PQ_REQUIRED)" ] || [ -n "$(committed RELEASE_PQ_PUBKEY_B64)$(committed RELEASE_PQ_PUBKEY2_B64)" ]; then
-	check "no product is required before an ML-DSA-65 key is committed" "1" "1"
-else
-	check "no product is required before an ML-DSA-65 key is committed" "a key" "none, and $(committed RELEASE_PQ_REQUIRED) is required"
-fi
+committed() { sed -n "s/^$1=\"\\(.*\\)\"\$/\\1/p" "${2:-$HERE/$RENDERER}"; }
+# "ok" when no product is required, or a key is committed to check the second signature
+# with; otherwise what is wrong. Read from a renderer file, so the rule is shown to be
+# able to fail on a copy before it is trusted on the committed one.
+pq_requirement() { # $1=renderer file
+	if [ -z "$(committed RELEASE_PQ_REQUIRED "$1")" ] || [ -n "$(committed RELEASE_PQ_PUBKEY_B64 "$1")$(committed RELEASE_PQ_PUBKEY2_B64 "$1")" ]; then
+		echo ok
+	else
+		echo "$(committed RELEASE_PQ_REQUIRED "$1") is required and no key is committed"
+	fi
+}
+sed 's/^RELEASE_PQ_REQUIRED=.*/RELEASE_PQ_REQUIRED="podup"/' "$HERE/$RENDERER" > "$WORK/pq-required-keyless"
+check "a product required with no ML-DSA-65 key committed is reported" "podup is required and no key is committed" "$(pq_requirement "$WORK/pq-required-keyless")"
+sed -e 's/^RELEASE_PQ_REQUIRED=.*/RELEASE_PQ_REQUIRED="podup"/' -e 's/^RELEASE_PQ_PUBKEY_B64=.*/RELEASE_PQ_PUBKEY_B64="AAAA"/' "$HERE/$RENDERER" > "$WORK/pq-required-keyed"
+check "the same requirement with a key committed is accepted" "ok" "$(pq_requirement "$WORK/pq-required-keyed")"
+sed -e 's/^RELEASE_PQ_REQUIRED=.*/RELEASE_PQ_REQUIRED=""/' -e 's/^RELEASE_PQ_PUBKEY_B64=.*/RELEASE_PQ_PUBKEY_B64=""/' "$HERE/$RENDERER" > "$WORK/pq-neither"
+check "no requirement and no key is accepted" "ok" "$(pq_requirement "$WORK/pq-neither")"
+check "no product is required before an ML-DSA-65 key is committed" "ok" "$(pq_requirement "$HERE/$RENDERER")"
 fresh committed; release
 if [ -n "$(committed RELEASE_PQ_REQUIRED)" ]; then
 	echo "not run - the committed renderer admits a release without a second signature (a product is required now)"

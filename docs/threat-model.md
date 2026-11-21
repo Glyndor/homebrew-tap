@@ -30,7 +30,7 @@ There is no server. `brew install glyndor/tap/podup` clones this repository from
 GitHub and reads `Formula/podup.rb` out of the clone (`README.md#Install`,
 `README.md#What you are trusting`). The git content of `main` is the published
 artifact, which is why the update lands as a commit rather than as a file on a
-bucket (`.github/workflows/update.yml#Render, validate, and commit`). The
+bucket (`.github/workflows/update.yml#commit`). The
 binaries stay on each product's GitHub release; the formula pins their URL and
 SHA-256 (`Formula/podup.rb#Podup`). Nothing is
 pushed here by a product and no product holds a credential on this repository

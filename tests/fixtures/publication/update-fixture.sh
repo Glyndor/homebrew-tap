@@ -67,15 +67,20 @@ PY
 
 # A repository the step can run in: a git repo with a committed Formula/ and a
 # stub generator whose behaviour each case chooses.
-sandbox() { # $1=path $2=generator exit code $3=writes? (yes|no|empty|del|del-multi)
+# `digest` changes one sha256 of the committed formula, a change the roster
+# check accepts; `yes` writes a formula it refuses.
+sandbox() { # $1=path $2=generator exit code $3=writes? (yes|digest|no|new|empty|del|del-multi)
 	local dir="$1" code="$2" mode="$3"
 	rm -rf "$dir"; mkdir -p "$dir/scripts" "$dir/scripts/release" "$dir/scripts/artifacts" "$dir/Formula"
-	# The validate step runs scripts/artifacts/check-formulae.sh before brew, so
-	# the sandbox carries the real check, the committed formula it accepts and
-	# the real roster (the stub generator below declares the same PRODUCTS), and
-	# the step is exercised with the code that ships.
+	# The render and commit jobs run scripts/artifacts/check-formulae.sh, and
+	# the commit job puts the rendered files in place with
+	# scripts/artifacts/formulae-digests.sh, so the sandbox carries the real
+	# scripts, the committed formula the check accepts and the real roster (the
+	# stub generator below declares the same PRODUCTS), and the steps are
+	# exercised with the code that ships.
 	cp "$HERE/Formula/podup.rb" "$dir/Formula/podup.rb"
-	cp "$HERE/scripts/artifacts/check-formulae.sh" "$HERE/scripts/artifacts/check-formulae.py" "$dir/scripts/artifacts/"
+	cp "$HERE/scripts/artifacts/check-formulae.sh" "$HERE/scripts/artifacts/check-formulae.py" \
+		"$HERE/scripts/artifacts/formulae-digests.sh" "$dir/scripts/artifacts/"
 	# `del-multi` adds a second tracked formula so a deletion can leave the
 	# channel with one left, exercising the deletion-only-but-survivor path
 	# without also tripping the empty-channel refusal.
@@ -87,6 +92,7 @@ sandbox() { # $1=path $2=generator exit code $3=writes? (yes|no|empty|del|del-mu
 $(awk '/^PRODUCTS=\(/ { inside = 1; print; next } inside && /^\)/ { print; exit } inside { print }' "$HERE/scripts/release/render-formulae.sh")
 case "$mode" in
 	yes)       printf 'class Podup < Formula\n  # changed\nend\n' > "$dir/Formula/podup.rb" ;;
+	digest)    sed -i -E '0,/sha256 "[0-9a-f]{64}"/s//sha256 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"/' "$dir/Formula/podup.rb" ;;
 	new)       printf 'class Zzz < Formula\nend\n' > "$dir/Formula/zzz.rb" ;;
 	empty)     rm -f "$dir"/Formula/*.rb ;;
 	del)       rm -f "$dir/Formula/podup.rb" ;;

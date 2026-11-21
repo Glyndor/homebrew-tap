@@ -508,6 +508,13 @@ tests/ci/suites/ci-runs-every-test.test.sh
 	tests/**
 	.github/workflows/**
 
+# check-suites-wired walks tests/ and parses every workflow, as the watcher
+# above does, and runs the checker and the workflow-lint step that calls it.
+tests/quality/check-suites-wired.test.sh
+	scripts/quality/check-suites-wired.sh
+	tests/**
+	.github/workflows/**
+
 # shell-ci-scope reads the two workflows that carry the scope step, and it
 # greps tests/ and scripts/ for the paths the caller declares inert, so their
 # contents are inputs of its verdict too.

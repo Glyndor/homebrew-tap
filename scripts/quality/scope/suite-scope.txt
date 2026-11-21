@@ -176,13 +176,26 @@ tests/release/render-formulae/render-formulae-symlink.test.sh
 	tests/release/render-formulae/**
 
 # The release signature check both renderers source, driven through the
-# renderer, without the ML-DSA-65 library. The suite that needs the library
-# runs in its own job and has no entry, so it always runs.
+# renderer, without the ML-DSA-65 library.
 tests/release/release-signature.test.sh
 	scripts/release/release-signature.sh
 	scripts/release/render-formulae.sh
 	tests/fixtures/release/**
 	tests/release/release-signature.test.sh
+
+# The same check with the library, which only the `ML-DSA-65 verifier` job of
+# tests.yml runs, in a virtual environment built from the requirements file. It
+# has an entry so that job can skip the wheel install and the suite when
+# nothing here changed (`ci-job-scope.sh suite-needed`, on a pull request and on
+# a push to main). It reads the renderer and the check it sources, the trust
+# constants the renderer declares, the requirements file with its hashes, the
+# fixture and the vector, and the job that runs it. The suite and the runner
+# are inputs of every decision by rule.
+tests/release/release-signature/release-signature-mldsa.test.sh
+	scripts/release/**
+	tests/fixtures/release/**
+	tests/release/release-signature/**
+	.github/workflows/tests.yml
 
 # --- the publication workflow ------------------------------------------------
 
@@ -466,6 +479,13 @@ tests/quality/scope/ci-job-scope-suites.test.sh
 	.github/workflows/tests.yml
 	tests/quality/**
 
+# The suite-needed mode of the same classifier. It builds its own repositories
+# and reads the classifier only.
+
+tests/quality/scope/ci-job-scope-suite-needed.test.sh
+	scripts/quality/scope/ci-job-scope.sh
+	tests/quality/**
+
 # --- the governance gates ---------------------------------------------------
 
 tests/governance/check-dco-on-main.test.sh
@@ -596,6 +616,18 @@ tests/ci/suites/lint-job-scope.test.sh
 	.github/workflows/reusable-line-limit.yml
 	.github/workflows/reusable-shell-ci.yml
 	.github/workflows/reusable-workflow-lint.yml
+
+# The ML-DSA-65 job reads the classifier and the map the way the scope step
+# of the reusables does, and runs its own decision step: the workflow, the map
+# entry of the suite it decides for, the requirements file and that suite.
+
+tests/ci/suites/mldsa-job-scope.test.sh
+	scripts/quality/scope/ci-job-scope.sh
+	scripts/quality/scope/suite-scope.txt
+	scripts/release/**
+	.github/workflows/tests.yml
+	tests/ci/suites/mldsa-job-scope.test.sh
+	tests/release/release-signature/release-signature-mldsa.test.sh
 
 # --- the documented command -------------------------------------------------
 

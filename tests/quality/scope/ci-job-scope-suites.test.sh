@@ -316,6 +316,40 @@ while IFS= read -r suite; do
 done <<< "$REAL_SUITES"
 check "every suite the workflow names has an entry in the map" "" "$missing"
 
+# A suite that only a job of its own runs, such as the ML-DSA-65 verifier, is in
+# no test-command, so the check above cannot see it. That job decides whether to
+# run from the map, and a suite with no entry always runs, which is safe but means
+# the map no longer says what it was written to say. So every suite a step hands
+# to the runner has an entry too, and the check is shown to fail on a planted
+# workflow and map.
+unmapped_job_suites() { # <workflow> <map>: the suites a step hands to the runner that the map lacks
+	python3 -I - "$1" "$2" <<'PY'
+import re
+import sys
+import yaml
+
+wf = yaml.safe_load(open(sys.argv[1]))
+mapped = {line.strip() for line in open(sys.argv[2]) if line.strip() and not line[0].isspace() and line[0] != "#"}
+handed = []
+for job in wf["jobs"].values():
+    for step in job.get("steps") or []:
+        for hit in re.finditer(r"check-suite-completeness\.test\.sh((?:[ \t]+\./tests/[A-Za-z0-9_./-]+\.test\.sh)+)",
+                               str(step.get("run", ""))):
+            handed += [token[2:] for token in hit.group(1).split()]
+print("handed %d" % len(handed))
+for suite in handed:
+    if suite not in mapped:
+        print(suite)
+PY
+}
+real="$(unmapped_job_suites "$WORKFLOW" "$SCOPE_MAP")"
+check "a suite a job of its own runs is found in the workflow" "1" "$(printf '%s' "$real" | grep -c '^handed [1-9]')"
+check "and every one of them has an entry in the map" "" "$(printf '%s\n' "$real" | grep -v '^handed ')"
+printf 'jobs:\n  j:\n    steps:\n      - run: ./tests/ci/suites/check-suite-completeness.test.sh ./tests/x/alone.test.sh\n' > "$WORK/job-workflow.yml"
+printf 'tests/x/other.test.sh\n\tscripts/**\n' > "$WORK/job-map.txt"
+check "planted: a suite a job runs that the map lacks is reported" "tests/x/alone.test.sh" \
+	"$(unmapped_job_suites "$WORK/job-workflow.yml" "$WORK/job-map.txt" | grep -v '^handed ')"
+
 # real_repo <name>: a repository carrying the resolver and the map this
 # repository ships, so the decision is taken with the real map.
 real_repo() {

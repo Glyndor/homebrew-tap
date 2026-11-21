@@ -73,6 +73,7 @@ tests/ci/reusable/reusable-workflow-lint.test.sh
 tests/ci/suites/check-suite-completeness.test.sh
 tests/ci/suites/ci-runs-every-test.test.sh
 tests/ci/suites/lint-job-scope.test.sh
+tests/ci/suites/mldsa-job-scope.test.sh
 tests/ci/suites/shell-ci-scope.test.sh
 tests/fixtures/ci/schedule-freshness-fixture.sh
 tests/fixtures/monitoring/render-drift-fixture.sh
@@ -97,6 +98,7 @@ tests/quality/coverage/check-suites-wired.test.sh
 tests/quality/lint/check-test-job-not-switchable.test.sh
 tests/quality/coverage/check-test-coverage.test.sh
 tests/quality/lint/check-tooling-isolation.test.sh
+tests/quality/scope/ci-job-scope-suite-needed.test.sh
 tests/quality/scope/ci-job-scope.test.sh
 tests/quality/lint/lint-workflow-shell.test.sh
 tests/release/release-signature.test.sh

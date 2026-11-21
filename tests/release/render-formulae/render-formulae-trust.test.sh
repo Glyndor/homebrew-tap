@@ -218,6 +218,54 @@ check "and is NOT reported as malformed" "0" \
 check "and says the signature did not verify" "1" \
 	"$(printf '%s' "$out" | grep -c 'does not verify against any configured release key')"
 
+# --- the signature has to belong to THIS manifest ----------------------------
+#
+# Every case above hands the verifier garbage or another key. The attack the
+# signature exists to stop is different: a SHA256SUMS rewritten after it was
+# signed, with the publisher's genuine signature left in place, so that a
+# digest names a different binary. A check that verified the signature against
+# some other bytes (a cached manifest, the previous release's) would accept
+# that, and 64 bytes of X would never notice. The other absence is the release
+# that carries no signature at all, which must stop the run rather than be read
+# as "nothing to verify".
+
+publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
+new_root "$WORK/forged"
+generator_with "$WORK/forged/scripts/release/render-formulae.sh" "$PODUP"
+rc=0; run "$WORK/forged/scripts/release/render-formulae.sh" "$WORK/forged" || rc=$?
+check "control: the genuine release renders before it is tampered with" "0" "$rc"
+served="$(sha256sum "$WORK/forged/Formula/podup.rb")"
+cp "$RELEASES/Glyndor__podup/SHA256SUMS" "$WORK/genuine-sums"
+cp "$RELEASES/Glyndor__podup/SHA256SUMS.sig" "$WORK/genuine-sig"
+# Change one hexadecimal digit of the first entry, so the manifest stays well
+# formed and every other check would accept it. Only the signature can tell.
+first="$(head -c1 "$WORK/genuine-sums")"
+swap=a; [ "$first" != a ] || swap=b
+printf '%s' "$swap" | dd of="$RELEASES/Glyndor__podup/SHA256SUMS" bs=1 count=1 conv=notrunc status=none
+check "control: the manifest was altered" "1" \
+	"$(cmp -s "$WORK/genuine-sums" "$RELEASES/Glyndor__podup/SHA256SUMS" && echo 0 || echo 1)"
+check "control: and the genuine signature was left in place" "1" \
+	"$(cmp -s "$WORK/genuine-sig" "$RELEASES/Glyndor__podup/SHA256SUMS.sig" && echo 1 || echo 0)"
+rc=0; run "$WORK/forged/scripts/release/render-formulae.sh" "$WORK/forged" || rc=$?
+check "a manifest altered after it was signed is refused, genuine signature and all" "3" "$rc"
+contains "and the refusal is the signature check" "$WORK/out" "does not verify against any configured release key"
+check "and it is NOT reported as a size problem" "0" "$(grep -c 'cap' "$WORK/out")"
+check "and the formula it had is left byte for byte as it was" "$served" \
+	"$(sha256sum "$WORK/forged/Formula/podup.rb")"
+
+publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
+rm "$RELEASES/Glyndor__podup/SHA256SUMS.sig"
+new_root "$WORK/nosig"
+generator_with "$WORK/nosig/scripts/release/render-formulae.sh" "$PODUP"
+rc=0; run "$WORK/nosig/scripts/release/render-formulae.sh" "$WORK/nosig" || rc=$?
+check "a release with no SHA256SUMS.sig is refused" "3" "$rc"
+contains "and the error says the signature could not be downloaded" "$WORK/out" "failed to download SHA256SUMS.sig"
+check "and it is NOT reported as a failed signature" "0" \
+	"$(grep -c 'does not verify against any configured release key' "$WORK/out")"
+check "and the download is what stopped it, not the size check that comes after" "0" \
+	"$(grep -c 'an Ed25519 signature is exactly' "$WORK/out")"
+check "and no formula is written" "0" "$(find "$WORK/nosig/Formula" -name '*.rb' | wc -l)"
+
 # --- a signed manifest can still be malformed --------------------------------
 
 # A duplicated entry used to render BOTH hashes into one field and exit 0.

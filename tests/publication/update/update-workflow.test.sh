@@ -27,6 +27,13 @@ check "the commit step authenticates with the app token" "1" \
 	"$(grep -c 'GH_TOKEN: ${{ steps.app.outputs.token }}' "$WORKFLOW")"
 check "and no step commits with github.token" "0" \
 	"$(awk '/name: Commit the update to main/,/run: \|/' "$WORKFLOW" | grep -c 'github.token')"
+# The token is narrowed where it is minted. Left out, it carries every permission
+# the installation has, and nothing in this tree can see what those are.
+mint="$(awk '/uses: actions\/create-github-app-token@/,/^$/' "$WORKFLOW")"
+check "the app token is asked for with contents: write" "1" \
+	"$(printf '%s\n' "$mint" | grep -c '^ *permission-contents: write$')"
+check "and with no other permission" "1" \
+	"$(printf '%s\n' "$mint" | grep -c '^ *permission-[a-z-]*:')"
 
 # --- exit code becomes `partial` -------------------------------------------
 

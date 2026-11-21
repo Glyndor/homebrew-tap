@@ -66,9 +66,11 @@ jobs:
         ./tests/release/render-formulae/render-formulae-tag-shape.test.sh
         ./tests/release/render-formulae/render-formulae-symlink.test.sh
         ./tests/publication/update/update-workflow.test.sh
+        ./tests/publication/update/update-key-isolation.test.sh
         ./tests/artifacts/check-products-consistent.test.sh
         ./tests/artifacts/check-formulae.test.sh
         ./tests/artifacts/check-formulae/check-formulae-roster.test.sh
+        ./tests/artifacts/formulae-digests.test.sh
         ./tests/artifacts/check-version-monotonic.test.sh
         ./tests/ci/policy/rules/locale-pinned.test.sh
         ./tests/quality/check-test-coverage.test.sh

@@ -18,12 +18,18 @@ def lines(step):
 		if line.strip() and not line.lstrip().startswith("#")]
 
 
-def obligation(job, step):
+# A job-level condition that calls one of these runs the job whatever its
+# dependencies concluded, so a commit job carrying one commits after a failed
+# audit. `cancelled()` covers `!cancelled()`.
+STATUS_FUNCTIONS = ("always()", "cancelled()", "failure()")
+
+
+def obligation(job, step, allowed_if=None):
 	# The only condition allowed is the one the commit step carries too: no
 	# formula changed, so there is nothing to audit and nothing to publish.
 	# Any other condition (false, always(), a different output) can switch the
 	# audit off while the commit still happens.
-	if "if" in step and step["if"] != "steps.render.outputs.changed == '1'":
+	if "if" in step and step["if"] != allowed_if:
 		return "the audit step is conditional"
 	if step.get("continue-on-error", False) is not False:
 		return "the audit step ignores failure"
@@ -69,19 +75,61 @@ esac
 	return "ok"
 
 
-def order(doc, mode):
-	job = doc["jobs"]["audit"] if mode == "audit" else next(iter(doc["jobs"].values()))
-	steps = job["steps"]
-	audit = next((n for n, s in enumerate(steps) if first(lines(s), "brew audit") is not None), None)
-	if audit is None:
-		return "the audit step has no link or no audit command" if mode == "audit" else "no step runs brew audit"
-	if mode == "update":
-		commit = next((n for n, s in enumerate(steps)
-			if any("createCommitOnBranch" in line for line in lines(s))), None)
-		if commit is None:
-			return "no step creates the commit"
+def find(jobs, needle):
+	# The first (job id, step index) whose run lines start with, or for the
+	# commit contain, the needle.
+	for job_id, job in jobs.items():
+		for n, step in enumerate(job.get("steps") or []):
+			ls = lines(step)
+			if (first(ls, needle) is not None if needle == "brew audit"
+					else any(needle in line for line in ls)):
+				return job_id, n
+	return None, None
+
+
+def update_order(jobs):
+	# The audit and the commit live in different jobs, and the commit job must
+	# need the audit job with the default rule: a job runs only when the jobs
+	# it needs succeeded, unless its own condition calls a status function.
+	# The shape of one job with the audit step before the commit step is still
+	# understood, so the failure message says what moved.
+	audit_job, audit = find(jobs, "brew audit")
+	if audit_job is None:
+		return None, "no step runs brew audit"
+	commit_job, commit = find(jobs, "createCommitOnBranch")
+	if commit_job is None:
+		return None, "no step creates the commit"
+	if commit_job == audit_job:
 		if audit >= commit:
-			return "the audit does not run before the commit"
+			return None, "the audit does not run before the commit"
+		return (audit_job, audit), None
+	needs = jobs[commit_job].get("needs") or []
+	needs = [needs] if isinstance(needs, str) else needs
+	if audit_job not in needs:
+		return None, "the commit job does not need the audit job"
+	condition = str(jobs[commit_job].get("if", ""))
+	if any(fn in condition for fn in STATUS_FUNCTIONS):
+		return None, "the commit job runs whatever the audit concluded"
+	return (audit_job, audit), None
+
+
+def order(doc, mode):
+	allowed_if = None
+	if mode == "update":
+		found, problem = update_order(doc["jobs"])
+		if problem:
+			return problem
+		job = doc["jobs"][found[0]]
+		steps = job["steps"]
+		audit = found[1]
+		commit_job, commit = find(doc["jobs"], "createCommitOnBranch")
+		allowed_if = doc["jobs"][commit_job]["steps"][commit].get("if")
+	else:
+		job = doc["jobs"]["audit"]
+		steps = job["steps"]
+		audit = next((n for n, s in enumerate(steps) if first(lines(s), "brew audit") is not None), None)
+		if audit is None:
+			return "the audit step has no link or no audit command"
 	ls = lines(steps[audit])
 	link, trust, command = first(ls, "ln -s"), first(ls, "brew trust glyndor/tap"), first(ls, "brew audit")
 	if mode == "audit" and link is None:
@@ -92,7 +140,7 @@ def order(doc, mode):
 		return "the order is not link, trust, audit"
 	if mode == "update" and "--strict" not in ls[command]:
 		return "the audit is not strict"
-	return obligation(job, steps[audit])
+	return obligation(job, steps[audit], allowed_if)
 
 
 if __name__ == "__main__":

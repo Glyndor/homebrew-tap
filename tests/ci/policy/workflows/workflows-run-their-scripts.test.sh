@@ -23,7 +23,7 @@ PINNED = {
     "freshness.yml": ["scripts/monitoring/check-suite-on-main.sh"],
     "mutation.yml": ["tests/mutation/run-mutations.sh"],
     "tests.yml": ["scripts/artifacts/check-formulae.sh", "scripts/artifacts/check-products-consistent.sh", "scripts/artifacts/check-version-monotonic.sh"],
-    "update.yml": ["scripts/artifacts/check-formulae.sh", "scripts/release/render-formulae.sh"],
+    "update.yml": ["scripts/artifacts/check-formulae.sh", "scripts/artifacts/formulae-digests.sh", "scripts/release/render-formulae.sh"],
 }
 passed = failed = 0
 

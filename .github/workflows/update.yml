@@ -4,23 +4,45 @@ name: update
 # pull model as Glyndor/apt: no product pushes here. This reads their public
 # releases, verifies the signed SHA256SUMS against the org release key, validates
 # the re-rendered formulae, and commits them straight to `main`, GitHub-signed
-# via the createCommitOnBranch mutation, so a new macOS build reaches
-# `brew upgrade` within a day without any product holding a credential here.
+# via the createCommitOnBranch mutation, so a new release reaches
+# `brew upgrade` without any product holding a credential here. The schedule
+# below asks for every hour and GitHub fires it later than that, so a release
+# is usually served within a few hours, and at once when this is run by hand.
 #
 # Why a direct commit and not a pull request: the organisation forbids GitHub
 # Actions from creating or approving PRs (a locked, org-wide setting), so the
 # apt-style "open an auto-merging PR" path is unavailable. Unlike Glyndor/apt,
 # whose automation never writes git but publishes to R2, a tap's git content
 # *is* the published artifact, so the update must land as a commit. It lands on
-# `main` directly, validated in this job *before* it lands (there is no PR gate
-# standing between the commit and `brew install`), and signed by GitHub so
+# `main` directly, validated in this workflow *before* it lands (there is no PR
+# gate standing between the commit and `brew install`), and signed by GitHub so
 # `main`'s require-signed-commits rule accepts it without a signing key here.
 #
 # A schedule and a manual button, and no `pull_request` trigger, because none of
 # this is about a pull request: it reads each product's latest signed release and
-# re-renders the published artifact. That is also why validation runs inside the
-# job before the commit, no pull request review stands between that commit and
-# somebody's `brew install`.
+# re-renders the published artifact. That is also why validation runs inside
+# this workflow before the commit, no pull request review stands between that
+# commit and somebody's `brew install`.
+#
+# Three jobs, and the split is the security boundary, not tidiness:
+#
+#   render    renders Formula/, holds it to the roster, and records the SHA-256
+#             of every file in its job outputs. No secret.
+#   validate  runs `brew style` and `brew audit --strict` on those bytes. No
+#             secret. Homebrew installs the Ruby gems those commands need from
+#             RubyGems when they are missing, so this job runs code nobody here
+#             chose, and it is kept away from the key for that reason.
+#   commit    the only job that mints the updater app's token. It runs no
+#             `brew` and installs nothing; it checks the files it is about to
+#             commit against the digests the render job recorded, holds them to
+#             the roster again, and commits them.
+#
+# When all of this was one job, whatever ran during `brew style` could rewrite
+# a formula, or the `gh` and `jq` the commit step runs, in the workspace the
+# commit step then used with the app's token. Secrets reach a step only when it
+# names them, so the gems could not read the key; what they could do was
+# persist into the step that does. Separate jobs share no workspace, and the
+# digests travel through job outputs, which `validate` cannot write.
 on:
   schedule:
     # Hourly, at :30 to stay clear of the queue that forms on the hour and to
@@ -37,10 +59,14 @@ on:
     # registry and both channels behind one compromise. Pulling more often buys
     # most of the latency back and moves no credential.
     #
-    # Cheap, measured rather than assumed: a run takes 20 to 52 seconds and
-    # short-circuits when nothing changed, and the expensive macOS audit fires
-    # on push rather than on this schedule, so it still runs only when a render
-    # actually differs.
+    # Cheap, measured rather than assumed: a run of the single job this used
+    # to be took 20 to 52 seconds. A run with nothing new is not free: the
+    # renderer still downloads every asset of each latest release and verifies
+    # its provenance, because a shortcut for "already served" would take the
+    # served formula's word for what it never re-checks. What a run with no
+    # change skips is the validation and the commit. The macOS audit is not
+    # part of this workflow: audit.yml runs it on the push each commit raises
+    # and on its own daily schedule.
     - cron: "30 * * * *"
   workflow_dispatch:
   # Optional instant trigger: a product's release workflow may
@@ -54,33 +80,28 @@ permissions:
 
 # Never run two updates at once: they would race on main's HEAD (the second
 # would fail its expectedHeadOid check and drop the update to the next run).
+# The group covers the whole run, all three jobs.
 concurrency:
   group: update-formulae
   cancel-in-progress: false
 
 jobs:
-  update:
-    name: Render, validate, and commit
+  render:
+    name: Render
     runs-on: ubuntu-latest
-    # contents:read is enough for GITHUB_TOKEN now: the write goes through the
-    # updater app's token, minted below.
     permissions:
       contents: read
-    # The validate step runs `brew style` and `brew audit --strict`, and brew
-    # updates itself before doing anything unless told not to. tests.yml
-    # already sets both variables and a bound for exactly that reason (a
-    # `brew style` hung for 45 minutes on 2026-08-11 with neither); this job
-    # ran the same tool with neither. Measured over the last eight runs before
-    # the audit was added, the whole job takes 15 to 24 seconds; the audit is
-    # measured at 25 to 96 seconds on the macOS runner that runs the same
-    # command, with one outlier at 246. Ten minutes is above that worst honest
-    # run and far below the six-hour default a hang would otherwise burn every
-    # hour. The Linux measurement of the audit is not on record yet, and this
-    # bound is the one it has to fit under.
+    # Measured over the last eight runs before the audit was added, the whole
+    # single job (render, `brew style` and the commit) took 15 to 24 seconds,
+    # and this job is the render part of it. Ten minutes is far above that and
+    # far below the six-hour default a hang would otherwise burn every hour.
+    # This job has not been timed on its own yet.
     timeout-minutes: 10
-    env:
-      HOMEBREW_NO_AUTO_UPDATE: "1"
-      HOMEBREW_NO_ANALYTICS: "1"
+    outputs:
+      changed: ${{ steps.render.outputs.changed }}
+      partial: ${{ steps.render.outputs.partial }}
+      digests: ${{ steps.digests.outputs.digests }}
+      head: ${{ steps.digests.outputs.head }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -100,12 +121,12 @@ jobs:
           # Exit 3 means the generator skipped at least one product and rendered
           # the rest: its release was unreadable, its SHA256SUMS did not verify,
           # or an asset the table names was missing. Carry on and commit what did
-          # render, then fail the job in the last step so the skip is loud.
+          # render, then fail the run in the last step so the skip is loud.
           # Holding a good update back because an unrelated product's release is
           # broken is exactly what this replaced. Any other non-zero is a failure
           # before any product was reached, and stops the run here.
           rc=0
-          ./scripts/release/render-formulae.sh || rc=$?
+          bash ./scripts/release/render-formulae.sh || rc=$?
           case "$rc" in
             0) echo "partial=0" >> "$GITHUB_OUTPUT" ;;
             3) echo "partial=1" >> "$GITHUB_OUTPUT" ;;
@@ -148,14 +169,119 @@ jobs:
             echo "changed=1" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Validate the re-rendered formulae
+      # The CONTENT of every formula, against the roster row the generator
+      # renders from: the same repository, the same tag on every url, the
+      # assets that row declares, and no statement the generator does not
+      # write. `brew style` and `brew audit --strict` read a formula as Ruby
+      # and as a Homebrew recipe, and neither of them knows what the product's
+      # release looked like, so both accept a formula that is well formed and
+      # wrong: a url naming another Glyndor repository, a second tag in the
+      # same formula, a `post_install` block that runs on every install.
+      # Glyndor/scoop-bucket refuses the same shapes for its manifests.
+      #
+      # It runs here, before anything leaves this job, because the check needs
+      # no toolchain and a formula that says the wrong thing should not reach
+      # the job where Homebrew is set up to find out. The commit job runs it
+      # again on the bytes it commits.
+      - name: Hold the rendered formulae to the roster
         if: steps.render.outputs.changed == '1'
+        run: bash ./scripts/artifacts/check-formulae.sh
+
+      # The manifest goes to the next jobs twice, and only one copy counts.
+      # The copy in the artifact is for a person reading a run. The one the
+      # commit job checks travels in this job's outputs: `validate` downloads
+      # the artifact and holds the run's token, which can upload artifacts, so
+      # anything inside the artifact is something it could replace. A job's
+      # outputs are written by that job alone. The head this job rendered from
+      # travels the same way, because the commit job's diff is only right
+      # against the same parent.
+      - name: Record the digest of every rendered file
+        id: digests
+        if: steps.render.outputs.changed == '1'
+        run: |
+          set -euo pipefail
+          staged="$RUNNER_TEMP/rendered"
+          manifest="$RUNNER_TEMP/formulae.sha256"
+          bash ./scripts/artifacts/formulae-digests.sh list . > "$manifest"
+          rm -rf "$staged"
+          mkdir -p "$staged"
+          cp -R Formula "$staged/Formula"
+          cp "$manifest" "$staged/formulae.sha256"
+          bash ./scripts/artifacts/formulae-digests.sh check "$staged" "$manifest"
+          echo "digests=$(base64 -w0 < "$manifest")" >> "$GITHUB_OUTPUT"
+          echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Seven days so a red run can still be read; the artifact is only a
+      # carrier between the jobs of one run.
+      - name: Upload the rendered formulae
+        if: steps.render.outputs.changed == '1'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rendered-formulae
+          path: ${{ runner.temp }}/rendered
+          if-no-files-found: error
+          retention-days: 7
+
+  validate:
+    name: Validate
+    needs: render
+    runs-on: ubuntu-latest
+    # No secret reaches this job and none may: it runs Homebrew, and Homebrew
+    # installs gems from RubyGems on demand.
+    permissions:
+      contents: read
+    # The validate step runs `brew style` and `brew audit --strict`, and brew
+    # updates itself before doing anything unless told not to. tests.yml
+    # already sets both variables and a bound for exactly that reason (a
+    # `brew style` hung for 45 minutes on 2026-08-11 with neither). The audit
+    # is measured at 25 to 96 seconds on the macOS runner that runs the same
+    # command, with one outlier at 246. Ten minutes is above that worst honest
+    # run and far below the six-hour default. The Linux audit has not been
+    # timed yet, on its own or in the single job this used to be, and this
+    # bound is the one it has to fit under.
+    timeout-minutes: 10
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+    # The job runs on every run, and its steps only when something changed,
+    # so that `commit` can depend on it with the default rule: it runs only
+    # when this job succeeded. A skipped job would skip `commit`, and with it
+    # the hourly mint that proves the credential still works.
+    steps:
+      - if: needs.render.outputs.changed == '1'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download the rendered formulae
+        if: needs.render.outputs.changed == '1'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: rendered-formulae
+          path: ${{ runner.temp }}/rendered
+
+      # What is audited has to be what is committed, so the downloaded files
+      # are checked against the render job's digests and only then put in
+      # place of the checkout's Formula/.
+      - name: Put the rendered bytes in the workspace
+        if: needs.render.outputs.changed == '1'
+        env:
+          RENDERED_DIGESTS: ${{ needs.render.outputs.digests }}
+        run: |
+          set -euo pipefail
+          expected="$RUNNER_TEMP/expected.sha256"
+          printf '%s' "$RENDERED_DIGESTS" | base64 -d > "$expected"
+          bash ./scripts/artifacts/formulae-digests.sh place "$RUNNER_TEMP/rendered" . "$expected"
+
+      - name: Validate the re-rendered formulae
+        if: needs.render.outputs.changed == '1'
         run: |
           set -euo pipefail
           # Run BEFORE the commit lands. A malformed render must never reach
           # `main`: here the commit is the published artifact, with no PR review
           # between it and `brew install`. `brew style` (rubocop) catches
-          # formatting and deprecated-API issues.
+          # formatting and deprecated-API issues, and a failure here stops the
+          # commit job, which needs this one.
           #
           # `brew style` was half of the gate of tests.yml and audit.yml, not all
           # of it: `brew audit --strict` ran in audit.yml on the push that
@@ -186,24 +312,6 @@ jobs:
             echo "::error::no formulae found under Formula/; refusing to commit an empty tap"
             exit 1
           fi
-
-          # The CONTENT of every formula, against the roster row the generator
-          # renders from: the same repository, the same tag on every url, the
-          # assets that row declares, and no statement the generator does not
-          # write. `brew style` and `brew audit --strict` read a formula as
-          # Ruby and as a Homebrew recipe, and neither of them knows what the
-          # product's release looked like, so both accept a formula that is
-          # well formed and wrong: a url naming another Glyndor repository, a
-          # second tag in the same formula, a `post_install` block that runs
-          # on every install. There is no pull request between this commit and
-          # `brew install`, so this is the last reader of the formula's
-          # meaning. Glyndor/scoop-bucket refuses the same shapes for its
-          # manifests.
-          #
-          # It runs before brew is set up, like the empty-tap guard above: the
-          # check needs no toolchain, and a formula that says the wrong thing
-          # should not reach the point where a runner is installed to find out.
-          ./scripts/artifacts/check-formulae.sh
 
           # Set brew up only once the inputs are known good: checking them needs
           # no brew, and failing before installing a toolchain is both faster and
@@ -247,6 +355,68 @@ jobs:
           # HEAD request from CI.
           brew audit --strict "${names[@]}"
 
+  commit:
+    name: Commit
+    # Both, and with the default rule: this job runs only when the render and
+    # the validation succeeded. It carries no `if:` of its own, because any
+    # status function there (`always()`, `!cancelled()`) would let it run
+    # after a failed validation.
+    needs: [render, validate]
+    runs-on: ubuntu-latest
+    # contents:read is enough for GITHUB_TOKEN: the write goes through the
+    # updater app's token, minted below.
+    permissions:
+      contents: read
+    # A checkout, a download, two checks with no toolchain and two API calls.
+    # The whole single job this replaced took 15 to 24 seconds; this part has
+    # not been timed on its own yet. Ten minutes bounds a stalled API call far
+    # below the six-hour default.
+    timeout-minutes: 10
+    # Nothing in this job runs `brew` or installs anything, and that is the
+    # rule it exists to keep: it is the only job that holds a secret. What it
+    # runs is the runner image (git, gh, jq, python3), this repository's own
+    # scripts from a fresh checkout, and three first-party actions pinned by
+    # commit.
+    steps:
+      - if: needs.render.outputs.changed == '1'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download the rendered formulae
+        if: needs.render.outputs.changed == '1'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: rendered-formulae
+          path: ${{ runner.temp }}/rendered
+
+      # The bytes committed are the bytes the render job recorded, or nothing
+      # is committed. The digests come from the render job's outputs and not
+      # from the artifact, which the validation job could have replaced. The
+      # roster check runs again on the placed files, because it is the last
+      # reader of their meaning and it costs nothing here. All of it runs
+      # before the key is used, so a run that refuses its bytes never mints.
+      - name: Check the rendered bytes against the render job's digests
+        if: needs.render.outputs.changed == '1'
+        env:
+          RENDERED_DIGESTS: ${{ needs.render.outputs.digests }}
+          RENDERED_HEAD: ${{ needs.render.outputs.head }}
+        run: |
+          set -euo pipefail
+          # The commit step diffs the placed files against this checkout and
+          # pins this checkout's HEAD as the parent. Against any other parent
+          # than the one the render read, that diff would undo whatever landed
+          # in between.
+          head="$(git rev-parse HEAD)"
+          if [ "$head" != "$RENDERED_HEAD" ]; then
+            echo "::error::this checkout is at ${head:-nothing}, the render read ${RENDERED_HEAD:-nothing}; refusing to commit against another parent"
+            exit 1
+          fi
+          expected="$RUNNER_TEMP/expected.sha256"
+          printf '%s' "$RENDERED_DIGESTS" | base64 -d > "$expected"
+          bash ./scripts/artifacts/formulae-digests.sh place "$RUNNER_TEMP/rendered" . "$expected"
+          bash ./scripts/artifacts/check-formulae.sh
+
       # main now has required status checks, and a direct push has none, so
       # the commit below needs a bypass actor. github-actions[bot] cannot be
       # one; a GitHub App can. glyndor-updater is that app, installed on this
@@ -269,7 +439,7 @@ jobs:
           private-key: ${{ secrets.UPDATER_APP_PRIVATE_KEY }}
 
       - name: Commit the update to main (GitHub-signed)
-        if: steps.render.outputs.changed == '1'
+        if: needs.render.outputs.changed == '1'
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           REPO: ${{ github.repository }}
@@ -324,7 +494,7 @@ jobs:
           echo "Committed the formula update to main."
 
       - name: Fail if any product was skipped
-        if: steps.render.outputs.partial == '1'
+        if: needs.render.outputs.partial == '1'
         run: |
           # Last, on purpose: the products that did render are already committed
           # by now, so a broken release in one product costs that product's

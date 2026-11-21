@@ -88,9 +88,80 @@ check "and a call with no file is a usage error" "2" "$rc"
 # first change of shape breaks the two apart. The renderer declares the array and
 # bash reads it, so the renderer and the files it sources do not count: they never
 # search the file for the table.
-readers="$(grep -rlF '^PRODUCTS=' "$HERE/scripts" | sed "s|^$HERE/||" | sort | tr '\n' ' ')"
-check "the table is found in the renderer's text by scripts/release/products.sh and nothing else" \
-	"scripts/release/products.sh " "$readers"
+#
+# A second reader can spell its search many ways, so the scan does not look for one
+# anchor. Over every file of scripts/ and .github/ it reads the lines that are not
+# comments and flags four shapes: PRODUCTS assigned or appended in any spelling
+# (`PRODUCTS=(`, `PRODUCTS =`, `^PRODUCTS=`, `PRODUCTS+=`), a declaration of it
+# (`declare -a PRODUCTS`), PRODUCTS on a line that also runs a text search (sed,
+# grep, awk, perl, rg, a Python `re.` call, a `/pattern/` range), and a search of
+# the renderer's own file for an array opening or a range. A message that names the
+# reader's refusal (`no PRODUCTS=( table`) is the one phrase the consumers match, so
+# it is not a search. Reading the array as bash does (`"${PRODUCTS[@]}"`) is not one
+# either.
+second_readers() { # <root> <exempt path>...: the files under <root> that look for the table
+	local root="$1" file rel keep
+	shift
+	while IFS= read -r file; do
+		rel="${file#"$root"/}"
+		keep=1
+		for exempt in "$@"; do [ "$rel" = "$exempt" ] && keep=0; done
+		[ "$keep" -eq 1 ] || continue
+		if grep -v '^[[:space:]]*#' "$file" | sed 's/no PRODUCTS=( table//' | grep -qE \
+			-e 'PRODUCTS[[:space:]]*\+?=' \
+			-e '(declare|typeset|local|readonly)[[:space:]]+-[A-Za-z]+[[:space:]]+PRODUCTS' \
+			-e 'PRODUCTS.*(\<(sed|grep|egrep|fgrep|awk|gawk|perl|rg)\>|re\.[a-z]+\()' \
+			-e '(\<(sed|grep|egrep|fgrep|awk|gawk|perl|rg)\>|re\.[a-z]+\().*PRODUCTS' \
+			-e '/[^/ ]*PRODUCTS' \
+			-e 'render-[a-z]+\.sh.*(=\(|,/)' \
+			-e '(=\(|,/).*render-[a-z]+\.sh'; then
+			echo "$rel"
+		fi
+	done < <(find "$root/scripts" "$root/.github" -type f 2> /dev/null | sort)
+}
+joined() { tr '\n' ' '; }
+EXEMPT=(scripts/release/products.sh "${RENDERER#"$HERE"/}")
+
+readers="$(second_readers "$HERE" "${EXEMPT[@]}" | joined)"
+check "the table is found in the renderer's text by scripts/release/products.sh and by no other file" "" "$readers"
+
+# The scan has to see each way of writing a second reader, and has to leave the
+# honest files alone; a scan that flags nothing would pass the check above anyway.
+FX="$WORK/fx"
+mkdir -p "$FX/scripts/gates" "$FX/scripts/release" "$FX/.github/workflows"
+cp "$RENDERER" "$FX/${RENDERER#"$HERE"/}"
+cp "$READER" "$FX/scripts/release/products.sh"
+plant() { # <path> <line>: a file under the fixture holding the line
+	mkdir -p "$(dirname "$FX/$1")"
+	printf '#!/usr/bin/env bash\n%s\n' "$2" > "$FX/$1"
+}
+plant scripts/gates/caret.sh "grep -rlF '^PRODUCTS=' scripts"
+plant scripts/gates/spaced.sh "sed -n '/^PRODUCTS =/,/^)/p' \"\$1\""
+plant scripts/gates/window.sh "grep -A 20 'PRODUCTS=' \"\$1\" | sed -n 's/^[[:space:]]*\"\\(.*\\)\"\$/\\1/p'"
+plant scripts/gates/declare.sh 'declare -a PRODUCTS'
+# shellcheck disable=SC2016 # the planted readers are literal shell text
+plant scripts/gates/table-first.sh 'table=PRODUCTS; grep -A 20 "$table" "$1"'
+plant scripts/gates/renderer-first.sh "perl -ne 'print' scripts/release/${RENDERER##*/} '^[A-Z]*=('"
+plant scripts/gates/ruby.sh "ruby -ne 'print if /PRODUCTS/../^\\)/' \"\$1\""
+plant scripts/gates/append.sh 'PRODUCTS+=("x|y|z")'
+# shellcheck disable=SC2016 # the planted readers are literal shell text
+plant scripts/gates/name-only.sh 'awk "/PRODUCTS/ { on = 1 } on" "$1"'
+plant scripts/gates/python.sh "python3 -c \"import re,sys; re.search(r'PRODUCTS', open(sys.argv[1]).read())\" \"\$1\""
+plant scripts/gates/renderer-range.sh "sed -n '/^[A-Z]*=(/,/^)/p' scripts/release/${RENDERER##*/}"
+plant .github/workflows/inline.yml "        run: awk '/^PRODUCTS=\\(/' scripts/release/${RENDERER##*/}"
+plant scripts/gates/comment.sh '# the PRODUCTS= table is read by scripts/release/products.sh with sed'
+# shellcheck disable=SC2016 # the planted readers are literal shell text
+plant scripts/gates/array.sh 'for entry in "${PRODUCTS[@]}"; do echo "$entry"; done'
+plant scripts/gates/message.sh 'echo "::error::the PRODUCTS roster has no row for x"'
+# shellcheck disable=SC2016 # the planted readers are literal shell text
+plant scripts/gates/refusal.sh '[[ "$reason" == *"no PRODUCTS=( table"* ]] && echo missing'
+plant scripts/gates/runs-renderer.sh 'bash ./scripts/release/'"${RENDERER##*/}"' || rc=$?'
+plant scripts/gates/other-grep.sh "grep -qE '^RELEASE_KEY=\"x\"\$' scripts/release/${RENDERER##*/}"
+found="$(second_readers "$FX" "${EXEMPT[@]}" | joined)"
+check "the scan flags every spelling of a second reader, and only those" \
+	".github/workflows/inline.yml scripts/gates/append.sh scripts/gates/caret.sh scripts/gates/declare.sh scripts/gates/name-only.sh scripts/gates/python.sh scripts/gates/renderer-first.sh scripts/gates/renderer-range.sh scripts/gates/ruby.sh scripts/gates/spaced.sh scripts/gates/table-first.sh scripts/gates/window.sh " "$found"
+unexempted="$(second_readers "$FX" | grep -c '^scripts/release/')"
+check "and the reader and the renderer would be flagged without their exemption" "2" "$unexempted"
 
 echo
 echo "$pass passed, $fail failed"

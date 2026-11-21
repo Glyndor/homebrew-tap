@@ -135,3 +135,6 @@ pq-guard-roster	scripts/release/release-signature.sh	if [ "$product" = "$name" ]
 pq-guard-call	scripts/release/render-formulae.sh	check_release_configuration || exit 2	true || exit 2	tests/release/release-signature.test.sh
 pq-venv-second-slot	.github/workflows/update.yml	^RELEASE_PQ_PUBKEY2?_B64=	^RELEASE_PQ_PUBKEY(_2)?_B64=	tests/publication/update/update-mldsa-venv.test.sh
 pq-venv-path	.github/workflows/update.yml	PATH="$mldsa_venv/bin:$PATH"	:	tests/publication/update/update-mldsa-venv.test.sh
+render-served-unique	scripts/release/render-formulae.sh	if len(versions) != 1:	if len(versions) < 1:	tests/release/render-formulae/render-formulae-version.test.sh
+render-atomic-move	scripts/release/render-formulae.sh	mv -f "$tmp" "$target" || {	cp "$tmp" "$target" || {	tests/release/render-formulae/render-formulae-symlink.test.sh
+audit-empty-set	.github/workflows/audit.yml	if [ ${#names[@]} -eq 0 ]; then	if false; then	tests/publication/audit/audit-trusts-the-linked-tap.test.sh

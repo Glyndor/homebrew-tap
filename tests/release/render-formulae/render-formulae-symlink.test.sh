@@ -69,6 +69,28 @@ check "control: and leaves no temporary file behind" "0" "$(find "$WORK/plain/Fo
 render "$WORK/plain"
 check "control: and renders over its own formula" "0" "$rc"
 
+# --- the formula arrives by rename, never by copy -------------------------------
+#
+# render-formulae.sh writes the formula beside the repository root and moves it
+# into place, so a reader sees the old formula or the new one and never half of
+# either. A copy into the target truncates the file the reader has open and
+# fills it again, and it leaves the temporary behind. A second name for the old
+# formula stands in for that reader: a rename leaves it holding the old text, a
+# copy rewrites it in place.
+new_root "$WORK/atomic"
+render "$WORK/atomic"
+ln "$WORK/atomic/Formula/podup.rb" "$WORK/atomic.held"
+held="$(cksum <"$WORK/atomic.held")"
+publish Glyndor/podup v9.9.10 podup-darwin-arm64 podup-darwin-x86_64
+render "$WORK/atomic"
+check "a release newer than the served formula renders over it" "0" "$rc"
+check "and the formula carries the new tag" "1" \
+	"$(grep -c 'releases/download/v9.9.10/podup-darwin-arm64' "$WORK/atomic/Formula/podup.rb")"
+check "and a reader holding the old formula still sees all of it" "$held" "$(cksum <"$WORK/atomic.held")"
+check "and the temporary at the root of the repository is gone" "0" \
+	"$(find "$WORK/atomic" -maxdepth 1 -name '.render.*' | wc -l)"
+publish Glyndor/podup v9.9.9 podup-darwin-arm64 podup-darwin-x86_64
+
 # --- a formula that is a symlink ----------------------------------------------
 
 new_root "$WORK/link"

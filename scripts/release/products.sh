@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Print the rows of the PRODUCTS table a renderer declares, one per line, so the
-# gates that need the roster read it with one grammar.
+# gates that read the renderer's file read it with one grammar.
 #
 # Usage: products.sh <renderer>
 #
@@ -12,6 +12,14 @@
 # each, written apart, so a change of shape would have broken them apart, one
 # reading an empty roster where the other read an error. They read it here now.
 # Each consumer splits a row on `|` itself, since the columns differ by channel.
+#
+# This is the one reader of the file, not the only reader of the table. The
+# renderer declares PRODUCTS as a bash array and bash reads it, and
+# release-signature.sh, which the renderer sources, checks the required-products
+# list against that array, as it stands when the check runs. Those two are the
+# table as bash reads it, and the suite of this reader (tests/release/products.test.sh)
+# compares what it prints with the rows bash declares, so the file readers cannot
+# drift from it unseen.
 #
 # The grammar is the one bash reads the array with, cut down to the shape the
 # renderer writes: from the line that starts `PRODUCTS=(` to the first line that

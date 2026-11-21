@@ -76,6 +76,7 @@ tests/ci/suites/shell-ci-scope.test.sh python3-yaml
 tests/quality/scope/ci-job-scope.test.sh python3-yaml
 tests/quality/scope/ci-job-scope-suites.test.sh python3-yaml
 tests/quality/scope/ci-job-scope-suite-needed.test.sh -
+tests/quality/scope/ci-job-scope-packages.test.sh -
 tests/ci/suites/lint-job-scope.test.sh python3-yaml
 tests/ci/suites/mldsa-job-scope.test.sh python3-yaml
 tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh python3-yaml

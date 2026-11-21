@@ -44,7 +44,10 @@ never a replacement, so the Ed25519 signature is checked first and always, and
 the second one is checked whenever the release carries it. No product publishes
 that second signature yet, so every release today is admitted exactly as it was
 before, and the second signature only starts to protect a release once one
-carries it.
+carries it. A release that carries the second signature while no ML-DSA-65
+public key is configured here is refused, not skipped, and its product stays at
+the last version served until the key is added. The key has to be in this
+repository and in Glyndor/scoop-bucket before a product publishes one.
 
 `brew` reads this repository straight from GitHub, so there is no separate
 server in the path, and a download whose bytes do not match the pinned SHA-256

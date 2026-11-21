@@ -117,6 +117,9 @@ ago() { date -u -d "$1 days ago" +%Y-%m-%dT%H:%M:%SZ; }
 
 # Run the step with the stub on PATH. Combined stdout+stderr in `out`, exit
 # code in `rc`. The stub log is reset per call so each case starts at index 1.
+# MAX_AGE_HOURS passes through from the caller's environment; a case that
+# wants the limit in hours sets it and passes 0 days, which is what GitHub
+# hands the step for a number input the caller left out.
 run_step() { # $1=MAX_AGE_DAYS  $2=responses file  $3=JSON page (optional)
 	local max="$1" resp="$2" json="${3:-}"
 	rm -f "$WORK/gh.log" "$WORK/sleep.log" "$WORK/urls.log"
@@ -126,6 +129,7 @@ run_step() { # $1=MAX_AGE_DAYS  $2=responses file  $3=JSON page (optional)
 	STUB_URL_LOG="$WORK/urls.log" STUB_LOG="$WORK/gh.log" STUB_RESPONSES="$resp" STUB_JSON="$json" \
 	SLEEP_LOG="$WORK/sleep.log" \
 	ANY_CONCLUSION="${ANY_CONCLUSION:-}" \
+	MAX_AGE_HOURS="${MAX_AGE_HOURS:-}" \
 	PATH="$WORK/bin:$PATH" \
 	GH_TOKEN=dummy REPO="$REPO" WORKFLOW="$WF" MAX_AGE_DAYS="$max" \
 	bash "$WORK/step.sh" 2>&1

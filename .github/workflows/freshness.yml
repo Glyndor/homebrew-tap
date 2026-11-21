@@ -80,7 +80,15 @@ jobs:
     uses: ./.github/workflows/reusable-schedule-freshness.yml
     with:
       workflow: update.yml
-      max-age-days: 3
+      # update.yml asks for an hourly cron, so a limit in days would let
+      # dozens of missed runs pass in silence. 24 hours comes from the last
+      # 300 scheduled runs of update.yml in each channel, measured on
+      # 2026-11-20 over 65.8 days: GitHub fired the cron 4.6 times a day,
+      # the median gap between two successes was 5.18 hours and the longest
+      # was 14.9 hours in the tap and 10.7 in the bucket. 24 hours clears
+      # the longest gap measured with room left, and still turns red the day
+      # the updates stop rather than three days later.
+      max-age-hours: 24
 
   # The watcher watches itself, and this is the last link rather than a joke.
   #

@@ -325,6 +325,9 @@ tests/ci/policy/rules/jobs-are-bounded.test.sh
 tests/ci/policy/workflows/workflow-shape.test.sh
 	.github/workflows/**
 
+tests/ci/policy/workflows/persist-credentials.test.sh
+	.github/workflows/**
+
 tests/ci/policy/workflows/workflow-publish-triggers.test.sh
 	.github/workflows/update.yml
 

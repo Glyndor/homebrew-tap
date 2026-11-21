@@ -217,3 +217,4 @@ line-limit-txt-comments	.github/workflows/reusable-line-limit.yml	*.yml|*.yaml|*
 line-limit-caller-txt	.github/workflows/line-limit.yml	svelte yml yaml txt"	svelte yml yaml"	tests/ci/reusable/reusable-line-limit.test.sh
 pq-transfer-404	scripts/release/release-signature.sh	if [ "$pq_rc" -ne 0 ]; then	if [ "$pq_rc" -ne 0 ] && [ "$pq_code" != "404" ]; then	tests/release/release-signature.test.sh
 formulae-reads-the-renderer	scripts/artifacts/check-formulae.sh	check-formulae.py" "$renderer" "$root"	check-formulae.py" /dev/null "$root"	tests/artifacts/check-formulae.test.sh
+drift-checkout-keeps-no-token	.github/workflows/drift.yml	persist-credentials: false	persist-credentials: true	tests/ci/policy/workflows/persist-credentials.test.sh

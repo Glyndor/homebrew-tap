@@ -221,12 +221,14 @@ set -euo pipefail
 output=""
 url=""
 max_filesize=""
+write_out=""
 for arg in "$@"; do :; done 2>/dev/null || true
 args=("$@")
 for ((i = 0; i < ${#args[@]}; i++)); do
 	case "${args[i]}" in
 		-o)    output="${args[i+1]}" ;;
 		--max-filesize) max_filesize="${args[i+1]}" ;;
+		-w|--write-out) write_out="${args[i+1]}" ;;
 		http*) url="${args[i]}" ;;
 	esac
 done
@@ -241,13 +243,22 @@ asset="${rest#*/}"
 slug="${owner_repo//\//__}"
 fixture="$RELEASES/$slug/asset_${asset}"
 case "$asset" in
-	SHA256SUMS|SHA256SUMS.sig) fixture="$RELEASES/$slug/$asset" ;;
+	SHA256SUMS|SHA256SUMS.sig|SHA256SUMS.mldsa65.sig) fixture="$RELEASES/$slug/$asset" ;;
 esac
 if [ "${CURL_STUB_FAIL:-}" = "1" ]; then
 	echo "curl stub: configured to fail for $url" >&2
 	exit 22
 fi
 if [ ! -f "$fixture" ]; then
+	# The second signature is optional, so its absence is answered with the
+	# status code a real server gives for an asset that is not there, and
+	# not with a failure: the renderer reads that code to tell "this release
+	# carries no second signature" from "this read did not work". The
+	# transfer asks for no `-f`, so the 404 is not a failure either.
+	if [ "$asset" = "SHA256SUMS.mldsa65.sig" ] && [ -n "$write_out" ]; then
+		printf '404'
+		exit 0
+	fi
 	echo "curl stub: no fixture for $url (looked at $fixture)" >&2
 	exit 1
 fi
@@ -259,6 +270,7 @@ if [ -n "$max_filesize" ] && [ "${CURL_STUB_IGNORE_MAXFILESIZE:-}" != "1" ] \
 	exit 63
 fi
 cp "$fixture" "$output"
+[ -z "$write_out" ] || printf '200'
 SH
 chmod +x "$BIN/curl"
 

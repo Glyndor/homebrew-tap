@@ -36,6 +36,31 @@ RELEASE_PUBKEY_B64="HFv7vg5FCY7YyKUDbJhaQSfB9SboJGSblJtFbLmLHzM"
 # with them.
 RELEASE_PUBKEY2_B64=""
 
+# The org's ML-DSA-65 release-signing public key, raw and unpadded base64.
+# Empty until the organization creates the key: until then no release carries a
+# second signature, and every release is admitted exactly as it was before the
+# renderer learned to read one.
+#
+# The second signature is a hybrid, never a replacement. The Ed25519 signature
+# is checked first and always; the ML-DSA-65 one is checked when the release
+# carries it, and always for a product the required list below names.
+RELEASE_PQ_PUBKEY_B64=""
+
+# Second ML-DSA-65 slot, empty until a rotation is in flight, with the same
+# make-before-break overlap the Ed25519 slots have: a release signed by either
+# configured key verifies.
+RELEASE_PQ_PUBKEY2_B64=""
+
+# The products whose ML-DSA-65 signature is required, separated by spaces.
+# Empty today.
+#
+# A second signature that may be left out protects nothing: whoever can forge
+# the Ed25519 signature simply does not attach the other one. So a release of
+# a product named here is refused without its ML-DSA-65 signature. Every name
+# must be a product of the roster below, and one that names no product stops
+# the run before any release is read.
+RELEASE_PQ_REQUIRED=""
+
 # Bounds on the bytes this script reads off the network. The signature proves
 # what the publisher meant, but it does not bound how much of it there is; the
 # release assets are attacker-influenced (whoever can publish a release asset
@@ -57,6 +82,15 @@ RELEASE_PUBKEY2_B64=""
 #   the same way whether too large or too small. The check is an equality,
 #   not a comparison: anything that is not 64 bytes is wrong here.
 #
+#   MAX_PQ_SIG_BYTES = 4096. The cap on the second signature's transfer. An
+#   ML-DSA-65 signature is exactly 3309 bytes, and the cap sits above it so a
+#   sidecar of the wrong length is refused by the length check and not by the
+#   transfer, which says what is wrong with it.
+#
+#   PQ_SIG_LENGTH = 3309, exact. A raw ML-DSA-65 signature (FIPS 204) has no
+#   other valid length, so the second signature is held to the same equality
+#   as the first one.
+#
 #   MAX_ASSET_BYTES = 104857600 (100 MiB). The cap on the binary that
 #   verify_attestation downloads so its digest can be checked against
 #   SHA256SUMS and so the SLSA attestation can be verified against the
@@ -66,6 +100,8 @@ RELEASE_PUBKEY2_B64=""
 #   renderer holds the bytes while the attestation check runs.
 MAX_SUMS_BYTES=4096
 MAX_SIG_BYTES=64
+MAX_PQ_SIG_BYTES=4096
+PQ_SIG_LENGTH=3309
 MAX_ASSET_BYTES=104857600
 
 # The only way to override it is --pubkey, which tests/release/render-formulae.test.sh
@@ -84,6 +120,21 @@ while [ $# -gt 0 ]; do
 		--pubkey2)
 			[ $# -ge 2 ] || { echo "--pubkey2 needs a value" >&2; exit 2; }
 			RELEASE_PUBKEY2_B64="$2"
+			shift 2
+			;;
+		--pq-pubkey)
+			[ $# -ge 2 ] || { echo "--pq-pubkey needs a value" >&2; exit 2; }
+			RELEASE_PQ_PUBKEY_B64="$2"
+			shift 2
+			;;
+		--pq-pubkey2)
+			[ $# -ge 2 ] || { echo "--pq-pubkey2 needs a value" >&2; exit 2; }
+			RELEASE_PQ_PUBKEY2_B64="$2"
+			shift 2
+			;;
+		--pq-required)
+			[ $# -ge 2 ] || { echo "--pq-required needs a value" >&2; exit 2; }
+			RELEASE_PQ_REQUIRED="$2"
 			shift 2
 			;;
 		*)
@@ -132,9 +183,10 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 # Download a release's SHA256SUMS(+.sig) and verify the signature, failing closed.
-verify_sha256sums() { # $1=repo $2=tag
-	rm -f "$work/SHA256SUMS" "$work/SHA256SUMS.sig"
-	local asset limit
+verify_sha256sums() { # $1=repo $2=tag $3=product
+	rm -f "$work/SHA256SUMS" "$work/SHA256SUMS.sig" "$work/SHA256SUMS.mldsa65.sig"
+	local asset limit pq_code pq_rc pq_size required name verify_rc
+	local -a required_products=()
 	# Bound each transfer, not just the files the verifier eventually reads.
 	for asset in SHA256SUMS SHA256SUMS.sig; do
 		case "$asset" in
@@ -161,14 +213,82 @@ verify_sha256sums() { # $1=repo $2=tag
 		echo "::error::$1 $2: SHA256SUMS.sig is $sig_size bytes; an Ed25519 signature is exactly ${MAX_SIG_BYTES} bytes" >&2
 		return 1
 	}
-	python3 - "$work/SHA256SUMS" "$work/SHA256SUMS.sig" \
-		"$RELEASE_PUBKEY_B64" "$RELEASE_PUBKEY2_B64" <<'PY'
-import base64, binascii, sys
-from cryptography.exceptions import InvalidSignature
+	# The second signature, if this release carries one. Its absence is not an
+	# error: a release that publishes only the Ed25519 signature is admitted
+	# exactly as it was before, unless its product is in the required list.
+	#
+	# The status code is what tells the two apart, and it is read with the
+	# transfer instead of guessed from curl's exit status: a 404 means the
+	# release carries no second signature, while any other failure means the
+	# question could not be answered. A release whose second signature could
+	# not be read is not a release without one.
+	#
+	# The transfer carries no `-f` on purpose: a 404 is an answer, not a
+	# failure, and curl would print it as an error on every release that
+	# carries no second signature.
+	pq_code=""
+	pq_rc=0
+	curl -sSL --proto =https --proto-redir =https --connect-timeout 10 --max-time 120 --max-filesize "$MAX_PQ_SIG_BYTES" \
+		-o "$work/SHA256SUMS.mldsa65.sig" -w '%{http_code}' \
+		"https://github.com/$1/releases/download/$2/SHA256SUMS.mldsa65.sig" > "$work/pq.code" || pq_rc=$?
+	pq_code="$(cat "$work/pq.code" 2>/dev/null || true)"
+	if [ "$pq_rc" -ne 0 ] && [ "$pq_code" != "404" ]; then
+		echo "::error::$1 $2: failed to download SHA256SUMS.mldsa65.sig within the ${MAX_PQ_SIG_BYTES}-byte cap and 120-second time limit" >&2
+		return 1
+	fi
+	case "$pq_code" in
+		404)
+			rm -f "$work/SHA256SUMS.mldsa65.sig"
+			;;
+		200)
+			pq_size="$(stat -c%s "$work/SHA256SUMS.mldsa65.sig")"
+			[ "$pq_size" -le "$MAX_PQ_SIG_BYTES" ] || {
+				echo "::error::$1 $2: SHA256SUMS.mldsa65.sig is $pq_size bytes, over the ${MAX_PQ_SIG_BYTES}-byte cap" >&2
+				return 1
+			}
+			[ "$pq_size" -eq "$PQ_SIG_LENGTH" ] || {
+				echo "::error::$1 $2: SHA256SUMS.mldsa65.sig is $pq_size bytes; an ML-DSA-65 signature is exactly ${PQ_SIG_LENGTH} bytes" >&2
+				return 1
+			}
+			;;
+		*)
+			echo "::error::$1 $2: the download of SHA256SUMS.mldsa65.sig answered HTTP ${pq_code:-none}; whether this release carries a second signature could not be decided" >&2
+			return 1
+			;;
+	esac
+	# Is the second signature required for this product? The list names
+	# products of this repository's roster, and an entry that names none is a
+	# mistake in this file that the configuration guard stops before any
+	# release is read.
+	required=0
+	read -r -a required_products <<<"$RELEASE_PQ_REQUIRED"
+	for name in "${required_products[@]}"; do
+		if [ "$name" = "$3" ]; then
+			required=1
+		fi
+	done
+	# The Ed25519 signature is checked first and always; the ML-DSA-65 one is
+	# checked when the release carries it, and always for a product the
+	# required list names. The exit status says which failure it was: 1 the
+	# release is not trusted, 2 our own trust anchor is malformed, 3 the
+	# installed library cannot check the second signature.
+	verify_rc=0
+	python3 - "$work/SHA256SUMS" "$work/SHA256SUMS.sig" "$work/SHA256SUMS.mldsa65.sig" "$required" "$3" "$PQ_SIG_LENGTH" "$RELEASE_PUBKEY_B64" "$RELEASE_PUBKEY2_B64" "$RELEASE_PQ_PUBKEY_B64" "$RELEASE_PQ_PUBKEY2_B64" <<'PY' || verify_rc=$?
+import base64, binascii, os, sys
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-msg = open(sys.argv[1], "rb").read()
-sig = open(sys.argv[2], "rb").read()
+sums_path, sig_path, pq_path = sys.argv[1:4]
+required = sys.argv[4] == "1"
+product = sys.argv[5]
+pq_sig_bytes = int(sys.argv[6])
+ed_keys_b64 = sys.argv[7:9]
+# An empty slot is not a key, the same way the Ed25519 slots are read: only
+# the slots that hold something are keys to check a signature against.
+pq_keys_b64 = [k for k in sys.argv[9:11] if k]
+
+msg = open(sums_path, "rb").read()
+sig = open(sig_path, "rb").read()
 
 
 def load(b64):
@@ -194,7 +314,7 @@ def load(b64):
 # not a key. Still fails closed -- exhausting the slots is an error, not a
 # fallthrough, so a stale pair aborts the render exactly as a single stale key
 # did before.
-raw_keys = [k for k in sys.argv[3:] if k]
+raw_keys = [k for k in ed_keys_b64 if k]
 if not raw_keys:
     sys.exit("no release key configured")
 
@@ -202,21 +322,125 @@ if not raw_keys:
 # not reported as a bad signature of theirs. Wrapping the verify call in
 # `except Exception` collapsed both into one message, and the operator then
 # went looking at the upstream release for a fault that was in this repository.
-# apt/scripts/verify-debs.sh already drew that line; this did not.
+# apt/scripts/verify/verify-debs.sh already drew that line; this did not.
 try:
     keys = [load(k) for k in raw_keys]
 except (ValueError, binascii.Error) as exc:
-    sys.exit(f"malformed release public key: {exc}")
+    sys.stderr.write(f"malformed release public key: {exc}\n")
+    sys.exit(2)
 
+verified = False
 for key in keys:
     try:
         key.verify(sig, msg)
     except InvalidSignature:
         continue
-    print("SHA256SUMS signature verified")
+    verified = True
+    break
+if not verified:
+    sys.exit("SHA256SUMS does not verify against any configured release key")
+print("SHA256SUMS signature verified")
+
+# The second signature. It is a hybrid and never a replacement: the Ed25519
+# signature above is checked first and always, and the release is admitted
+# only if this one verifies too.
+#
+# It is checked when the release carries it, and always for a product the
+# required list names. A signature that is present and cannot be verified is
+# a refusal and not a signature that passed, and neither is a signature that
+# may be left out.
+pq_present = os.path.exists(pq_path)
+if not pq_present and not required:
     sys.exit(0)
-sys.exit("SHA256SUMS does not verify against any configured release key")
+if not pq_present:
+    sys.stderr.write(
+        f"no ML-DSA-65 signature for {product}; {product} requires the hybrid release signature\n"
+    )
+    sys.exit(1)
+if not pq_keys_b64:
+    sys.stderr.write(
+        "the release carries an ML-DSA-65 signature and no ML-DSA-65 release public key is "
+        "configured; refusing a signature that cannot be checked\n"
+    )
+    sys.exit(1)
+
+
+def load_pq(b64):
+    # The same normalisation as the Ed25519 key: pad to a 4-character
+    # boundary and reject anything outside the base64 alphabet, so a corrupted
+    # key is not silently a shorter one.
+    b64 = b64.strip()
+    b64 += "=" * (-len(b64) % 4)
+    raw = base64.b64decode(b64, validate=True)
+    if len(raw) != 1952:
+        raise ValueError(f"{len(raw)} bytes, not a 1952-byte ML-DSA-65 public key")
+    return raw
+
+
+try:
+    raw_pq_keys = [load_pq(k) for k in pq_keys_b64]
+except (ValueError, binascii.Error) as exc:
+    sys.stderr.write(f"malformed ML-DSA-65 release public key: {exc}\n")
+    sys.exit(2)
+
+# The library is imported only when there is a second signature to check, so a
+# release without one needs nothing the runner's python3-cryptography does not
+# carry. The runner's cryptography has no ML-DSA, and the wheel that does is
+# installed only once a key is configured.
+try:
+    from cryptography.hazmat.primitives.asymmetric.mldsa import MLDSA65PublicKey
+except (ImportError, UnsupportedAlgorithm) as exc:
+    sys.stderr.write(
+        f"the installed cryptography module cannot verify ML-DSA-65 ({exc}); "
+        f"cryptography 50.0.2 or later is required, pinned in scripts/release/render-requirements.txt\n"
+    )
+    sys.exit(3)
+
+try:
+    pq_keys = [MLDSA65PublicKey.from_public_bytes(raw) for raw in raw_pq_keys]
+except ValueError as exc:
+    sys.stderr.write(f"malformed ML-DSA-65 release public key: {exc}\n")
+    sys.exit(2)
+
+# Read one byte past the signature's length rather than the whole file: a
+# hostile sidecar is never read into memory wholesale before its length is
+# known.
+with open(pq_path, "rb") as f:
+    pq_sig = f.read(pq_sig_bytes + 1)
+if len(pq_sig) != pq_sig_bytes:
+    sys.stderr.write(
+        f"the ML-DSA-65 signature is {len(pq_sig)} bytes, expected exactly {pq_sig_bytes}\n"
+    )
+    sys.exit(1)
+
+# Any configured key may have signed the release, as with the Ed25519 one.
+# Pure ML-DSA with the empty context, so `openssl pkeyutl -verify -rawin` 3.5
+# or later checks the same signature.
+for key in pq_keys:
+    try:
+        key.verify(pq_sig, msg)
+    except InvalidSignature:
+        continue
+    print("SHA256SUMS ML-DSA-65 signature verified")
+    sys.exit(0)
+sys.stderr.write("the ML-DSA-65 signature does not verify against any configured release key\n")
+sys.exit(1)
 PY
+	case "$verify_rc" in
+		0) return 0 ;;
+		1)
+			echo "::error::$1 $2: the release was not admitted: its signature did not verify, or the second signature it carries is missing or invalid" >&2
+			return 1
+			;;
+		2)
+			echo "::error::$1 $2: the local release trust anchor is malformed; no key could be loaded to verify against" >&2
+			return 1
+			;;
+		3)
+			echo "::error::$1 $2: the installed cryptography cannot verify ML-DSA-65; the second signature is refused rather than skipped" >&2
+			return 1
+			;;
+	esac
 }
 
 # Verify the build provenance of the release. The signature on SHA256SUMS
@@ -690,8 +914,8 @@ render_product() { # $1=table entry
 	# accept and refuse the same tags.
 	version_guard "$repo" "$tag" "$version" || return 1
 
-	verify_sha256sums "$repo" "$tag" || {
-		echo "::error::$repo $tag: SHA256SUMS is missing, oversized, or does not verify against the org release key" >&2
+	verify_sha256sums "$repo" "$tag" "$formula" || {
+		echo "::error::$repo $tag: SHA256SUMS is missing, oversized, or its signatures did not verify against the org release keys" >&2
 		return 1
 	}
 
@@ -870,6 +1094,62 @@ RB
 
 	echo "rendered Formula/$formula.rb -> $version"
 }
+
+# Check the local configuration before any release is read.
+#
+# Two mistakes in this file are ours and not the release's: a trust anchor
+# that is not a key, and a required product this repository does not publish.
+# The first would make every second signature unverifiable, and the second
+# would name a requirement that matches no product and drop it in silence. Both
+# stop the run here, before a single release is read, and both are reported as
+# a configuration error rather than as a bad release.
+check_release_configuration() {
+	local entry padded bytes name product found
+	local -a required=()
+	for entry in "$RELEASE_PQ_PUBKEY_B64" "$RELEASE_PQ_PUBKEY2_B64"; do
+		[ -n "$entry" ] || continue
+		# A key is stored unpadded, the way the Ed25519 one is, and a base64
+		# decoder refuses a group it cannot finish. The padding is restored
+		# here so the key is decoded the way the verifier decodes it.
+		case $(( ${#entry} % 4 )) in
+			0) padded="$entry" ;;
+			2) padded="${entry}==" ;;
+			3) padded="${entry}=" ;;
+			*)
+				echo "::error::the ML-DSA-65 release public key is not a base64 string of whole bytes" >&2
+				return 1
+				;;
+		esac
+		bytes="$(printf '%s' "$padded" | base64 -d 2>/dev/null | wc -c)" || {
+			echo "::error::the ML-DSA-65 release public key is not valid base64" >&2
+			return 1
+		}
+		[ "$bytes" -eq 1952 ] || {
+			echo "::error::the ML-DSA-65 release public key is $bytes bytes, not the 1952 bytes of an ML-DSA-65 key" >&2
+			return 1
+		}
+	done
+	read -r -a required <<<"$RELEASE_PQ_REQUIRED"
+	for name in "${required[@]}"; do
+		found=""
+		for entry in "${PRODUCTS[@]}"; do
+			IFS='|' read -r _ product _ <<<"$entry"
+			if [ "$product" = "$name" ]; then
+				found=1
+				break
+			fi
+		done
+		[ -n "$found" ] || {
+			echo "::error::the required-products list names '$name', which is not a product of this repository" >&2
+			return 1
+		}
+	done
+}
+
+# Exit 2 is this repository's convention for a local configuration error, and
+# it stops the run before anything is rendered: a broken trust anchor or a
+# required product this repository does not publish is not a bad release.
+check_release_configuration || exit 2
 
 # Formula/ is a directory of the repository, and it is where every formula
 # below is written. If it is a symlink, all of those writes land somewhere

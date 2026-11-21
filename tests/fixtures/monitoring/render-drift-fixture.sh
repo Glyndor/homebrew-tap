@@ -113,8 +113,13 @@ set -euo pipefail
 
 RELEASE_PUBKEY_B64="local-key-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 RELEASE_PUBKEY2_B64="local-key-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+RELEASE_PQ_PUBKEY_B64="local-key-cccccccccccccccccccccccccccccccc"
+RELEASE_PQ_PUBKEY2_B64="local-key-dddddddddddddddddddddddddddddddd"
+RELEASE_PQ_REQUIRED="podup"
 MAX_SUMS_BYTES=4096
 MAX_SIG_BYTES=64
+MAX_PQ_SIG_BYTES=4096
+PQ_SIG_LENGTH=3309
 MAX_ASSET_BYTES=104857600
 
 verify_sha256sums() {

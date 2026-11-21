@@ -27,12 +27,16 @@
 #                         does the actual signature verification
 #       hash_of           the function that pulls a single asset's hex digest
 #                         out of the verified SHA256SUMS
-#       release_keys      the two top-level RELEASE_PUBKEY_B64= and
-#                         RELEASE_PUBKEY2_B64= declarations. The logic is
-#                         identical on both sides; the keys themselves are not.
-#                         A rotation applied in one channel and not the other
-#                         leaves both scripts accepting different signing keys,
-#                         and every check stays green because the code matches.
+#       release_keys      the top-level release trust declarations:
+#                         RELEASE_PUBKEY_B64= and RELEASE_PUBKEY2_B64= (the
+#                         Ed25519 slots), RELEASE_PQ_PUBKEY_B64= and
+#                         RELEASE_PQ_PUBKEY2_B64= (the ML-DSA-65 slots), and
+#                         RELEASE_PQ_REQUIRED= (the products whose second
+#                         signature is required). The logic is identical on
+#                         both sides; the keys themselves are not. A rotation
+#                         applied in one channel and not the other leaves both
+#                         scripts accepting different signing keys, and every
+#                         check stays green because the code matches.
 #       verify_attestation the function that downloads one asset, checks its
 #                         digest against the SHA256SUMS entry, and runs
 #                         `gh attestation verify` with --source-ref pinned
@@ -170,15 +174,15 @@ extract_unit() { # $1=file $2=unit
 			awk '/<<.*PY/{found=1} found{print; if(/^PY$/){exit}}' "$file"
 			;;
 		release_keys)
-			# One unit carrying both declarations rather than two units each
-			# carrying one: they are the trusted key set as a whole. A rotation
-			# touches both lines together; splitting them would report two
-			# separate drifts for the same rotation and the reader would have
-			# to reconstruct that the lines belong together. The sed range
-			# starts at the first key and stops at the second, so a missing
-			# RELEASE_PUBKEY2_B64 is reported as a partial extraction rather
-			# than silently accepted as the whole unit.
-			sed -n '/^RELEASE_PUBKEY_B64=/,/^RELEASE_PUBKEY2_B64=/p' "$file"
+			# One unit carrying the whole trust configuration rather than one
+			# unit per declaration: they are the trusted key set as a whole. A
+			# rotation touches the slots together; splitting them would report
+			# two separate drifts for the same rotation and the reader would
+			# have to reconstruct that the lines belong together. The sed range
+			# starts at the first key and stops at the required-products list,
+			# so a missing declaration is reported as a partial extraction
+			# rather than silently accepted as the whole unit.
+			sed -n '/^RELEASE_PUBKEY_B64=/,/^RELEASE_PQ_REQUIRED=/p' "$file"
 			;;
 		verify_attestation)
 			sed -n '/^verify_attestation()/,/^}/p' "$file"
@@ -233,7 +237,7 @@ unit_is_complete() { # $1=last-line $2=unit
 			[[ "$last" == "PY" ]]
 			;;
 		release_keys)
-			[[ "$last" =~ ^RELEASE_PUBKEY2_B64= ]]
+			[[ "$last" =~ ^RELEASE_PQ_REQUIRED= ]]
 			;;
 		limits)
 			[[ "$last" =~ ^MAX_ASSET_BYTES= ]]

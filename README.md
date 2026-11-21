@@ -22,10 +22,10 @@ Upgrades arrive with `brew upgrade`, like any other formula.
 | Package | What it is | macOS | Linux |
 | --- | --- | --- | --- |
 | [`podup`](https://github.com/Glyndor/podup) | Docker-compose translator and runner for rootless Podman | this tap | this tap |
-| [`helmly-agent`](https://github.com/Glyndor/helmly-agent) | Hardened server agent for the Glyndor panel: signed commands over WireGuard and mTLS | not served here | not served here |
 
-On Linux this tap serves the same signed binaries the products publish for
-`x86_64` and `arm64`.
+On Linux this tap serves the same signed binaries the product publishes for
+`x86_64` and `arm64`. Other Glyndor products ship through
+[apt.glyndor.net](https://apt.glyndor.net).
 
 ## What you are trusting
 

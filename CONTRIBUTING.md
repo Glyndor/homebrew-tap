@@ -221,7 +221,7 @@ catch, because a count per file cannot tell one guard from another.
 
 | file | what a red means |
 |---|---|
-| `tests.yml` | the suite, shellcheck, PRODUCTS/Formula drift, or `brew style` |
+| `tests.yml` | four jobs. `shell`: a suite or shellcheck. `ML-DSA-65 verifier`: the second signature verified with real ML-DSA-65 keys, in a virtual environment built from `scripts/release/render-requirements.txt`, so a red there can be that pinned wheel failing to install as well as the verifier. `products match the generator`: `Formula/` no longer matches `PRODUCTS`, a formula is not what the generator emits, or one goes back to an older release. `brew style`: Homebrew's style rules reject a formula |
 | `audit.yml` | Homebrew's own rules reject the rendered formulae |
 | `pr-hygiene.yml` | the pull request itself is malformed |
 | `freshness.yml` | something scheduled stopped happening elsewhere |

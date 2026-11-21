@@ -1,0 +1,105 @@
+# The packages of the test job's apt-packages input that each suite needs,
+# beyond what the runner image ships. One line per suite: its exact path, then
+# its packages, or '-' when it needs none of them.
+#
+# Read from the BASE commit by scripts/quality/ci-job-scope.sh in its packages
+# mode, before anything is installed: a pull request installs only what the
+# suites it selects use. A suite missing here, an entry this file cannot vouch
+# for, or any answer the install step cannot use installs the whole list, so a
+# new suite is safe before it is listed. No globs, inheritance or groups. The
+# resolver validates every entry, and tests/ci/reusable/reusable-shell-ci.test.sh
+# exercises the real install step against fixture maps and this one.
+#
+# Measured 2026-11-21, two ways and unioned. shellcheck and ruby: every suite
+# run on its own with the two commands wrapped to record each call. python3-yaml:
+# the suite and every script under scripts/ it names, read for an import of
+# yaml, because a wrapped interpreter cannot see which module it loads.
+# documented-test-command keeps shellcheck because the command it runs names it.
+
+# nothing beyond the runner image
+tests/release/products.test.sh -
+tests/mutation/catalog-reaches-every-script.test.sh -
+tests/ci/docs/documented-shellcheck-scope.test.sh -
+tests/release/render-formulae/render-formulae-trust.test.sh -
+tests/release/render-formulae/render-formulae-transfer-limits.test.sh -
+tests/release/render-formulae/render-formulae-version.test.sh -
+tests/release/render-formulae/render-formulae-attestation.test.sh -
+tests/release/render-formulae/render-formulae-linux-attestation.test.sh -
+tests/release/render-formulae/render-formulae-inputs.test.sh -
+tests/release/render-formulae/render-formulae-tag-shape.test.sh -
+tests/release/render-formulae/render-formulae-symlink.test.sh -
+tests/release/release-signature.test.sh -
+tests/publication/update/update-workflow.test.sh -
+tests/publication/update/update-mldsa-venv.test.sh -
+tests/artifacts/check-products-consistent.test.sh -
+tests/artifacts/check-formulae.test.sh -
+tests/artifacts/check-formulae/check-formulae-roster.test.sh -
+tests/artifacts/formulae-digests.test.sh -
+tests/artifacts/check-version-monotonic.test.sh -
+tests/ci/policy/rules/locale-pinned.test.sh -
+tests/quality/check-test-coverage.test.sh -
+tests/quality/check-action-pins.test.sh -
+tests/quality/check-doc-anchors.test.sh -
+tests/governance/check-dco-on-main.test.sh -
+tests/governance/check-issue-templates.test.sh -
+tests/ci/reusable/reusable-line-limit.test.sh -
+tests/ci/policy/rules/cancel-policy.test.sh -
+tests/ci/reusable/reusable-empty-diff.test.sh -
+tests/ci/reusable/reusable-dco.test.sh -
+tests/quality/check-editorconfig.test.sh -
+tests/monitoring/check-reusable-drift.test.sh -
+tests/monitoring/check-channel-drift.test.sh -
+tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh -
+tests/monitoring/check-render-drift.test.sh -
+tests/monitoring/check-render-drift/check-render-drift-drift.test.sh -
+tests/monitoring/check-render-drift/check-render-drift-missing.test.sh -
+tests/monitoring/check-render-drift/check-render-drift-network.test.sh -
+tests/monitoring/check-render-drift/check-render-drift-digest-case.test.sh -
+tests/monitoring/check-render-drift/check-render-drift-version.test.sh -
+tests/ci/reusable/reusable-dependabot-freshness.test.sh -
+tests/ci/reusable/reusable-schedule-freshness.test.sh -
+tests/ci/policy/rules/network-calls-are-bounded.test.sh -
+tests/monitoring/check-suite-on-main.test.sh -
+tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh -
+tests/monitoring/check-suite-on-main/check-suite-on-main-retry.test.sh -
+tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh -
+tests/mutation/run-mutations.test.sh -
+
+# python3-yaml
+tests/publication/update/update-key-isolation.test.sh python3-yaml
+tests/ci/suites/ci-runs-every-test.test.sh python3-yaml
+tests/quality/check-suites-wired.test.sh python3-yaml
+tests/ci/suites/shell-ci-scope.test.sh python3-yaml
+tests/quality/ci-job-scope.test.sh python3-yaml
+tests/quality/ci-job-scope-suites.test.sh python3-yaml
+tests/ci/suites/lint-job-scope.test.sh python3-yaml
+tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh python3-yaml
+tests/ci/policy/workflows/workflow-shape.test.sh python3-yaml
+tests/ci/policy/workflows/workflow-publish-triggers.test.sh python3-yaml
+tests/ci/policy/workflows/freshness-pr-scope.test.sh python3-yaml
+tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh python3-yaml
+tests/ci/policy/workflows/freshness-poll-concurrency.test.sh python3-yaml
+tests/ci/policy/workflows/dependabot-groups.test.sh python3-yaml
+tests/ci/policy/workflows/workflows-run-their-scripts.test.sh python3-yaml
+tests/ci/policy/workflows/brew-style-scope.test.sh python3-yaml
+tests/ci/reusable/reusable-workflow-lint.test.sh python3-yaml
+tests/monitoring/check-tool-versions.test.sh python3-yaml
+tests/quality/check-test-job-not-switchable.test.sh python3-yaml
+tests/quality/check-tooling-isolation.test.sh python3-yaml
+tests/ci/policy/rules/brew-jobs-are-bounded.test.sh python3-yaml
+tests/ci/policy/workflows/audit-scope.test.sh python3-yaml
+tests/publication/audit/audit-runs-on-a-schedule.test.sh python3-yaml
+tests/publication/audit/audit-trusts-the-linked-tap.test.sh python3-yaml
+tests/publication/update/update-audits-before-commit.test.sh python3-yaml
+tests/ci/policy/rules/jobs-are-bounded.test.sh python3-yaml
+
+# ruby
+tests/release/render-formulae.test.sh ruby
+tests/release/render-formulae/render-formulae-products.test.sh ruby
+
+# shellcheck
+tests/quality/lint-workflow-shell.test.sh shellcheck
+tests/ci/docs/documented-test-command.test.sh shellcheck
+
+# shellcheck, python3-yaml
+tests/ci/reusable/reusable-shell-ci.test.sh shellcheck python3-yaml

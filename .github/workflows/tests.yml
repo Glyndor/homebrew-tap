@@ -134,9 +134,11 @@ jobs:
         ./tests/ci/docs/documented-test-command.test.sh
         ./tests/ci/docs/documented-shellcheck-scope.test.sh
       # shellcheck: tests/quality/lint-workflow-shell.test.sh plants a violation and
-      # requires the linter to report it, so it needs the linter. The gate
-      # itself runs in the shellcheck job against the pinned binary; this one
-      # asserts behaviour, which does not turn on the exact version.
+      # requires the linter to report it, so it needs the linter. The reusable
+      # installs the release the shellcheck job pins, never the distribution's,
+      # so the suite asks the linter the gate uses. On a pull request only the
+      # packages of the suites it selects are installed, as
+      # scripts/quality/suite-dependencies.txt lists them.
       # python3-yaml: tests/ci/policy/rules/brew-jobs-are-bounded.test.sh parses the workflows
       # rather than grepping them, so a job's env and bound are read from the
       # job they belong to. tests/ci/policy/rules/jobs-are-bounded.test.sh reads the same way

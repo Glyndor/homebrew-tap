@@ -402,4 +402,7 @@ for i in "${SELECTED[@]}"; do
 done
 
 echo "$entries entries, $survivors survived, $errors could not be run"
+# The time mutation.yml bounds, printed on every run so the bound is checked
+# against this week's catalogue and not against the one it was measured on.
+echo "the sweep took $SECONDS seconds"
 [ "$survivors" -eq 0 ] && [ "$errors" -eq 0 ]

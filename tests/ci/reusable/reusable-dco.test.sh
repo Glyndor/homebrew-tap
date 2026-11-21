@@ -32,26 +32,9 @@ check() { # <description> <expected> <actual>
 	fi
 }
 
-# Pull one step's `run:` body out of a workflow, dedented, so it can be run.
-# Same helper as tests/publication/update/update-workflow.test.sh: the point is to exercise the
-# shell as it ships rather than a copy of it that can drift.
-step_script() { # $1=workflow path  $2=step name substring
-	python3 - "$1" "$2" <<'PY'
-import sys
-lines = open(sys.argv[1]).read().splitlines()
-start = next(i for i, l in enumerate(lines) if "name: " + sys.argv[2] in l)
-run = next(i for i, l in enumerate(lines) if i > start and l.strip() == "run: |")
-body = []
-for line in lines[run + 1:]:
-    if not line.strip():
-        body.append("")
-        continue
-    if not line.startswith(" " * 10):
-        break
-    body.append(line[10:])
-print("\n".join(body))
-PY
-}
+# The shell of a step, read out of the workflow as it ships.
+# shellcheck disable=SC1091 # the path is resolved at run time
+. "$HERE/tests/fixtures/ci/step-script.sh"
 
 WORKFLOW="$HERE/.github/workflows/reusable-dco.yml"
 step_script "$WORKFLOW" "Verify Signed-off-by trailers" > "$WORK/step.sh"

@@ -19,6 +19,7 @@
 # nothing beyond the runner image
 tests/release/products.test.sh -
 tests/ci/suites/check-suite-completeness-verdict.test.sh -
+tests/ci/suites/step-script.test.sh -
 tests/mutation/catalog-reaches-every-script.test.sh -
 tests/ci/docs/documented-shellcheck-scope.test.sh -
 tests/release/render-formulae/render-formulae-trust.test.sh -

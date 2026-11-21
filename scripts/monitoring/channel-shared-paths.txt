@@ -75,11 +75,13 @@ tests/ci/reusable/reusable-shell-ci.test.sh
 tests/ci/reusable/reusable-workflow-lint.test.sh
 tests/ci/suites/check-suite-completeness.test.sh
 tests/ci/suites/check-suite-completeness-verdict.test.sh
+tests/ci/suites/step-script.test.sh
 tests/ci/suites/ci-runs-every-test.test.sh
 tests/ci/suites/lint-job-scope.test.sh
 tests/ci/suites/mldsa-job-scope.test.sh
 tests/ci/suites/shell-ci-scope.test.sh
 tests/fixtures/ci/schedule-freshness-fixture.sh
+tests/fixtures/ci/step-script.sh
 tests/fixtures/monitoring/render-drift-fixture.sh
 tests/fixtures/release/mldsa65/vector.mldsa65.b64
 tests/fixtures/release/mldsa65/vector_1.0_amd64.deb.b64

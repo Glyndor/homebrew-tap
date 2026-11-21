@@ -46,24 +46,11 @@ check() { # <description> <expected> <actual>
 	fi
 }
 
-# Pull one step's `run:` body out of the workflow, dedented, so it can be run.
-step_script() { # $1=step name substring
-	python3 - "$WORKFLOW" "$1" <<'PY'
-import sys
-lines = open(sys.argv[1]).read().splitlines()
-start = next(i for i, l in enumerate(lines) if "name: " + sys.argv[2] in l)
-run = next(i for i, l in enumerate(lines) if i > start and l.strip() == "run: |")
-body = []
-for line in lines[run + 1:]:
-    if not line.strip():
-        body.append("")
-        continue
-    if not line.startswith(" " * 10):
-        break
-    body.append(line[10:])
-print("\n".join(body))
-PY
-}
+# The shell of a step of update.yml, read as it ships.
+# shellcheck disable=SC1091 # the path is resolved at run time
+. "$HERE/tests/fixtures/ci/step-script.sh"
+# The suites of update.yml name a step of that one workflow.
+step_script() { step_script_of "$WORKFLOW" "$1"; }
 
 # A repository the step can run in: a git repo with a committed Formula/ and a
 # stub generator whose behaviour each case chooses.

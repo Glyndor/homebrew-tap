@@ -263,3 +263,8 @@ claims-rollback-gh	tests/ci/docs/documented-claims.test.sh	grep -qE '`gh`' "$1" 
 claims-counts-equal	tests/ci/docs/documented-claims.test.sh	"$first" = "$second" ] && [ -n "$first" ]	-n "$first" ] && [ -n "$first" ]	tests/ci/docs/documented-claims.test.sh
 roster-extra-column	scripts/release/render-formulae.sh	[ "${#pipes}" -le 9 ] || {	true || {	tests/release/render-formulae/render-formulae-roster-policy.test.sh
 roster-duplicate	scripts/release/render-formulae.sh	if [ -n "${seen_formulae[$formula]:-}" ]; then	if false; then	tests/release/render-formulae/render-formulae-roster-policy.test.sh
+step-script-fold	tests/fixtures/ci/step-script.sh	if style == ">":	if False:	tests/ci/suites/step-script.test.sh
+step-script-indicator	tests/fixtures/ci/step-script.sh	indent = key + explicit if explicit else None	indent = None	tests/ci/suites/step-script.test.sh
+step-script-missing	tests/fixtures/ci/step-script.sh	sys.exit("step_script: no step named %r in %s" % (name, path))	pass	tests/ci/suites/step-script.test.sh
+step-script-block	tests/fixtures/ci/step-script.sh	sys.exit("step_script: the step %r of %s has no block scalar run:" % (name, path))	pass	tests/ci/suites/step-script.test.sh
+step-script-next-step	tests/fixtures/ci/step-script.sh	    if re.match(r"^\s*-\s+(name|uses):", lines[i]) and i > start + 1:	    if False:	tests/ci/suites/step-script.test.sh

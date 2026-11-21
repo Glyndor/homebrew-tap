@@ -56,6 +56,7 @@ jobs:
       test-command: >-
         ./tests/ci/suites/check-suite-completeness.test.sh
         ./tests/ci/suites/check-suite-completeness-verdict.test.sh
+        ./tests/ci/suites/step-script.test.sh
         ./tests/release/render-formulae.test.sh
         ./tests/release/render-formulae/render-formulae-trust.test.sh
         ./tests/release/render-formulae/render-formulae-transfer-limits.test.sh

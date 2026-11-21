@@ -65,6 +65,8 @@ templates-no-os-field	scripts/governance/check-issue-templates.sh	if [ -z "$os_f
 coverage-missing-test	scripts/quality/check-test-coverage.sh	[ -f "$root/tests/$name.test.sh" ] || missing+=("scripts/$rel")	true || missing+=("scripts/$rel")	tests/quality/check-test-coverage.test.sh
 suites-wired-watcher-dropped	.github/workflows/tests.yml	./tests/ci/suites/ci-runs-every-test.test.sh	./tests/quality/check-test-coverage.test.sh	tests/quality/check-suites-wired.test.sh
 suites-wired-unwired	scripts/quality/check-suites-wired.sh	for path in sorted(suites - wired - set(exempt)):	for path in []:	tests/quality/check-suites-wired.test.sh
+suites-wired-needs	scripts/quality/check-suites-wired.sh	                    if "needs" in job else "") \	                    if False else "") \	tests/quality/check-suites-wired.test.sh
+lint-caller-needs	.github/workflows/reusable-workflow-lint.yml	                      if "needs" in job:	                      if False:	tests/ci/reusable/reusable-workflow-lint.test.sh
 pins-sha	scripts/quality/check-action-pins.sh	if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then	if false; then	tests/quality/check-action-pins.test.sh
 channel-usable-path	scripts/monitoring/check-channel-drift.sh	[[ "$1" =~ ^[A-Za-z0-9._/-]+$ ]] || return 1	[[ "$1" =~ ^.*$ ]] || return 1	tests/monitoring/check-channel-drift.test.sh
 channel-empty-body	scripts/monitoring/check-channel-drift.sh	if [ ! -s "$tmp/remote" ]; then	if false; then	tests/monitoring/check-channel-drift.test.sh

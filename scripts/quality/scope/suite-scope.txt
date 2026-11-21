@@ -105,6 +105,13 @@
 tests/ci/suites/check-suite-completeness.test.sh
 	**
 
+# Its verdict case runs the real runner over suites it writes itself, so the
+# runner and the case are the whole of its input.
+
+tests/ci/suites/check-suite-completeness-verdict.test.sh
+	tests/ci/suites/check-suite-completeness.test.sh
+	tests/ci/suites/check-suite-completeness-verdict.test.sh
+
 # --- the renderer -----------------------------------------------------------
 #
 # Every renderer suite reads the generator and the fixture all of them share.

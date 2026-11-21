@@ -72,6 +72,7 @@ tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.
 tests/ci/reusable/reusable-shell-ci.test.sh
 tests/ci/reusable/reusable-workflow-lint.test.sh
 tests/ci/suites/check-suite-completeness.test.sh
+tests/ci/suites/check-suite-completeness-verdict.test.sh
 tests/ci/suites/ci-runs-every-test.test.sh
 tests/ci/suites/lint-job-scope.test.sh
 tests/ci/suites/mldsa-job-scope.test.sh

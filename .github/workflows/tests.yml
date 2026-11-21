@@ -126,6 +126,7 @@ jobs:
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-retry.test.sh
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
         ./tests/mutation/run-mutations.test.sh
+        ./tests/mutation/catalog-reaches-every-script.test.sh
         ./tests/ci/docs/documented-test-command.test.sh
         ./tests/ci/docs/documented-shellcheck-scope.test.sh
       # shellcheck: tests/quality/lint-workflow-shell.test.sh plants a violation and

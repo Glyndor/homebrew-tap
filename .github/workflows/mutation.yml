@@ -30,10 +30,16 @@ jobs:
   mutations:
     name: the guards still die under their mutations
     runs-on: ubuntu-latest
-    # Measured 2m16s over the 55 entries of the catalogue, each one a copy of
-    # the tree and the suites it names. Fifteen minutes is over six times the
-    # slowest measurement and still short of a hang.
-    timeout-minutes: 15
+    # Each entry is a copy of the tree and the suites it names, so the run
+    # grows with the catalogue. Measured on 2026-11-21: 360 seconds over 115
+    # entries, about 3 seconds an entry, on a machine with other work running.
+    # Twenty minutes is over three times that, room for about 380 entries at
+    # the same rate, and still short of a hang. The runner prints its own
+    # duration, so each weekly log shows how close the catalogue has come.
+    # This comment used to give 2m16s over 55 entries, under a bound of
+    # fifteen minutes, and kept them while the catalogue doubled: a total goes
+    # stale with the next entry, and the rate per entry does not.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

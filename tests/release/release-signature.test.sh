@@ -3,8 +3,10 @@
 # The release signature check in scripts/release/release-signature.sh, the half
 # that needs no ML-DSA library, driven through the renderer that sources it:
 # which second signature is required, which one is refused before any
-# cryptography runs, how its download is read, the configuration guard, and the
-# refusal when the library cannot verify one. The cases that verify a real
+# cryptography runs, how its download is read, the configuration guard, the
+# verifier's own check of each key behind that guard, the trust constants that
+# nothing may change once the arguments are read, and the refusal when the
+# library cannot verify one. The cases that verify a real
 # ML-DSA-65 signature are in
 # tests/release/release-signature/release-signature-mldsa.test.sh, which needs
 # cryptography 50.0.2.
@@ -46,6 +48,7 @@ for field in "${fields[@]}"; do
 done
 
 # said <text>: 1 when the last run printed it, 0 when it did not.
+# shellcheck disable=SC2153 # WORK is the fixture's folder; work is the sourced file's
 said() { if grep -qF -- "$1" "$WORK/out"; then echo 1; else echo 0; fi; }
 # written <root>: the files the renderer wrote, anything outside scripts/.
 written() { find "$1" -path "$1/scripts" -prune -o -type f -print | wc -l | tr -d ' '; }
@@ -248,6 +251,89 @@ done
 guard "a required list on two lines stops the run" \
 	"the required-products list spans more than one line" --pq-pubkey "$KEY" --pq-required "podup"$'\n'"other"
 check "and the stop is a configuration error, not a tampered release" "0" "$(said 'release was not admitted')"
+
+# The Ed25519 slots are held to the same check. A malformed one used to reach the
+# verifier, which refused every release in turn as if each were bad.
+read -r ED_SHORT < <(python3 -I -c '
+import base64, sys
+k = sys.argv[1] + "=" * (-len(sys.argv[1]) % 4)
+print(base64.b64encode(base64.b64decode(k)[:31]).decode().rstrip("="))' "$PUBKEY")
+ED_STRAY="${PUBKEY:0:10}!!!!${PUBKEY:10}"
+guard "an Ed25519 key with characters outside base64 stops the run" \
+	"the Ed25519 release public key is not valid base64" --pubkey "$ED_STRAY"
+guard "a 31-byte Ed25519 key stops the run" \
+	"the Ed25519 release public key is 31 bytes, not the 32 bytes" --pubkey "$ED_SHORT"
+guard "a bad Ed25519 key in the second slot stops the run too" \
+	"the Ed25519 release public key is 31 bytes" --pubkey2 "$ED_SHORT"
+guard "whitespace inside an Ed25519 key stops the run" \
+	"the Ed25519 release public key contains whitespace" --pubkey "${PUBKEY:0:20} ${PUBKEY:20}"
+guard "no Ed25519 key at all stops the run" \
+	"no Ed25519 release public key is configured" --pubkey ""
+render "$R" --pubkey "  $PUBKEY  "
+check "and an Ed25519 key with blanks on its ends is read as the key" "0 1" "$rc $(said 'SHA256SUMS signature verified')"
+
+# --- the verifier's own check of each key, behind the configuration guard ------
+# The guard refuses a malformed key before any release is read, so a run of the
+# renderer never reaches the check the verifier makes again when it loads a key.
+# That check is the second net, and a net nothing reaches is one nobody notices
+# gone: these cases source the file on its own and call verify_sha256sums without
+# the guard, the way a renderer that lost its call to the guard would. The
+# values are the renderer's.
+# shellcheck disable=SC2034 # every name is read by the sourced release-signature.sh
+verify_alone() { # <Ed25519 key> <ML-DSA-65 key>; rc and $WORK/out as render
+	local blocked=""
+	if [ -n "${BLOCK:-}" ]; then blocked="$WORK/$BLOCK"; fi
+	rc=0
+	(
+		RELEASE_PUBKEY_B64="$1" RELEASE_PUBKEY2_B64="" RELEASE_PQ_REQUIRED=""
+		RELEASE_PQ_PUBKEY_B64="$2" RELEASE_PQ_PUBKEY2_B64=""
+		MAX_SUMS_BYTES=4096 MAX_SIG_BYTES=64 MAX_PQ_SIG_BYTES=4096 PQ_SIG_LENGTH=3309
+		PRODUCTS=("$PODUP")
+		work="$(mktemp -d "$WORK/alone.XXXXXX")"
+		# shellcheck disable=SC1091 # the file under test, beside the renderer
+		. "$HERE/scripts/release/release-signature.sh"
+		PYTHONPATH="$blocked" verify_sha256sums Glyndor/podup v1.0.0 podup
+	) > "$WORK/out" 2>&1 || rc=$?
+}
+KEYU="${KEY%%=*}"
+release
+verify_alone "$PUBKEY" ""
+check "on its own, the verifier admits a release signed by the key it is given" "0 1" "$rc $(said 'SHA256SUMS signature verified')"
+verify_alone "$ED_STRAY" ""
+check "and refuses an Ed25519 key with characters outside base64, not reading it shorter" "1 1 0" \
+	"$rc $(said 'malformed release public key: Only base64 data is allowed') $(said 'SHA256SUMS signature verified')"
+verify_alone "$ED_SHORT" ""
+check "and refuses a 31-byte Ed25519 key for its length" "1 1" \
+	"$rc $(said 'malformed release public key: 31 bytes, not a 32-byte Ed25519 key')"
+sidecar 3309
+BLOCK=no-mldsa verify_alone "$PUBKEY" "$KEYU"
+check "a well-formed ML-DSA-65 key passes its own check and reaches the library" "1 1 0" \
+	"$rc $(said 'the installed cryptography cannot verify ML-DSA-65') $(said 'malformed ML-DSA-65')"
+BLOCK=no-mldsa verify_alone "$PUBKEY" "${KEYU:0:10}!!!!${KEYU:10}"
+check "and one with characters outside base64 is refused, not read shorter" "1 1 0" \
+	"$rc $(said 'malformed ML-DSA-65 release public key: Only base64 data is allowed') $(said 'cannot verify ML-DSA-65')"
+BLOCK=no-mldsa verify_alone "$PUBKEY" "$SHORT"
+check "and a 1951-byte one is refused for its length" "1 1 0" \
+	"$rc $(said 'malformed ML-DSA-65 release public key: 1951 bytes, not a 1952-byte ML-DSA-65 public key') $(said 'cannot verify ML-DSA-65')"
+
+# --- the trust constants are fixed once the arguments are read -----------------
+# The renderer declares the constants read-only after its arguments, so nothing
+# later in it, or in the file it sources, can change what it trusts or how much
+# it reads. An assignment planted after that point has to stop the run, one
+# constant at a time.
+fresh fixed; release
+for name in RELEASE_PUBKEY_B64 RELEASE_PUBKEY2_B64 RELEASE_PQ_PUBKEY_B64 RELEASE_PQ_PUBKEY2_B64 \
+	RELEASE_PQ_REQUIRED MAX_SUMS_BYTES MAX_SIG_BYTES MAX_PQ_SIG_BYTES PQ_SIG_LENGTH; do
+	generator_with "$R/$RENDERER" "$PODUP"
+	sed -i "/^PRODUCTS=(/i $name=\"\"" "$R/$RENDERER"
+	# bash words the refusal in the language of the locale.
+	LC_ALL=C render "$R"
+	check "an assignment to $name after the arguments stops the run" "1 1 0" \
+		"$rc $(said "$name: readonly variable") $(written "$R")"
+done
+generator_with "$R/$RENDERER" "$PODUP"
+render "$R"
+check "and the same renderer without it renders" "0 1" "$rc $(written "$R")"
 
 # --- the committed constants ---------------------------------------------------
 committed() { sed -n "s/^$1=\"\\(.*\\)\"\$/\\1/p" "$HERE/$RENDERER"; }

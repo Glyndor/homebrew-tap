@@ -13,10 +13,11 @@
 # units; it moved here when the second, ML-DSA-65 signature took the tap's
 # renderer past the 500-line limit of line-limit.yml.
 #
-# Sourcing it defines two functions and runs nothing:
+# Sourcing it defines three functions and runs nothing:
 #
 #   check_release_configuration   once, before any release is read
 #   verify_sha256sums             for each release
+#   release_key_bytes             the key decoding the first one uses
 #
 # Both read what the renderer declares before it sources this file: the
 # RELEASE_PUBKEY*_B64, RELEASE_PQ_PUBKEY*_B64 and RELEASE_PQ_REQUIRED trust
@@ -133,7 +134,7 @@ msg = open(sums_path, "rb").read()
 sig = open(sig_path, "rb").read()
 
 
-def load(b64):
+def decode_key(b64):
     # Pad to a 4-character boundary rather than appending "==" blindly, and
     # reject anything outside the base64 alphabet. Without validate=True,
     # b64decode DISCARDS such characters: "AAAA!!!!BBBB" decodes to six bytes
@@ -144,9 +145,18 @@ def load(b64):
     # and point at the key when the fault is a trailing newline. Only the ends:
     # whitespace INSIDE the string is not a formatting convention for a base64
     # key the way grouping is for a gpg fingerprint, so it stays an error.
+    #
+    # check_release_configuration refuses these faults before any release is
+    # read, so a renderer never gets here with a malformed key. This is the
+    # second check, for a renderer that lost that call, and the suite of this
+    # file reaches it on its own.
     b64 = b64.strip()
     b64 += "=" * (-len(b64) % 4)
-    raw = base64.b64decode(b64, validate=True)
+    return base64.b64decode(b64, validate=True)
+
+
+def load(b64):
+    raw = decode_key(b64)
     if len(raw) != 32:
         raise ValueError(f"{len(raw)} bytes, not a 32-byte Ed25519 key")
     return Ed25519PublicKey.from_public_bytes(raw)
@@ -208,12 +218,9 @@ if not pq_keys_b64:
 
 
 def load_pq(b64):
-    # The same normalisation as the Ed25519 key: pad to a 4-character
-    # boundary and reject anything outside the base64 alphabet, so a corrupted
-    # key is not silently a shorter one.
-    b64 = b64.strip()
-    b64 += "=" * (-len(b64) % 4)
-    raw = base64.b64decode(b64, validate=True)
+    # The same decoding as the Ed25519 key, so a corrupted key is not silently
+    # a shorter one.
+    raw = decode_key(b64)
     if len(raw) != 1952:
         raise ValueError(f"{len(raw)} bytes, not a 1952-byte ML-DSA-65 public key")
     return raw
@@ -303,41 +310,36 @@ PY
 #
 # Two mistakes in this file are ours and not the release's: a trust anchor
 # that is not a key, and a required product this repository does not publish.
-# The first would make every second signature unverifiable, and the second
-# would name a requirement that matches no product and drop it in silence. Both
-# stop the run here, before a single release is read, and both are reported as
-# a configuration error rather than as a bad release.
+# The first would make every signature it should check unverifiable, and the
+# second would name a requirement that matches no product and drop it in
+# silence. Both stop the run here, before a single release is read, and both
+# are reported as a configuration error rather than as a bad release: a broken
+# Ed25519 key used to stop each product in turn, reported per release, and the
+# operator went looking at the release.
 check_release_configuration() {
-	local entry padded bytes name product found
+	local entry bytes name product found ed_keys=0
 	local -a required=()
-	for entry in "$RELEASE_PQ_PUBKEY_B64" "$RELEASE_PQ_PUBKEY2_B64"; do
+	for entry in "$RELEASE_PUBKEY_B64" "$RELEASE_PUBKEY2_B64"; do
+		# The verifier trims the ends of an Ed25519 key, because a value
+		# pasted into --pubkey brings whatever whitespace came with it, so
+		# the ends are trimmed here too. Whitespace inside stays an error.
+		entry="${entry#"${entry%%[![:space:]]*}"}"
+		entry="${entry%"${entry##*[![:space:]]}"}"
 		[ -n "$entry" ] || continue
-		# One line of base64, the way the verifier and update.yml read it.
-		# `base64 -d` skips a newline, so a key broken over two lines decoded
-		# here while the verifier refused it, and every second signature
-		# would have failed on a key this check had passed.
-		case "$entry" in
-			*[[:space:]]*)
-				echo "::error::the ML-DSA-65 release public key contains whitespace; it is one line of base64" >&2
-				return 1
-				;;
-		esac
-		# A key is stored unpadded, the way the Ed25519 one is, and a base64
-		# decoder refuses a group it cannot finish. The padding is restored
-		# here so the key is decoded the way the verifier decodes it.
-		case $(( ${#entry} % 4 )) in
-			0) padded="$entry" ;;
-			2) padded="${entry}==" ;;
-			3) padded="${entry}=" ;;
-			*)
-				echo "::error::the ML-DSA-65 release public key is not a base64 string of whole bytes" >&2
-				return 1
-				;;
-		esac
-		bytes="$(printf '%s' "$padded" | base64 -d 2>/dev/null | wc -c)" || {
-			echo "::error::the ML-DSA-65 release public key is not valid base64" >&2
+		ed_keys=$((ed_keys + 1))
+		bytes="$(release_key_bytes Ed25519 "$entry")" || return 1
+		[ "$bytes" -eq 32 ] || {
+			echo "::error::the Ed25519 release public key is $bytes bytes, not the 32 bytes of an Ed25519 key" >&2
 			return 1
 		}
+	done
+	[ "$ed_keys" -gt 0 ] || {
+		echo "::error::no Ed25519 release public key is configured; every release would be refused" >&2
+		return 1
+	}
+	for entry in "$RELEASE_PQ_PUBKEY_B64" "$RELEASE_PQ_PUBKEY2_B64"; do
+		[ -n "$entry" ] || continue
+		bytes="$(release_key_bytes ML-DSA-65 "$entry")" || return 1
 		[ "$bytes" -eq 1952 ] || {
 			echo "::error::the ML-DSA-65 release public key is $bytes bytes, not the 1952 bytes of an ML-DSA-65 key" >&2
 			return 1
@@ -368,4 +370,39 @@ check_release_configuration() {
 			return 1
 		}
 	done
+}
+
+# release_key_bytes <algorithm> <base64>: the number of bytes a configured key
+# decodes to, read the way the verifier reads it, or a refusal that names the
+# key. One line of base64: `base64 -d` skips a newline, so a key broken over
+# two lines decoded here while the verifier refused it, and every signature
+# would have failed on a key this check had passed. For an ML-DSA-65 key the
+# line is also what update.yml reads to decide whether to install the library.
+release_key_bytes() {
+	local algorithm="$1" entry="$2" padded
+	case "$entry" in
+		*[[:space:]]*)
+			echo "::error::the $algorithm release public key contains whitespace; it is one line of base64" >&2
+			return 1
+			;;
+	esac
+	# A key is stored unpadded, and a base64 decoder refuses a group it
+	# cannot finish. The padding is restored here so the key is decoded the
+	# way the verifier decodes it.
+	case $(( ${#entry} % 4 )) in
+		0) padded="$entry" ;;
+		2) padded="${entry}==" ;;
+		3) padded="${entry}=" ;;
+		*)
+			echo "::error::the $algorithm release public key is not a base64 string of whole bytes" >&2
+			return 1
+			;;
+	esac
+	# The status read is the decoder's, the last command of its pipeline, so
+	# the refusal does not depend on the caller having set pipefail.
+	printf '%s' "$padded" | base64 -d > /dev/null 2>&1 || {
+		echo "::error::the $algorithm release public key is not valid base64" >&2
+		return 1
+	}
+	printf '%s' "$padded" | base64 -d | wc -c
 }

@@ -121,6 +121,24 @@ render "$R" --pq-pubkey "$A" --pq-required podup
 check "and the same signature is refused when only the first key is configured" "3 1" \
 	"$rc $(said 'the ML-DSA-65 signature does not verify')"
 
+# --- a required product whose second signature is real and wrong --------------
+# The list of required products and a second signature that really is checked
+# meet here: the release a forger publishes for a required product carries a
+# second signature, and it is one that does not verify. The refusal must be
+# that one, and not the refusal for a signature left out.
+fresh required-bad; release v1.0.0; sign b
+render "$R" --pq-pubkey "$A" --pq-required podup
+check "a required product signed by a key that is not configured is refused" "3 0" "$rc $(written "$R")"
+check "and the refusal is that it does not verify, not that it is missing" "1 0" \
+	"$(said 'the ML-DSA-65 signature does not verify against any configured release key') $(said 'no ML-DSA-65 signature for podup')"
+head -c 3309 /dev/urandom > "$SLUG/SHA256SUMS.mldsa65.sig"
+render "$R" --pq-pubkey "$A" --pq-required podup
+check "a required product whose second signature is 3309 bytes of noise is refused" "3 1 0" \
+	"$rc $(said 'the ML-DSA-65 signature does not verify against any configured release key') $(said 'no ML-DSA-65 signature for podup')"
+sign a
+render "$R" --pq-pubkey "$A" --pq-required podup
+check "and the same release signed by the configured key is admitted" "0 1" "$rc $(written "$R")"
+
 # --- a valid second signature of ANOTHER release -------------------------------
 # The fixture's SHA256SUMS depends only on the asset names, so the release the
 # sidecar is taken from lists one more line: two genuine manifests, each with a
@@ -139,6 +157,9 @@ cp "$WORK/other-release.sig" "$SLUG/SHA256SUMS.mldsa65.sig"
 render "$R" --pq-pubkey "$A"
 check "a valid second signature of another release is refused" "3 0" "$rc $(written "$R")"
 check "and the refusal is the ML-DSA-65 one" "1" "$(said 'the ML-DSA-65 signature does not verify against any configured release key')"
+render "$R" --pq-pubkey "$A" --pq-required podup
+check "and so it is for a required product" "3 1 0" \
+	"$rc $(said 'the ML-DSA-65 signature does not verify against any configured release key') $(said 'no ML-DSA-65 signature for podup')"
 
 # --- required product, valid second signature, invalid first one --------------
 fresh edbad; release v1.0.0; sign a

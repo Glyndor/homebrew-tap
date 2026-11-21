@@ -210,6 +210,13 @@ with it. `git ls-files -s tests/` shows the truth, `ls -l` does not, and
 test pins it, so a new file with no final newline is clean until you commit it
 and red immediately after. Stage first, then check.
 
+**A new guard brings its catalogue entry.** A change that adds a refusal under
+`scripts/` adds the line of `tests/mutation/catalog.txt` that breaks it and names the
+suite that notices; `tests/mutation/run-mutations.sh <id>` runs that one entry.
+`tests/mutation/catalog-reaches-every-script.test.sh` fails a script that no entry
+mutates at all. A guard added to a file that already has entries is for the review to
+catch, because a count per file cannot tell one guard from another.
+
 ## Workflows
 
 | file | what a red means |

@@ -28,11 +28,12 @@ check() { # <description> <expected> <actual>
 }
 
 # A tree with two formulae, written so that bytewise order and the order a
-# locale would pick can differ (an upper-case name sorts first in C).
+# locale would pick can differ (an upper-case name sorts first in C and last
+# under a UTF-8 collation, which reads "Zebra" after "podup").
 tree() { # $1=dir
 	rm -rf "$1"; mkdir -p "$1/Formula"
 	printf 'class Podup < Formula\nend\n' > "$1/Formula/podup.rb"
-	printf 'class Bbb < Formula\nend\n' > "$1/Formula/B-tool.rb"
+	printf 'class Zebra < Formula\nend\n' > "$1/Formula/Zebra.rb"
 }
 
 run() { # <args...>; sets rc and leaves the output in $WORK/out
@@ -50,7 +51,7 @@ tree "$WORK/a"
 run list "$WORK/a"
 check "a tree with two formulae lists" "0" "$rc"
 check "one line per file" "2" "$(wc -l < "$WORK/out" | tr -d ' ')"
-check "in bytewise order" "Formula/B-tool.rb Formula/podup.rb" "$(awk '{print $2}' "$WORK/out" | tr '\n' ' ' | sed 's/ $//')"
+check "in bytewise order" "Formula/Zebra.rb Formula/podup.rb" "$(awk '{print $2}' "$WORK/out" | tr '\n' ' ' | sed 's/ $//')"
 check "each line is the file's SHA-256 and its path" \
 	"$(cd "$WORK/a" && sha256sum Formula/podup.rb)" "$(grep -F 'Formula/podup.rb' "$WORK/out")"
 cp "$WORK/out" "$WORK/a.sha256"
@@ -117,7 +118,7 @@ run check "$WORK/c" "$WORK/c.sha256"
 check "a file added after the record is refused" "1" "$rc"
 
 tree "$WORK/c"
-rm "$WORK/c/Formula/B-tool.rb"
+rm "$WORK/c/Formula/Zebra.rb"
 run check "$WORK/c" "$WORK/c.sha256"
 check "a file missing from the tree is refused" "1" "$rc"
 
@@ -148,6 +149,23 @@ run place "$WORK/from" "$WORK/root" "$WORK/from.sha256"
 check "placing a tampered tree is refused" "1" "$rc"
 check "and the checkout is left as it was" "$before" \
 	"$(cd "$WORK/root" && find Formula -type f | sort | xargs sha256sum)"
+
+# What counts is the tree the next step reads, so the copy is checked too. A
+# `cp` that writes something else than it was given (a full disk, a filesystem
+# that rewrites) must not be taken on trust: put one on PATH that adds a byte.
+tree "$WORK/from"
+bash "$DIGESTS" list "$WORK/from" > "$WORK/from.sha256"
+mkdir -p "$WORK/badcp" "$WORK/root2"
+cat > "$WORK/badcp/cp" <<'CP'
+#!/usr/bin/env bash
+/bin/cp "$@" || exit
+printf 'x' >> "${@: -1}/podup.rb"
+CP
+chmod +x "$WORK/badcp/cp"
+rc=0
+PATH="$WORK/badcp:$PATH" bash "$DIGESTS" place "$WORK/from" "$WORK/root2" "$WORK/from.sha256" > "$WORK/out" 2>&1 || rc=$?
+check "a copy that does not match the record is refused" "1" "$rc"
+check "and the message says the files are not the recorded ones" "1" "$(said 'are not the ones the render job recorded')"
 
 # --- usage ----------------------------------------------------------------------
 

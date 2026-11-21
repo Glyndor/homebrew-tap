@@ -29,6 +29,18 @@
 # tools the workflows install for themselves -- `brew`, `scoop`, `reprepro` -- are
 # named only inside workflow fixtures, never invoked by a suite.
 #
+# THE ML-DSA-65 GUARDS ONLY A REAL SIGNATURE REACHES
+#
+# The pq-* entries below name tests/release/release-signature.test.sh, which
+# needs no ML-DSA library. Three guards of the same check are reached only by a
+# real ML-DSA-65 signature: the cryptographic verification itself, the walk over
+# every configured key, and the refusal of a signature that does not verify.
+# tests/release/release-signature/release-signature-mldsa.test.sh kills them, and
+# it needs cryptography 50.0.2, which CI installs only in that suite's own job.
+# This sweep runs on the runner's python3-cryptography, where that suite fails
+# without any mutation, so an entry naming it could not be run here. Each of the
+# three was broken by hand and that suite went red for it.
+#
 # Run: tests/mutation/run-mutations.sh [--list] [<id>]
 formulae-definition	scripts/artifacts/check-formulae.py	if not re.fullmatch(r"[^/]+\.rb", inside):	if False:	tests/artifacts/check-formulae.test.sh
 formulae-symlink	scripts/artifacts/check-formulae.py	if os.path.islink(path):	if False:	tests/artifacts/check-formulae.test.sh
@@ -104,3 +116,22 @@ version-approval-single-use	scripts/artifacts/check-version-monotonic.sh	if core
 dco-bots	scripts/governance/check-dco-on-main.sh	"github-actions[bot]"|"glyndor-updater[bot]") return 0 ;;	"github-actions[bot]") return 0 ;;	tests/governance/check-dco-on-main.test.sh
 dco-trailer	scripts/governance/check-dco-on-main.sh	grep -qE '^Signed-off-by: .+ <[^<>@ ]+@[^<>@ ]+>$'	grep -qE '^Signed-off-by: .+$'	tests/governance/check-dco-on-main.test.sh
 dco-rev-list	scripts/governance/check-dco-on-main.sh	if ! commits="$(git rev-list --no-merges $range)"; then	if false; then	tests/governance/check-dco-on-main.test.sh
+pq-verdict-status	scripts/release/release-signature.sh	[ "$verify_rc" -le 3 ] || {	true || {	tests/release/release-signature.test.sh
+pq-required-match	scripts/release/release-signature.sh	if [ "$name" = "$3" ]; then	if false; then	tests/release/release-signature.test.sh
+pq-absent-404	scripts/release/release-signature.sh	404)	404-is-not-absent)	tests/release/release-signature.test.sh
+pq-any-status-absent	scripts/release/release-signature.sh	404)	404|[0-9]*)	tests/release/release-signature.test.sh
+pq-transfer-failed	scripts/release/release-signature.sh	if [ "$pq_rc" -ne 0 ] && [ "$pq_code" != "404" ]; then	if false; then	tests/release/release-signature.test.sh
+pq-transfer-cap	scripts/release/release-signature.sh	--max-time 120 --max-filesize "$MAX_PQ_SIG_BYTES"	--max-time 120	tests/release/release-signature.test.sh
+pq-size-cap	scripts/release/release-signature.sh	[ "$pq_size" -le "$MAX_PQ_SIG_BYTES" ] || {	true || {	tests/release/release-signature.test.sh
+pq-signature-length	scripts/release/release-signature.sh	[ "$pq_size" -eq "$PQ_SIG_LENGTH" ] || {	true || {	tests/release/release-signature.test.sh
+pq-required-missing	scripts/release/release-signature.sh	if not pq_present:	if False:	tests/release/release-signature.test.sh
+pq-no-key	scripts/release/release-signature.sh	if not pq_keys_b64:	if False:	tests/release/release-signature.test.sh
+pq-no-library	scripts/release/release-signature.sh	    sys.exit(3)	    sys.exit(0)	tests/release/release-signature.test.sh
+pq-guard-base64	scripts/release/release-signature.sh	bytes="$(printf '%s' "$padded" | base64 -d 2>/dev/null | wc -c)" || {	bytes="$(printf '%s' "$padded" | wc -c)" || {	tests/release/release-signature.test.sh
+pq-guard-key-length	scripts/release/release-signature.sh	[ "$bytes" -eq 1952 ] || {	true || {	tests/release/release-signature.test.sh
+pq-guard-whitespace	scripts/release/release-signature.sh	*[[:space:]]*)	"no whitespace check")	tests/release/release-signature.test.sh
+pq-guard-one-line	scripts/release/release-signature.sh	*$'\n'*)	"no line check")	tests/release/release-signature.test.sh
+pq-guard-roster	scripts/release/release-signature.sh	if [ "$product" = "$name" ]; then	if true; then	tests/release/release-signature.test.sh
+pq-guard-call	scripts/release/render-formulae.sh	check_release_configuration || exit 2	true || exit 2	tests/release/release-signature.test.sh
+pq-venv-second-slot	.github/workflows/update.yml	^RELEASE_PQ_PUBKEY2?_B64=	^RELEASE_PQ_PUBKEY(_2)?_B64=	tests/publication/update/update-mldsa-venv.test.sh
+pq-venv-path	.github/workflows/update.yml	PATH="$mldsa_venv/bin:$PATH"	:	tests/publication/update/update-mldsa-venv.test.sh

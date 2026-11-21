@@ -139,6 +139,21 @@ counts the failures -- but its exit status says only that something failed. The
 them back into an exit status a script can read, a pre-push hook included. This is
 the command the workflow runs, so a local run and a CI run judge the same thing.
 
+`tests/release/release-signature/release-signature-mldsa.test.sh` also needs
+`cryptography` 50.0.2 or later, for ML-DSA-65, which no Ubuntu release packages
+yet. Without it that suite fails and says so, and the command above goes red.
+Install the pinned wheel into a virtual environment that still sees the system
+packages, and put it first on `PATH` before running the command:
+
+```bash
+python3 -m venv --system-site-packages ~/.cache/tap-mldsa
+~/.cache/tap-mldsa/bin/python -m pip install --require-hashes --only-binary=:all: \
+  -r scripts/release/render-requirements.txt
+export PATH="$HOME/.cache/tap-mldsa/bin:$PATH"
+```
+
+CI runs that suite in its own job, `ML-DSA-65 verifier` in `tests.yml`.
+
 **Every script in `scripts/` needs a test.**
 `scripts/quality/check-test-coverage.sh` fails when one does not, itself included --
 it lives in `scripts/`, so deleting its test makes it report itself.

@@ -387,17 +387,21 @@ except (ValueError, binascii.Error) as exc:
 # release without one needs nothing the runner's python3-cryptography does not
 # carry. The runner's cryptography has no ML-DSA, and the wheel that does is
 # installed only once a key is configured.
+#
+# A cryptography that has the module but was built against an OpenSSL without
+# ML-DSA imports it and refuses the key instead, with UnsupportedAlgorithm.
+# That is the library again and not our key, so the key is loaded inside the
+# same check as the import.
 try:
     from cryptography.hazmat.primitives.asymmetric.mldsa import MLDSA65PublicKey
+
+    pq_keys = [MLDSA65PublicKey.from_public_bytes(raw) for raw in raw_pq_keys]
 except (ImportError, UnsupportedAlgorithm) as exc:
     sys.stderr.write(
         f"the installed cryptography module cannot verify ML-DSA-65 ({exc}); "
         f"cryptography 50.0.2 or later is required, pinned in scripts/release/render-requirements.txt\n"
     )
     sys.exit(3)
-
-try:
-    pq_keys = [MLDSA65PublicKey.from_public_bytes(raw) for raw in raw_pq_keys]
 except ValueError as exc:
     sys.stderr.write(f"malformed ML-DSA-65 release public key: {exc}\n")
     sys.exit(2)

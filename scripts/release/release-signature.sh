@@ -74,15 +74,17 @@ verify_sha256sums() { # $1=repo $2=tag $3=product
 	#
 	# The transfer carries no `-f` on purpose: a 404 is an answer, not a
 	# failure, and curl would print it as an error on every release that
-	# carries no second signature.
+	# carries no second signature, and exits 0 for it. So a non-zero exit
+	# means the transfer failed, whatever status it had reached: a 404 whose
+	# transfer broke is no answer, and is refused with the other failures.
 	pq_code=""
 	pq_rc=0
 	curl -sSL --proto =https --proto-redir =https --connect-timeout 10 --max-time 120 --max-filesize "$MAX_PQ_SIG_BYTES" \
 		-o "$work/SHA256SUMS.mldsa65.sig" -w '%{http_code}' \
 		"https://github.com/$1/releases/download/$2/SHA256SUMS.mldsa65.sig" > "$work/pq.code" || pq_rc=$?
 	pq_code="$(cat "$work/pq.code" 2>/dev/null || true)"
-	if [ "$pq_rc" -ne 0 ] && [ "$pq_code" != "404" ]; then
-		echo "::error::$1 $2: failed to download SHA256SUMS.mldsa65.sig within the ${MAX_PQ_SIG_BYTES}-byte cap and 120-second time limit" >&2
+	if [ "$pq_rc" -ne 0 ]; then
+		echo "::error::$1 $2: failed to download SHA256SUMS.mldsa65.sig within the ${MAX_PQ_SIG_BYTES}-byte cap and 120-second time limit (HTTP ${pq_code:-none}, transfer status $pq_rc); whether this release carries a second signature could not be decided" >&2
 		return 1
 	fi
 	case "$pq_code" in
@@ -288,12 +290,9 @@ PY
 	# A `case` that matches no pattern succeeds, so a status the verifier was
 	# never meant to return would admit the release: python3 missing (127), or
 	# the verifier killed or crashed before it printed a verdict (137, 139).
-	# Only the four statuses below are verdicts, and anything else is refused
-	# here, before the case reads it.
-	[ "$verify_rc" -le 3 ] || {
-		echo "::error::$1 $2: the signature check stopped with status $verify_rc before reaching a verdict; the release is refused" >&2
-		return 1
-	}
+	# The four statuses below are the verdicts, and the last branch refuses
+	# every other one, so what is not named is refused and no limit has to be
+	# kept in step with the list.
 	case "$verify_rc" in
 		0) return 0 ;;
 		1)
@@ -306,6 +305,10 @@ PY
 			;;
 		3)
 			echo "::error::$1 $2: the installed cryptography cannot verify ML-DSA-65; the second signature is refused rather than skipped" >&2
+			return 1
+			;;
+		*) # Any other status is no verdict, whatever put it there.
+			echo "::error::$1 $2: the signature check stopped with status $verify_rc before reaching a verdict; the release is refused" >&2
 			return 1
 			;;
 	esac

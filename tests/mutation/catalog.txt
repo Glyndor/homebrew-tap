@@ -154,11 +154,11 @@ version-approval-single-use	scripts/artifacts/check-version-monotonic.sh	if core
 dco-bots	scripts/governance/check-dco-on-main.sh	"github-actions[bot]"|"glyndor-updater[bot]") return 0 ;;	"github-actions[bot]") return 0 ;;	tests/governance/check-dco-on-main.test.sh
 dco-trailer	scripts/governance/check-dco-on-main.sh	grep -qE '^Signed-off-by: .+ <[^<>@ ]+@[^<>@ ]+>$'	grep -qE '^Signed-off-by: .+$'	tests/governance/check-dco-on-main.test.sh
 dco-rev-list	scripts/governance/check-dco-on-main.sh	if ! commits="$(git rev-list --no-merges $range)"; then	if false; then	tests/governance/check-dco-on-main.test.sh
-pq-verdict-status	scripts/release/release-signature.sh	[ "$verify_rc" -le 3 ] || {	true || {	tests/release/release-signature.test.sh
+pq-verdict-status	scripts/release/release-signature.sh	*) # Any other status is no verdict, whatever put it there.	255) # Any other status is no verdict, whatever put it there.	tests/release/release-signature.test.sh
 pq-required-match	scripts/release/release-signature.sh	if [ "$name" = "$3" ]; then	if false; then	tests/release/release-signature.test.sh
 pq-absent-404	scripts/release/release-signature.sh	404)	404-is-not-absent)	tests/release/release-signature.test.sh
 pq-any-status-absent	scripts/release/release-signature.sh	404)	404|[0-9]*)	tests/release/release-signature.test.sh
-pq-transfer-failed	scripts/release/release-signature.sh	if [ "$pq_rc" -ne 0 ] && [ "$pq_code" != "404" ]; then	if false; then	tests/release/release-signature.test.sh
+pq-transfer-failed	scripts/release/release-signature.sh	if [ "$pq_rc" -ne 0 ]; then	if false; then	tests/release/release-signature.test.sh
 pq-transfer-cap	scripts/release/release-signature.sh	--max-time 120 --max-filesize "$MAX_PQ_SIG_BYTES"	--max-time 120	tests/release/release-signature.test.sh
 pq-size-cap	scripts/release/release-signature.sh	[ "$pq_size" -le "$MAX_PQ_SIG_BYTES" ] || {	true || {	tests/release/release-signature.test.sh
 pq-signature-length	scripts/release/release-signature.sh	[ "$pq_size" -eq "$PQ_SIG_LENGTH" ] || {	true || {	tests/release/release-signature.test.sh
@@ -215,3 +215,4 @@ packages-suite-unknown	scripts/quality/scope/ci-job-scope.sh	    if any(s not in
 line-limit-scope-base	.github/workflows/reusable-line-limit.yml	            && git show HEAD^1:scripts/quality/scope/ci-job-scope.sh > "$script" 2>/dev/null; then	            && cat scripts/quality/scope/ci-job-scope.sh > "$script" 2>/dev/null; then	tests/ci/suites/lint-job-scope.test.sh
 line-limit-txt-comments	.github/workflows/reusable-line-limit.yml	*.yml|*.yaml|*.toml|*.txt) hash_comment=1	*.yml|*.yaml|*.toml) hash_comment=1	tests/ci/reusable/reusable-line-limit.test.sh
 line-limit-caller-txt	.github/workflows/line-limit.yml	svelte yml yaml txt"	svelte yml yaml"	tests/ci/reusable/reusable-line-limit.test.sh
+pq-transfer-404	scripts/release/release-signature.sh	if [ "$pq_rc" -ne 0 ]; then	if [ "$pq_rc" -ne 0 ] && [ "$pq_code" != "404" ]; then	tests/release/release-signature.test.sh

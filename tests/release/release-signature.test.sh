@@ -196,6 +196,17 @@ CURL_STUB_PQ_STATUS=200 CURL_STUB_PQ_RC=18 BLOCK=no-mldsa render "$R" --pq-pubke
 check "a 200 whose transfer broke is refused, even when the bytes look whole" "3 0 1" \
 	"$rc $(written "$R") $(said 'failed to download SHA256SUMS.mldsa65.sig within the 4096-byte cap')"
 
+# A 404 is an answer only when the transfer that carried it finished. curl exits 0
+# for any status it was given without `-f`, so a non-zero exit with a 404 is a
+# transfer that broke, and nothing about the release.
+fresh status-404; release
+CURL_STUB_PQ_STATUS=404 CURL_STUB_PQ_RC=18 render "$R" --pq-pubkey "$KEY"
+check "a 404 whose transfer broke is refused, not read as a release without a second signature" "3 0 1 1" \
+	"$rc $(written "$R") $(said 'failed to download SHA256SUMS.mldsa65.sig within the 4096-byte cap') $(said 'could not be decided')"
+check "and the refusal says what it saw" "1 1" "$(said 'HTTP 404') $(said 'transfer status 18')"
+CURL_STUB_PQ_STATUS=404 render "$R" --pq-pubkey "$KEY"
+check "while a clean 404 on the same release is an answer, and the release is admitted" "0 1" "$rc $(written "$R")"
+
 # --- the library cannot verify ML-DSA-65: refused, and the reason is said -------
 fresh nolib; release; sidecar 3309
 for block in no-mldsa unsupported; do
@@ -223,6 +234,27 @@ WRAP=py-killed render "$R"
 check "a verifier killed before its verdict refuses the release" "3 0" "$rc $(written "$R")"
 check "and says it stopped without a verdict" "1" \
 	"$(said 'the signature check stopped with status 137 before reaching a verdict')"
+
+# Only the four statuses the verifier defines are verdicts: 0 admitted, 1 the
+# release is not trusted, 2 our own key is malformed, 3 the library cannot check
+# the second signature. Every other one is refused, and the release here is
+# valid, so a status that reached the `case` unrefused would admit it: a
+# verifier that exits with 4, the first number past the list, or with the 126 and
+# 127 a shell gives for a program it cannot run, has reached no verdict.
+for status in 4 99 126 127; do
+	mkdir -p "$WORK/py-status-$status"
+	# shellcheck disable=SC2016 # the wrapper reads these when it runs
+	printf '#!/usr/bin/env bash\ncase "${2:-}" in */SHA256SUMS) exit %s ;; esac\nexec %s "$@"\n' \
+		"$status" "$REAL_PYTHON" > "$WORK/py-status-$status/python3"
+	chmod +x "$WORK/py-status-$status/python3"
+	fresh "status-$status"; release
+	WRAP="py-status-$status" render "$R"
+	check "a verifier that exits with $status, which is no verdict, refuses the release" "3 0 1" \
+		"$rc $(written "$R") $(said "the signature check stopped with status $status before reaching a verdict")"
+done
+fresh verdicts; release
+render "$R"
+check "and the same release, with the real verifier, is admitted" "0 1" "$rc $(written "$R")"
 
 # --- our own configuration, checked before any release is read ----------------
 fresh guard "$PODUP" "$OTHER"; release

@@ -244,6 +244,9 @@ tests/ci/policy/rules/cancel-policy.test.sh
 tests/ci/policy/rules/brew-jobs-are-bounded.test.sh
 	.github/workflows/**
 
+tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
+	.github/workflows/**
+
 tests/ci/policy/rules/jobs-are-bounded.test.sh
 	.github/workflows/**
 

@@ -16,7 +16,7 @@
 #     what made them differ once.
 #
 # Each rule is first shown refusing a planted document, beside the accepted one, and
-# then reads this repository's. A check of the counts that has no block to read says so.
+# then reads this repository's. A document that prints no pair of counts fails.
 #
 # Requires: bash, git, grep, awk, sed.
 # The planted documents and the grep patterns are text, with `$` and backticks in them on purpose.
@@ -134,11 +134,11 @@ printf '```sh\n%s\n```\n' "$NAIVE" > "$WORK/naive.md"
 check "the counts the document used to print disagree on that tree" "4 1" "$(documented_counts "$WORK/naive.md" "$WORK/repo" | tr -s ' ')"
 check "and that is not an agreement" "0" "$(counts_agree "$WORK/naive.md" "$WORK/repo")"
 check "while the documented ones are" "1" "$(counts_agree "$WORK/block.md" "$WORK/repo")"
-if grep -qE "^git grep .*persist-credentials" "$HERE/docs/threat-model.md" 2>/dev/null; then
-	check "the documented counts agree on this repository" "1" "$(counts_agree "$HERE/docs/threat-model.md" "$HERE")"
-else
-	echo "skip  docs/threat-model.md has no pair of persist-credentials counts to run; nothing here was exercised for it"
-fi
+# The document has to print the pair, in the form the helper runs: a block with no pair
+# leaves the check with nothing to read, and a check that reads nothing proves nothing.
+check "docs/threat-model.md prints both counts as git grep commands" "1" \
+	"$(grep -qE '^git grep .*persist-credentials' "$HERE/docs/threat-model.md" && grep -qE '^git grep .*actions/checkout@' "$HERE/docs/threat-model.md" && echo 1 || echo 0)"
+check "the documented counts agree on this repository" "1" "$(counts_agree "$HERE/docs/threat-model.md" "$HERE")"
 
 echo
 echo "$pass passed, $fail failed"

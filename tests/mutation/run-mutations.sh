@@ -17,6 +17,17 @@
 # mutant is, and it is excluded from the catalogue instead of counting as a
 # kill. The excluded suites are listed by name below, with the reason, and the
 # catalogue records the same list.
+#
+# A SUITE THAT DIES IS NOT A KILL
+#
+# A suite that goes red prints the FAIL lines it was written to print, and the
+# runner shows up to five of them. A suite that goes red without any died
+# instead of failing an assertion, and a crash is not the guard's doing: the
+# mutation may have removed something the suite itself needed. Such a red is
+# not counted. An entry whose only reds are deaths could not be run, and the
+# sweep fails on it as it does on a text that is no longer there. A failed
+# Python assertion counts as a FAIL line does: it leaves `AssertionError` in
+# the output, and a crash of the interpreter does not.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -329,7 +340,7 @@ run_entry() { # <index> -> 0 when a test killed it, 1 when it survived, 2 when i
 	local id="${IDS[$idx]}" file="${FILES[$idx]}" old="${OLDS[$idx]}" new="${NEWS[$idx]}"
 	local dest="$WORK/mutant"
 	local -a wanted
-	local t killed=0 ran=0 rc=0
+	local t killed=0 died=0 ran=0 rc=0
 	IFS=',' read -r -a wanted <<<"${TESTS[$idx]}"
 
 	rm -rf "$dest"
@@ -371,16 +382,26 @@ run_entry() { # <index> -> 0 when a test killed it, 1 when it survived, 2 when i
 		ran=$((ran + 1))
 		if (cd "$dest" && bash "$t" >"$WORK/test.log" 2>&1); then
 			echo "mutation $id: $t still passes"
-		else
+		elif grep -qE '^[[:space:]]*FAIL|AssertionError' "$WORK/test.log"; then
 			echo "mutation $id: killed by $t"
 			# The reason the suite went red, not only the colour: a suite that
 			# fails for another reason is a kill that never happened.
-			grep -m 5 -E '^[[:space:]]*FAIL' "$WORK/test.log" | sed 's/^/    /' || true
+			grep -m 5 -E '^[[:space:]]*FAIL|AssertionError' "$WORK/test.log" | sed 's/^/    /' || true
 			killed=$((killed + 1))
+		else
+			# Red without one failed assertion: the suite died. That is not a kill,
+			# whatever made it die.
+			echo "mutation $id: $t went red without a failed assertion: it died, which is not a kill" >&2
+			tail -n 3 "$WORK/test.log" | sed 's/^/    /' >&2 || true
+			died=$((died + 1))
 		fi
 	done
 	if [ "$ran" -eq 0 ]; then
 		echo "mutation $id: every test it names fails without any mutation, none of them can tell" >&2
+		return 2
+	fi
+	if [ "$killed" -eq 0 ] && [ "$died" -gt 0 ]; then
+		echo "mutation $id: no test it names failed an assertion and $died died, so nothing says the guard is watched" >&2
 		return 2
 	fi
 	if [ "$killed" -eq 0 ]; then

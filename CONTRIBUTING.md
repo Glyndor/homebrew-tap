@@ -184,7 +184,7 @@ as its script, which the coverage check above enforces:
 | `hygiene/` | that the tree agrees with the rules the repository states: `.editorconfig` and the references in `docs/` |
 | `lint/` | static rules over workflows and shell: action pins, the shell inside `run:` blocks, a test job that cannot be switched off, tooling next to a secret |
 | `scope/` | which jobs and suites a change can affect, with the maps they read |
-| `coverage/` | that every script has a test and every suite is run by a workflow, with the list of suites that cannot be |
+| `coverage/` | that every script has a test and every suite is run by a workflow, with the list of suites no workflow can run |
 
 **Every test must be wired into a workflow.**
 `tests/ci/suites/ci-runs-every-test.test.sh` fails when one is not. An unregistered test

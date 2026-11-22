@@ -129,7 +129,7 @@ suite=$(find tests -name '*.test.sh' -type f | sort)
 # shellcheck disable=SC2086
 # A runner that is not executable must fail the command, not skip the suites.
 if [ -x tests/ci/suites/check-suite-completeness.test.sh ]; then
-  tests/ci/suites/check-suite-completeness.test.sh $(grep -v check-suite-completeness <<< "$suite") || fail=1
+  tests/ci/suites/check-suite-completeness.test.sh $(grep -vx 'tests/ci/suites/check-suite-completeness\.test\.sh' <<< "$suite") || fail=1
 else
   echo "FAILED: tests/ci/suites/check-suite-completeness.test.sh is not executable"; fail=1
 fi

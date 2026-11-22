@@ -276,6 +276,9 @@ jobs:
     # tools it ships, so a new image arrives as a commit and not overnight.
     runs-on: ubuntu-26.04
     # Measured 3 to 6 seconds.
+    # It decides nothing about its scope on purpose: reading what changed costs
+    # a checkout and a script, which is what running the job costs, so a
+    # decision would spend as much as the answer it saves.
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

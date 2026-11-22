@@ -182,7 +182,7 @@ as its script, which the coverage check above enforces:
 | Folder | What its scripts decide |
 |---|---|
 | `hygiene/` | that the tree agrees with the rules the repository states: `.editorconfig` and the references in `docs/` |
-| `lint/` | static rules over workflows and shell: action pins, the shell inside `run:` blocks, a test job that cannot be switched off, tooling next to a secret |
+| `lint/` | static rules over workflows and shell: action pins, the shell inside `run:` blocks, a required job that cannot be switched off, tooling next to a secret |
 | `scope/` | which jobs and suites a change can affect, with the maps they read |
 | `coverage/` | that every script has a test and every suite is run by a workflow, with the list of suites no workflow can run |
 
@@ -252,7 +252,7 @@ catch, because a count per file cannot tell one guard from another.
 | `freshness.yml` | something scheduled stopped happening elsewhere, or a tool pinned in a reusable fell behind its upstream release |
 | `dco.yml` | a commit of the pull request has no `Signed-off-by` trailer |
 | `line-limit.yml` | a source file, or a `.txt` list or map, is over the hard limit of 500 lines of code; passing the soft limit of 300 only warns |
-| `workflow-lint.yml` | `actionlint` found a mistake in a workflow, a suite under `tests/` is run by no workflow, a caller can switch the required test job off, or a job that holds a secret installs third-party tooling |
+| `workflow-lint.yml` | `actionlint` found a mistake in a workflow, a suite under `tests/` is run by no workflow, a caller can switch a required job off, or a job that holds a secret installs third-party tooling |
 | `update.yml` | the scheduled regeneration, which commits to `main` |
 | `drift.yml` | a copy this repository shares with a sibling channel no longer agrees: a reusable workflow, the renderer's verification logic, or one of the scripts and tests the tap and the bucket carry as exact copies |
 | `dco-on-main.yml` | a human commit reached `main` without a `Signed-off-by` trailer; detection after the push, not prevention |

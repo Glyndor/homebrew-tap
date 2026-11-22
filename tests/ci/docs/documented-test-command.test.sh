@@ -53,12 +53,17 @@ mkdir -p "$WORK/t/tests/ci/suites"
 printf '#!/usr/bin/env bash\n[ "$#" -gt 0 ] || { echo usage >&2; exit 2; }\necho completeness-got-"$#"\nrc=0\nfor f in "$@"; do "$f" || { echo "FAIL  $f exited non-zero"; rc=1; }; done\nexit $rc\n' \
 	> "$WORK/t/tests/ci/suites/check-suite-completeness.test.sh"
 chmod +x "$WORK/t/tests/ci/suites/check-suite-completeness.test.sh"
+# A suite whose name starts with the runner's: the command leaves out the runner only,
+# so this one has to reach it.
+printf '#!/usr/bin/env bash\necho ran-verdict\nexit 0\n' > "$WORK/t/tests/ci/suites/check-suite-completeness-verdict.test.sh"
+chmod +x "$WORK/t/tests/ci/suites/check-suite-completeness-verdict.test.sh"
 
 out="$(cd "$WORK/t" && PATH="$WORK/bin:$PATH" bash -c "$block" 2>&1)"
 rc=$?
 check "a nested failing suite makes the documented command fail" "1" "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
 check "the nested passing suite is run" "1" "$(printf '%s' "$out" | grep -c ran-good)"
 check "the nested failing suite is run, not skipped after the first failure" "1" "$(printf '%s' "$out" | grep -c ran-bad)"
+check "a suite named after the runner still reaches the runner" "1" "$(printf '%s' "$out" | grep -c ran-verdict)"
 check "and the failure is named" "1" "$(printf '%s' "$out" | grep -c 'bad.test.sh')"
 check "shellcheck is given a nested script" "1" "$(grep -c 'scripts/x/tool.sh' "$WORK/shellcheck.args" 2>/dev/null)"
 check "shellcheck is given a nested test" "1" "$(grep -c 'tests/a/good.test.sh' "$WORK/shellcheck.args" 2>/dev/null)"
@@ -68,7 +73,7 @@ out="$(cd "$WORK/t" && PATH="$WORK/bin:$PATH" bash -c "$block" 2>&1)"
 rc=$?
 check "with every suite passing the documented command succeeds" "0" "$rc"
 check "the completeness check is given the other suites, not run bare" "0" "$rc"
-check "and it received one argument per other suite" "1" "$(printf '%s' "$out" | grep -c 'completeness-got-1$')"
+check "and it received one argument per other suite" "1" "$(printf '%s' "$out" | grep -c 'completeness-got-2$')"
 
 # A runner that lost its executable bit must not turn the command green by being
 # skipped: it fails the command and says which file is the problem.
@@ -101,6 +106,26 @@ check "the mutated command actually reached failing shellcheck" "1" "$(grep -c s
 rc=0; lint_is_required "$HERE/CONTRIBUTING.md" || rc=$?
 check "failing shellcheck makes the live documented command fail" "0" "$rc"
 check "the live command reached failing shellcheck" "1" "$(grep -c shellcheck-probe "$WORK/lint.out")"
+
+# The same command over the suites this repository holds: every *.test.sh under tests/
+# but the runner has to be an argument of the runner. The tree has one empty file per
+# real suite and a runner that records what it was given.
+mkdir -p "$WORK/real/bin"
+while IFS= read -r f; do
+	mkdir -p "$WORK/real/$(dirname "$f")"
+	: > "$WORK/real/$f"
+done < <(cd "$HERE" && find tests -name '*.test.sh' -type f)
+runner=tests/ci/suites/check-suite-completeness.test.sh
+# shellcheck disable=SC2016 # the stand-in reads these variables when it runs
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$@" > "%s/given"\n' "$WORK" > "$WORK/real/$runner"
+chmod +x "$WORK/real/$runner"
+printf '#!/bin/sh\nexit 0\n' > "$WORK/real/bin/shellcheck"
+chmod +x "$WORK/real/bin/shellcheck"
+(cd "$WORK/real" && PATH="$WORK/real/bin:$PATH" bash -c "$block") > /dev/null 2>&1
+(cd "$HERE" && find tests -name '*.test.sh' -type f | grep -vxF "$runner" | sort) > "$WORK/expected"
+sort "$WORK/given" > "$WORK/given.sorted" 2>/dev/null
+check "the command gives the runner every suite of this repository but itself" "" "$(diff "$WORK/expected" "$WORK/given.sorted")"
+check "and there is at least one suite to give" "1" "$([ -s "$WORK/expected" ] && echo 1 || echo 0)"
 
 flat="$(cat "$HERE/CONTRIBUTING.md" "$HERE/.github/PULL_REQUEST_TEMPLATE.md" | grep -cE 'tests/\*\.(test\.)?sh|scripts/\*\.sh')"
 check "no flat glob over tests/ or scripts/ is documented" "0" "$flat"

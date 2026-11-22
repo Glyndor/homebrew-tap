@@ -118,3 +118,4 @@ tests/ci/docs/documented-claims.test.sh -
 
 # shellcheck, python3-yaml
 tests/ci/reusable/reusable-shell-ci.test.sh shellcheck python3-yaml
+tests/quality/scope/suite-scope-map.test.sh -

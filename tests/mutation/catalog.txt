@@ -393,3 +393,10 @@ lint-skip-ceiling	scripts/quality/lint/check-test-job-not-switchable.sh	extra = 
 lint-skip-ceiling-none	scripts/quality/lint/check-test-job-not-switchable.sh	[] if ceiling is None else sorted	[] if False else sorted	tests/quality/lint/check-test-job-not-switchable-inputs.test.sh
 lint-skip-odd-verdict	scripts/quality/lint/check-test-job-not-switchable.sh	        if odd:	        if False:	tests/quality/lint/check-test-job-not-switchable-inputs.test.sh
 lint-skip-extra-verdict	scripts/quality/lint/check-test-job-not-switchable.sh	        if extra:	        if False:	tests/quality/lint/check-test-job-not-switchable-inputs.test.sh
+map-reads-suite	tests/quality/lint/check-test-job-not-switchable-inputs.test.sh	SCRIPT="$HERE/scripts/quality/lint/check-test-job-not-switchable.sh"	SCRIPT="$HERE/scripts/quality/lint/check-test-job-not-switchable.sh"; : "$HERE/.github/workflows/tests.yml"	tests/quality/scope/suite-scope-map.test.sh
+map-reads-rule	tests/quality/scope/suite-scope-map.test.sh	if glob.glob(os.path.join(root, wanted)) and not any(covers(p, wanted) for p in patterns):	if False:	tests/quality/scope/suite-scope-map.test.sh
+map-reads-folder	tests/quality/scope/suite-scope-map.test.sh	wanted = ref + "/*" if ref == ".github/workflows" else ref	wanted = ref	tests/quality/scope/suite-scope-map.test.sh
+map-covers-folder-pattern	tests/quality/scope/suite-scope-map.test.sh	return path.startswith(pattern[:-2])	return True	tests/quality/scope/suite-scope-map.test.sh
+map-covers-some-workflow	tests/quality/scope/suite-scope-map.test.sh	return pattern.startswith(".github/workflows/")  # the folder: some workflow	return True	tests/quality/scope/suite-scope-map.test.sh
+map-reads-root	tests/quality/scope/suite-scope-map.test.sh	reads = re.compile(r'\$\{?HERE	reads = re.compile(r'\$\{?HERX	tests/quality/scope/suite-scope-map.test.sh
+map-pending-dir	tests/quality/scope/suite-scope-map.test.sh	if "*" in base or base in PENDING:	if "*" in base:	tests/quality/scope/suite-scope-map.test.sh

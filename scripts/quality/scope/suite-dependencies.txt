@@ -98,6 +98,7 @@ tests/ci/reusable/reusable-workflow-lint.test.sh python3-yaml
 tests/monitoring/check-tool-versions.test.sh python3-yaml
 tests/quality/lint/check-test-job-not-switchable.test.sh python3-yaml
 tests/quality/lint/check-test-job-not-switchable-inputs.test.sh python3-yaml
+tests/quality/lint/check-test-job-not-switchable-jobs.test.sh python3-yaml
 tests/quality/lint/check-tooling-isolation.test.sh python3-yaml
 tests/ci/policy/rules/brew-jobs-are-bounded.test.sh python3-yaml
 tests/ci/policy/workflows/audit-scope.test.sh python3-yaml

@@ -281,6 +281,14 @@ for f in "$@"; do
 	fi
 
 	check "$basename exited 0" "0" "$rc"
+
+	# The count the sentinel carries is the suite's own verdict. A suite
+	# that reports a failed check and still exits 0 (its last line was
+	# `[ "$fail" -eq 0 ]` once and someone dropped it) is red, whatever its
+	# exit status says.
+	if [ "$has_sentinel" -eq 1 ]; then
+		check "$basename reported no failed check" "0" "${fields[3]}"
+	fi
 done
 
 echo

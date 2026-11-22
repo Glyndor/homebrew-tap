@@ -43,6 +43,7 @@ RULES=(
 	"outside the Glyndor organization"
 	"invalid asset name"
 	"would end or escape a Ruby string"
+	"fields, not 10"
 )
 
 # The generator with its one roster row edited: field $2 (zero-based) set to $3.
@@ -170,6 +171,44 @@ for field in 3 4 9; do
 		policy "the text [$value] in field $field" "$field" "$value" "would end or escape a Ruby string"
 	done
 done
+
+# --- a column too many (the surplus would land in the last field) --------------------
+policy "a row with one column too many" 9 '--version|extra' "fields, not 10"
+policy "a row with two columns too many" 3 'MIT|a|b' "fields, not 10"
+
+# --- the same product declared twice ---------------------------------------------------
+# The row is repeated, so the second render would overwrite the first. Both sides refuse
+# it by the same words, the renderer before it reads a release.
+twice() { # $1=target: the generator with its one roster row written twice
+	python3 -I - "$GENERATOR" "$1" <<'PY'
+import re
+import sys
+
+text = open(sys.argv[1]).read()
+found = re.search(r'^\t"([^"\n]*)"$', text, re.M)
+if found is None:
+    sys.exit("the roster row was not found in the generator")
+open(sys.argv[2], "w").write(text.replace(found.group(0), found.group(0) + "\n" + found.group(0), 1))
+PY
+	chmod +x "$1"
+}
+new_root "$WORK/renderer"
+twice "$WORK/renderer/scripts/release/render-formulae.sh"
+renderer_rc=0
+run "$WORK/renderer/scripts/release/render-formulae.sh" "$WORK/renderer" || renderer_rc=$?
+check "the renderer refuses a product declared twice as a configuration error" "2" "$renderer_rc"
+check "and says which product" "1" "$(said "$(cat "$WORK/out")" "the PRODUCTS roster declares podup twice")"
+check "and rendered nothing" "0" "$(grep -c '^rendered ' "$WORK/out" || true)"
+t="$WORK/checker"
+rm -rf "$t"; mkdir -p "$t/scripts/artifacts" "$t/scripts/release" "$t/Formula"
+cp "$HERE/scripts/artifacts/check-formulae.sh" "$HERE/scripts/artifacts/check-formulae.py" "$t/scripts/artifacts/"
+cp "$HERE/scripts/release/products.sh" "$t/scripts/release/"
+cp "$HERE/Formula/podup.rb" "$t/Formula/podup.rb"
+twice "$t/scripts/release/render-formulae.sh"
+checker_rc=0
+"$t/scripts/artifacts/check-formulae.sh" "$t" >"$WORK/checker.out" 2>&1 || checker_rc=$?
+check "the checker refuses a product declared twice" "1" "$checker_rc"
+check "and says which product, by the same words" "1" "$(said "$(cat "$WORK/checker.out")" "the PRODUCTS roster declares podup twice")"
 
 echo
 echo "$pass passed, $fail failed"

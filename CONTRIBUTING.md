@@ -89,6 +89,11 @@ one in the same change is refused, so the next permission always lands on its ow
 malformed approvals file on the base branch grants nothing, which lets the pull
 request that repairs it pass.
 
+The renderer reads the release it renders, so the rollback run needs more than the
+suites do: `gh`, authenticated and able to read releases and to verify
+attestations, `curl`, and `python3-cryptography`. None of them is in the list of
+packages above, and no suite stands in for them.
+
 ## Branch flow
 
 ```
@@ -113,7 +118,7 @@ There is no `develop`. Branch from `main`, open a pull request against
 
 ## Tests
 
-The suites need `shellcheck`, `python3-yaml` and `ruby` installed, the packages `tests.yml` lists for CI. There shellcheck is the pinned release the shellcheck job uses, and a pull request installs only what the suites it selects need (`scripts/quality/scope/suite-dependencies.txt`).
+The suites need `shellcheck`, `python3-yaml` and `ruby` installed, the packages `tests.yml` lists for CI. The ML-DSA-65 setup below also needs `python3-venv`, which Debian and Ubuntu package apart from `python3`. There shellcheck is the pinned release the shellcheck job uses, and a pull request installs only what the suites it selects need (`scripts/quality/scope/suite-dependencies.txt`).
 
 ```sh
 fail=0
@@ -212,8 +217,11 @@ than the one it names; or the same tool that made the change also confirmed it.
 Confirm from something that took no part in the change, and read the failure
 message, not the colour.
 
-Assert **which** failure fired, never that some failure did. Everything runs
-under `set -euo pipefail`, so almost any mistake exits non-zero.
+Assert **which** failure fired, never that some failure did. The scripts run
+under `set -euo pipefail` and stop at the first error. Many suites do not: they
+start with `set -u` or `set -uo pipefail`, count their own failures and carry on,
+so a mistake in one of them is a `FAIL` line, not an exit. Read those lines, not
+only the exit status.
 
 Two things a green local run does not prove, both learned the hard way:
 

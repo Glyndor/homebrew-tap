@@ -24,6 +24,10 @@
 #
 #   tests/ci/suites/check-suite-completeness.test.sh
 #       It runs the other suites and reads the base commit with `git show HEAD^1:...`.
+#       Its verdict lines (the exit status, the count in the sentinel and the sentinel
+#       itself) are mutated by entries that name
+#       tests/ci/suites/check-suite-completeness-verdict.test.sh, which runs the runner
+#       over suites it writes and needs no history.
 #   tests/quality/hygiene/check-editorconfig.test.sh
 #       It walks the tracked files with `git ls-files`.
 #
@@ -229,3 +233,49 @@ line-limit-caller-txt	.github/workflows/line-limit.yml	svelte yml yaml txt"	svel
 pq-transfer-404	scripts/release/release-signature.sh	if [ "$pq_rc" -ne 0 ]; then	if [ "$pq_rc" -ne 0 ] && [ "$pq_code" != "404" ]; then	tests/release/release-signature.test.sh
 formulae-reads-the-renderer	scripts/artifacts/check-formulae.sh	check-formulae.py" "$renderer" "$root"	check-formulae.py" /dev/null "$root"	tests/artifacts/check-formulae.test.sh
 drift-checkout-keeps-no-token	.github/workflows/drift.yml	persist-credentials: false	persist-credentials: true	tests/ci/policy/workflows/persist-credentials.test.sh
+suite-runner-exit	tests/ci/suites/check-suite-completeness.test.sh	check "$basename exited 0" "0" "$rc"	true "$rc"	tests/ci/suites/check-suite-completeness-verdict.test.sh
+suite-runner-count	tests/ci/suites/check-suite-completeness.test.sh	check "$basename reported no failed check" "0" "${fields[3]}"	true "${fields[3]}"	tests/ci/suites/check-suite-completeness-verdict.test.sh
+suite-runner-sentinel	tests/ci/suites/check-suite-completeness.test.sh	check "$basename reached its end" "1" "$has_sentinel"	check "$basename reached its end" "1" "1"	tests/ci/suites/check-suite-completeness-verdict.test.sh
+group-per-run-shell-ci	.github/workflows/reusable-shell-ci.yml	shell-ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}	shell-ci-${{ github.workflow }}-${{ github.ref }}	tests/ci/policy/rules/cancel-policy.test.sh
+group-per-run-workflow-lint	.github/workflows/reusable-workflow-lint.yml	workflow-lint-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}	workflow-lint-${{ github.workflow }}-${{ github.ref }}	tests/ci/policy/rules/cancel-policy.test.sh
+group-per-run-line-limit	.github/workflows/reusable-line-limit.yml	line-limit-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}	line-limit-${{ github.workflow }}-${{ github.ref }}	tests/ci/policy/rules/cancel-policy.test.sh
+group-per-run-schedule-freshness	.github/workflows/reusable-schedule-freshness.yml	schedule-freshness-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}	schedule-freshness-${{ github.workflow }}-${{ github.ref }}	tests/ci/policy/rules/cancel-policy.test.sh
+group-per-run-dependabot-freshness	.github/workflows/reusable-dependabot-freshness.yml	dependabot-freshness-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}	dependabot-freshness-${{ github.workflow }}-${{ github.ref }}	tests/ci/policy/rules/cancel-policy.test.sh
+group-per-run-dco	.github/workflows/reusable-dco.yml	dco-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}	dco-${{ github.workflow }}-${{ github.ref }}	tests/ci/policy/rules/cancel-policy.test.sh
+group-per-run-empty-diff	.github/workflows/reusable-empty-diff.yml	empty-diff-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}	empty-diff-${{ github.workflow }}-${{ github.ref }}	tests/ci/policy/rules/cancel-policy.test.sh
+group-per-run-audit	.github/workflows/audit.yml	audit-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}	audit-${{ github.workflow }}-${{ github.ref }}	tests/ci/policy/rules/cancel-policy.test.sh
+group-rule-push	tests/ci/policy/rules/cancel-policy.test.sh	grep -qE '^  (push|workflow_call):' "$f" || continue	grep -qE '^  (workflow_call):' "$f" || continue	tests/ci/policy/rules/cancel-policy.test.sh
+group-rule-reusable	tests/ci/policy/rules/cancel-policy.test.sh	grep -qE '^  (push|workflow_call):' "$f" || continue	grep -qE '^  (push):' "$f" || continue	tests/ci/policy/rules/cancel-policy.test.sh
+group-rule-form	tests/ci/policy/rules/cancel-policy.test.sh	*"$PER_RUN"*) continue ;;	*"github.run_id"*) continue ;;	tests/ci/policy/rules/cancel-policy.test.sh
+hash-of-string-compare	scripts/release/render-formulae.sh	$2 "" == a ""	$2 == a	tests/release/render-formulae/render-formulae-hash-of.test.sh
+netflags-proto	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh	(?:^|\s)--proto\s+=https(?:\s|$)	(?:^|\s)--proto\s+(?:\s|$)	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
+netflags-proto-redir	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh	(?:^|\s)--proto-redir\s+=https(?:\s|$)	(?:^|\s)--proto-redir\s+(?:\s|$)	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
+netflags-connect-timeout	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh	(?:^|\s)--connect-timeout\s+[0-9$]	(?:^|\s)--connect-timeout\s*	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
+netflags-max-time	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh	(?:^|\s)--max-time\s+[0-9$]	(?:^|\s)--max-time\s*	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
+netflags-max-filesize	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh	(?:^|\s)--max-filesize\s+[0-9$]	(?:^|\s)--max-filesize\s*	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
+netflags-comment-skipped	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh	if line.lstrip().startswith("#") or not CURL.search(line):	if not CURL.search(line):	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
+netflags-empty-scan	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh	if curls == 0:	if False:	tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
+grace-deepen	.github/workflows/reusable-schedule-freshness.yml	git fetch --quiet --unshallow --no-tags origin >/dev/null 2>&1 || true	true	tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.test.sh
+grace-checkout-depth	.github/workflows/reusable-schedule-freshness.yml	fetch-depth: 1	fetch-depth: 0	tests/ci/reusable/reusable-schedule-freshness/reusable-schedule-freshness-grace.test.sh
+claims-path-exists	tests/ci/docs/documented-claims.test.sh	[ -e "$2/$path" ] || printf	true || printf	tests/ci/docs/documented-claims.test.sh
+claims-venv-package	tests/ci/docs/documented-claims.test.sh	&& ! printf '%s' "$need" | grep -q 'python3-venv'	&& false	tests/ci/docs/documented-claims.test.sh
+claims-rollback-gh	tests/ci/docs/documented-claims.test.sh	grep -qE '`gh`' "$1" ||	true ||	tests/ci/docs/documented-claims.test.sh
+claims-counts-equal	tests/ci/docs/documented-claims.test.sh	"$first" = "$second" ] && [ -n "$first" ]	-n "$first" ] && [ -n "$first" ]	tests/ci/docs/documented-claims.test.sh
+roster-extra-column	scripts/release/render-formulae.sh	[ "${#pipes}" -le 9 ] || {	true || {	tests/release/render-formulae/render-formulae-roster-policy.test.sh
+roster-duplicate	scripts/release/render-formulae.sh	if [ -n "${seen_formulae[$formula]:-}" ]; then	if false; then	tests/release/render-formulae/render-formulae-roster-policy.test.sh
+step-script-fold	tests/fixtures/ci/step-script.sh	if style == ">":	if False:	tests/ci/suites/step-script.test.sh
+step-script-indicator	tests/fixtures/ci/step-script.sh	indent = key + explicit if explicit else None	indent = None	tests/ci/suites/step-script.test.sh
+step-script-missing	tests/fixtures/ci/step-script.sh	sys.exit("step_script: no step named %r in %s" % (name, path))	pass	tests/ci/suites/step-script.test.sh
+step-script-block	tests/fixtures/ci/step-script.sh	sys.exit("step_script: the step %r of %s has no block scalar run:" % (name, path))	pass	tests/ci/suites/step-script.test.sh
+step-script-next-step	tests/fixtures/ci/step-script.sh	    if re.match(r"^\s*-\s+(name|uses):", lines[i]) and i > start + 1:	    if False:	tests/ci/suites/step-script.test.sh
+pq-requirement-rule	tests/release/release-signature.test.sh	if [ -z "$(committed RELEASE_PQ_REQUIRED "$1")" ] || [ -n	if true || [ -n	tests/release/release-signature.test.sh
+sort-pinned-shell-ci-1	.github/workflows/reusable-shell-ci.yml	LC_ALL=C sort -u || true)"	sort -u || true)"	tests/ci/policy/rules/locale-pinned.test.sh
+sort-pinned-dependabot-freshness-2	.github/workflows/reusable-dependabot-freshness.yml	LC_ALL=C sort -u \	sort -u \	tests/ci/policy/rules/locale-pinned.test.sh
+sort-pinned-dependabot-freshness-3	.github/workflows/reusable-dependabot-freshness.yml	LC_ALL=C sort -V | tail -n 1 || true)"	sort -V | tail -n 1 || true)"	tests/ci/policy/rules/locale-pinned.test.sh
+sort-pinned-dependabot-freshness-4	.github/workflows/reusable-dependabot-freshness.yml	LC_ALL=C sort -V | tail -n 1)" != "$tag" ]; then	sort -V | tail -n 1)" != "$tag" ]; then	tests/ci/policy/rules/locale-pinned.test.sh
+sort-pinned-dependabot-freshness-5	.github/workflows/reusable-dependabot-freshness.yml	LC_ALL=C sort -V | tail -n 1)" != "$version" ]; then	sort -V | tail -n 1)" != "$version" ]; then	tests/ci/policy/rules/locale-pinned.test.sh
+sort-pinned-dependabot-freshness-6	.github/workflows/reusable-dependabot-freshness.yml	LC_ALL=C sort -u | wc -l | tr -d ' ')"	sort -u | wc -l | tr -d ' ')"	tests/ci/policy/rules/locale-pinned.test.sh
+pr-superseded-no-concurrency	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh	found.append(f"{name}: job {key} has no concurrency and the workflow has none")	found.append("")	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
+pr-superseded-cancel	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh	if str(conc.get("cancel-in-progress", "")).strip() != WANT_CANCEL:	if False:	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
+pins-enumerated-as-keys	.github/workflows/reusable-dependabot-freshness.yml	grep -rhE '^[[:space:]]*(-[[:space:]]+)?uses:	grep -rhE 'uses:	tests/ci/reusable/reusable-dependabot-freshness.test.sh
+pins-counted-as-keys	.github/workflows/reusable-dependabot-freshness.yml	grep -rhoE '^[[:space:]]*(-[[:space:]]+)?uses:	grep -rhoE 'uses:	tests/ci/reusable/reusable-dependabot-freshness.test.sh

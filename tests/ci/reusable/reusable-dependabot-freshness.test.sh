@@ -46,26 +46,9 @@ check() { # <description> <expected> <actual>
 	fi
 }
 
-# Pull one step's `run:` body out of a workflow, dedented, so it can be run.
-# Same helper as tests/ci/reusable/reusable-dco.test.sh: the point is to exercise the
-# shell as it ships rather than a copy of it that can drift.
-step_script() { # $1=workflow path  $2=step name substring
-	python3 - "$1" "$2" <<'PY'
-import sys
-lines = open(sys.argv[1]).read().splitlines()
-start = next(i for i, l in enumerate(lines) if "name: " + sys.argv[2] in l)
-run = next(i for i, l in enumerate(lines) if i > start and l.strip() == "run: |")
-body = []
-for line in lines[run + 1:]:
-    if not line.strip():
-        body.append("")
-        continue
-    if not line.startswith(" " * 10):
-        break
-    body.append(line[10:])
-print("\n".join(body))
-PY
-}
+# The shell of a step, read out of the workflow as it ships.
+# shellcheck disable=SC1091 # the path is resolved at run time
+. "$HERE/tests/fixtures/ci/step-script.sh"
 
 # Fake `gh`. Appends its argv (NUL-separated) to STUB_LOG and prints line
 # `call_index` of STUB_RESPONSES. An empty line is exactly what
@@ -449,6 +432,28 @@ pypi cryptography 50.1.0
 rc=0; PIP_ROOT="$WORK/pip-current" PIP_CONFIG="$WORK/pip-current/.github/dependabot.yml" run_step "$MAX_AGE_DAYS" "$WORK/recent.resp" "$WORK/wf-current" >/dev/null || rc=$?
 check "within the limit a pip pin that is behind is not asked about" "0" "$rc"
 check "and PyPI was not asked" "0" "$(pypi_calls | tr -d ' ')"
+
+# --- text that names a pin is not a pin ---------------------------------------------------
+# The enumeration used to take every `uses: owner/repo@<sha>` anywhere in a workflow, so
+# the text of a run: block that mentioned one (an echo, a message, a planted example) was
+# asked about upstream and reported as a pin that could not be read, a false red in the
+# job that is meant to say whether pins are behind. Only a key counts. The same silence,
+# with and without that text, has to say the same thing.
+fixture "$WORK/wf-prose" "actions/checkout v7.0.1"
+upstream actions/checkout v7.0.1
+{
+	echo "      - run: |"
+	echo "          echo \"uses: owner/prose@0000000000000000000000000000000000000000 # v1.0.0\""
+	echo "          echo uses: owner/other@0000000000000000000000000000000000000000"
+} >> "$WORK/wf-prose/ci.yml"
+fixture "$WORK/wf-bare" "actions/checkout v7.0.1"
+for dir in wf-bare wf-prose; do
+	out="$(run_step "$MAX_AGE_DAYS" "$WORK/old.resp" "$WORK/$dir")"; rc=$?
+	check "a silence over the limit with its one pin current passes ($dir)" "0" "$rc"
+	check "and counts the one pin, not the text that names two more ($dir)" "1" \
+		"$(printf '%s' "$out" | grep -c 'every one of the 1 pinned action(s) is at its newest upstream tag')"
+	check "and asked upstream about that pin only ($dir)" "1" "$(git_calls | tr -d ' ')"
+done
 
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

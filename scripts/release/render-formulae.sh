@@ -335,7 +335,9 @@ PY
 # attacker-influenced, because whoever can publish a release controls them.
 hash_of() { # $1=asset
 	local matches count digest
-	matches="$(awk -v a="$1" '$2 == a { print $1 }' "$work/SHA256SUMS")"
+	# Compared as text. awk compares two fields that look like numbers as numbers,
+	# so an asset called 1e5 would match the line of one called 100000.
+	matches="$(awk -v a="$1" '$2 "" == a "" { print $1 }' "$work/SHA256SUMS")"
 	[ -n "$matches" ] || return 1
 	count="$(printf '%s\n' "$matches" | wc -l)"
 	[ "$count" -eq 1 ] || {
@@ -570,7 +572,18 @@ render_product() { # $1=table entry
 	local repo formula cls licence desc version_check target tmp
 	local mac_arm mac_intel linux_arm linux_intel
 	local tag version base install_body
-	local mac_blocks linux_blocks os_blocks mac_expr linux_expr
+	local mac_blocks linux_blocks os_blocks mac_expr linux_expr pipes
+
+	# A row with a column too many does not fail the read below: the surplus
+	# lands in the last variable, and the check of that field sees nothing wrong
+	# with a text that holds a bar. check-formulae.py counts the columns of the
+	# row first and refuses it, and so does the renderer, by the same message. A
+	# row with a column too few is named field by field just below.
+	pipes="${entry//[!|]/}"
+	[ "${#pipes}" -le 9 ] || {
+		echo "::error::the PRODUCTS entry \"$entry\" has $((${#pipes} + 1)) fields, not 10"
+		return 1
+	}
 
 	IFS='|' read -r repo formula cls licence desc \
 		mac_arm mac_intel linux_arm linux_intel version_check <<<"$entry"
@@ -857,6 +870,20 @@ RB
 # it stops the run before anything is rendered: a broken trust anchor or a
 # required product this repository does not publish is not a bad release.
 check_release_configuration || exit 2
+
+# One formula declared twice is rendered twice, the second row over the first, and
+# the file that is committed is whichever came last. check-formulae.py refuses a
+# roster that does it, and the renderer refuses it before it reads a release, by
+# the same words.
+declare -A seen_formulae=()
+for entry in "${PRODUCTS[@]}"; do
+	IFS='|' read -r _ formula _ <<<"$entry"
+	if [ -n "${seen_formulae[$formula]:-}" ]; then
+		echo "::error::the PRODUCTS roster declares $formula twice" >&2
+		exit 2
+	fi
+	seen_formulae["$formula"]=1
+done
 
 # Formula/ is a directory of the repository, and it is where every formula
 # below is written. If it is a symlink, all of those writes land somewhere

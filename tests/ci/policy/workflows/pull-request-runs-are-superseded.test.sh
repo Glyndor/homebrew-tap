@@ -274,25 +274,49 @@ rc=0; out="$(audit "$HERE/.github/workflows")" || rc=$?
 check "every pull request workflow with jobs of its own supersedes the run on the old commit" "0" "$rc"
 [ -z "$out" ] || printf '%s\n' "$out" | sed 's/^/        /'
 
-# The same tree with tests.yml's block removed must be reported, which shows the live
-# check reads that file and not only the planted ones.
-mkdir -p "$WORK/live"
-cp "$HERE"/.github/workflows/*.yml "$WORK/live/"
-python3 -I - "$WORK/live/tests.yml" <<'PY'
+# The live tree with every concurrency block of one workflow removed must be reported
+# under that workflow's name, for each workflow the rule applies to. That shows the check
+# reads the real files and not only the planted ones, and a workflow added later that the
+# rule would cover is covered here without a line being written for it.
+subject() { # $1=workflow file -> prints its name when it triggers on pull_request and has a job of its own
+	python3 -I - "$1" <<'PY'
+import os
+import sys
+
+import yaml
+
+path = sys.argv[1]
+doc = yaml.safe_load(open(path)) or {}
+on = doc.get("on", doc.get(True))
+triggers = set(on) if isinstance(on, dict) else ({on} if isinstance(on, str) else set(on or []))
+own = [j for j in (doc.get("jobs") or {}).values() if isinstance(j, dict) and "runs-on" in j]
+if "pull_request" in triggers and own and not os.path.basename(path).startswith("reusable-"):
+    print(os.path.basename(path))
+PY
+}
+subjects=0
+for wf in "$HERE"/.github/workflows/*.yml; do
+	name="$(subject "$wf")"
+	[ -n "$name" ] || continue
+	subjects=$((subjects + 1))
+	rm -rf "$WORK/live"; mkdir -p "$WORK/live"
+	cp "$HERE"/.github/workflows/*.yml "$WORK/live/"
+	python3 -I - "$WORK/live/$name" <<'PY'
 import re
 import sys
 
 p = sys.argv[1]
 text = open(p).read()
-cut = re.sub(r"(?m)^concurrency:\n(?:[ ]+.*\n)+", "", text, count=1)
+cut = re.sub(r"(?m)^([ ]*)concurrency:\n(?:\1[ ]+.*\n)+", "", text)
 if cut == text:
-    sys.exit("no top-level concurrency block in tests.yml to remove")
+    sys.exit("no concurrency block in " + p + " to remove")
 open(p, "w").write(cut)
 PY
-rc=0; out="$(audit "$WORK/live")" || rc=$?
-check "tests.yml without its concurrency block is reported" "1" "$rc"
-check "and the report names tests.yml and each of its jobs" "tests.yml: job formulae,tests.yml: job mldsa,tests.yml: job products" \
-	"$(printf '%s\n' "$out" | grep -o '^tests.yml: job [a-z]*' | LC_ALL=C sort | paste -sd, -)"
+	rc=0; out="$(audit "$WORK/live")" || rc=$?
+	check "$name without its concurrency is reported" "1" "$rc"
+	check "and the report names $name" "1" "$([ "$(printf '%s\n' "$out" | grep -c "^$name: ")" -ge 1 ] && echo 1 || echo 0)"
+done
+check "the rule applies to at least one workflow of this repository" "1" "$([ "$subjects" -ge 1 ] && echo 1 || echo 0)"
 
 echo
 echo "$pass passed, $fail failed"

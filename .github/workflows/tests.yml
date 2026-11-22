@@ -55,10 +55,13 @@ jobs:
       # list grows to a file the suite reads.
       test-command: >-
         ./tests/ci/suites/check-suite-completeness.test.sh
+        ./tests/ci/suites/check-suite-completeness-verdict.test.sh
+        ./tests/ci/suites/step-script.test.sh
         ./tests/release/render-formulae.test.sh
         ./tests/release/render-formulae/render-formulae-trust.test.sh
         ./tests/release/render-formulae/render-formulae-transfer-limits.test.sh
         ./tests/release/render-formulae/render-formulae-version.test.sh
+        ./tests/release/render-formulae/render-formulae-hash-of.test.sh
         ./tests/release/render-formulae/render-formulae-products.test.sh
         ./tests/release/render-formulae/render-formulae-attestation.test.sh
         ./tests/release/render-formulae/render-formulae-linux-attestation.test.sh
@@ -131,6 +134,7 @@ jobs:
         ./tests/publication/update/update-audits-before-commit.test.sh
         ./tests/ci/policy/rules/jobs-are-bounded.test.sh
         ./tests/ci/policy/rules/network-calls-are-bounded.test.sh
+        ./tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
         ./tests/monitoring/check-suite-on-main.test.sh
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-retry.test.sh
@@ -138,6 +142,7 @@ jobs:
         ./tests/mutation/run-mutations.test.sh
         ./tests/mutation/catalog-reaches-every-script.test.sh
         ./tests/ci/docs/documented-test-command.test.sh
+        ./tests/ci/docs/documented-claims.test.sh
         ./tests/ci/docs/documented-shellcheck-scope.test.sh
       # shellcheck: tests/quality/lint/lint-workflow-shell.test.sh plants a violation and
       # requires the linter to report it, so it needs the linter. The reusable

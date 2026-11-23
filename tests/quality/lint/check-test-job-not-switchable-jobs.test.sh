@@ -163,5 +163,30 @@ check "the job that runs the tests with a condition that can never hold is refus
 check "and it is refused for the if:, naming the reusable and the job" "1" \
 	"$(said "$out" 'job `test` in .github/workflows/reusable-shell-ci.yml carries a job-level `if:`')"
 
+# The gate of audit.yml keeps its whole form. Listing `needs:` and `if:` apart would
+# let a gate lose its `if: always()` and keep passing the rule: the gate is then
+# skipped when a requirement fails, and GitHub counts that as passed.
+GATE=$'name: Audit\non: pull_request\njobs:\n  scope:\n    runs-on: ubuntu-latest\n    steps:\n      - run: true\n  audit:\n    needs: scope\n    if: ${{ !cancelled() && needs.scope.outputs.run_audit != \'false\' }}\n    runs-on: ubuntu-latest\n    steps:\n      - run: true\n  gate:\n%s    runs-on: ubuntu-latest\n    steps:\n      - run: true\n'
+d="$(new)"; sound "$d"; printf -v body "$GATE" $'    if: always()\n    needs: [scope, audit]\n'; workflow "$d" audit.yml "$body"
+out="$(run_in "$d")"; rc=$?
+check "the gate of the audit with its whole form is accepted" "0" "$rc"
+d="$(new)"; sound "$d"; printf -v body "$GATE" $'    needs: [scope, audit]\n'; workflow "$d" audit.yml "$body"
+out="$(run_in "$d")"; rc=$?
+check "the gate of the audit without its if: always() is refused" "1" "$rc"
+check "and it is refused for the missing form, naming the job" "1" \
+	"$(said "$out" 'job `gate` in .github/workflows/audit.yml lacks the whole form')"
+d="$(new)"; sound "$d"; printf -v body "$GATE" $'    if: always()\n'; workflow "$d" audit.yml "$body"
+out="$(run_in "$d")"; rc=$?
+check "the gate of the audit without its needs: is refused" "1" "$rc"
+check "and it is refused for the missing form, naming the job" "1" \
+	"$(said "$out" 'job `gate` in .github/workflows/audit.yml lacks the whole form')"
+d="$(new)"; sound "$d"; printf -v body "$GATE" $'    if: always()\n    needs: [scope]\n'; workflow "$d" audit.yml "$body"
+out="$(run_in "$d")"; rc=$?
+check "the gate of the audit that waits for one job less is refused" "1" "$rc"
+d="$(new)"; sound "$d"; printf -v body "$GATE" $'    if: success()\n    needs: [scope, audit]\n'; workflow "$d" audit.yml "$body"
+out="$(run_in "$d")"; rc=$?
+check "the gate of the audit with another condition is refused" "1" "$rc"
+check "and it is refused for the if:, naming the job" "1" \
+	"$(said "$out" 'job `gate` in .github/workflows/audit.yml carries a job-level `if:`')"
 
 finish

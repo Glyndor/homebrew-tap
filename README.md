@@ -1,15 +1,9 @@
-<div align="center">
-
 # Glyndor Homebrew tap
 
-**Homebrew formulae for Glyndor's signed binaries.**
-The Homebrew counterpart to the signed apt repository at
-[apt.glyndor.net](https://apt.glyndor.net).
+Homebrew formulae for Glyndor software on macOS and Linux, for `x86_64` and `arm64`.
 
 [![Audit](https://github.com/Glyndor/homebrew-tap/actions/workflows/audit.yml/badge.svg)](https://github.com/Glyndor/homebrew-tap/actions/workflows/audit.yml)
 [![update](https://github.com/Glyndor/homebrew-tap/actions/workflows/update.yml/badge.svg)](https://github.com/Glyndor/homebrew-tap/actions/workflows/update.yml)
-
-</div>
 
 ## Install
 
@@ -17,65 +11,67 @@ The Homebrew counterpart to the signed apt repository at
 brew install glyndor/tap/podup
 ```
 
-Upgrades arrive with `brew upgrade`, like any other formula. The tap looks for
-a new release on an hourly schedule, which GitHub often runs late, so a
-release is usually served within a few hours.
+podup needs Podman 6.2.0 or newer, reached through a local socket, and does not
+support Podman 5. On macOS that means a running `podman machine`; on Linux it
+means a Podman installed separately. [podup's platform
+notes](https://github.com/Glyndor/podup/blob/main/docs/docker-migration.md#platforms)
+explain both. Then follow podup's [quick start](https://github.com/Glyndor/podup#quick-start).
 
-| Package | What it is | macOS | Linux |
-| --- | --- | --- | --- |
-| [`podup`](https://github.com/Glyndor/podup) | Docker-compose translator and runner for rootless Podman | this tap | this tap |
+## What is served
 
-On Linux this tap serves the same signed binaries the product publishes for
-`x86_64` and `arm64`. Other Glyndor products ship through
-[apt.glyndor.net](https://apt.glyndor.net).
+| Package | What it is | Platforms |
+| --- | --- | --- |
+| [`podup`](https://github.com/Glyndor/podup) | Run Compose projects on rootless Podman. | macOS and Linux, `x86_64` and `arm64` |
+
+podup is also available from the [Glyndor apt repository](https://github.com/Glyndor/apt)
+for Debian and Ubuntu and from the [Scoop bucket](https://github.com/Glyndor/scoop-bucket)
+for Windows.
+
+## Updates
+
+`brew upgrade` brings new releases. The tap checks for a new release every hour,
+which GitHub often runs late, so a release is usually served within a few hours.
 
 ## What you are trusting
 
-**The checksum in each formula does not come from the release asset.** It
-comes from a `SHA256SUMS` this repository verified against the organisation's
-Ed25519 release key first, the same key the products embed. Each asset is also
+The checksum in each formula does not come from the release asset. It comes
+from a `SHA256SUMS` this repository verified against the organisation's Ed25519
+release key first, the same key the products embed. Each asset is also
 downloaded and its SHA-256 compared with that manifest, and it must carry build
 provenance for the release tag from the product's release workflow, so an old
 binary re-published under a new tag is refused even when its signature is valid.
 
-The verifier also accepts a second signature beside the Ed25519 one: an
-ML-DSA-65 (FIPS 204) signature over the same `SHA256SUMS`. It is a hybrid and
-never a replacement, so the Ed25519 signature is checked first and always, and
-the second one is checked whenever the release carries it. No product publishes
-that second signature yet, so every release today is admitted exactly as it was
-before, and the second signature only starts to protect a release once one
-carries it. A release that carries the second signature while no ML-DSA-65
-public key is configured here is refused, not skipped, and its product stays at
-the last version served until the key is added. The key has to be in this
-repository and in Glyndor/scoop-bucket before a product publishes one.
-
 `brew` reads this repository straight from GitHub, so there is no separate
 server in the path, and a download whose bytes do not match the pinned SHA-256
-is refused.
+is refused. To check a version by hand, compare the `sha256` values in
+`Formula/podup.rb` with the `SHA256SUMS` file attached to the matching podup
+release.
+
+A second, post-quantum release signature (ML-DSA-65) is supported beside the
+Ed25519 one and never replaces it; no ML-DSA-65 key is configured yet, so every
+release is admitted on its Ed25519 signature.
 
 ```mermaid
 flowchart LR
-  R["Product release<br/>SHA256SUMS + .sig"] -->|scheduled pull| V["Verify signature<br/>org Ed25519 release key"]
+  R["Product release<br/>SHA256SUMS + .sig"] -->|hourly pull| V["Verify signature<br/>org Ed25519 release key,<br/>and ML-DSA-65 when the release carries one"]
   V -->|verified| P["Check each asset<br/>checksum + provenance for the tag"]
-  P --> G["Re-render Formula/*.rb<br/>version, URLs, checksums"]
-  G --> C["Validate, then commit to main<br/>GitHub-signed"]
+  P --> G["Re-render the formula<br/>version, URLs, checksums"]
+  G --> C["Validate, then commit to main"]
   C -->|brew upgrade| U["User"]
   V -.->|bad signature| X["run fails<br/>formulae unchanged"]
+  P -.->|no provenance, or another tag| X
 ```
 
-Nothing is pushed here from a product: the tap pulls. The workflow also
-accepts a `repository_dispatch` event of type `release`, which starts the same
-run ahead of the hourly one. Sending it takes a token with write access to this
-repository, and the run reads nothing from the event, so it can bring an update
-forward but cannot change what is published. A bad signature fails the run and
-leaves the formulae untouched, so the failure mode is a tap that stops
+Nothing is pushed here from a product: the tap pulls. A bad signature fails the
+run and leaves the formulae untouched, so the failure mode is a tap that stops
 updating, never one that ships an unverified binary.
-
----
 
 The [threat model](docs/threat-model.md) says what this tap protects, against
 whom, and which test holds each control in place.
 
+---
+
 See [CONTRIBUTING.md](CONTRIBUTING.md). Report a problem via the
 [Security](https://github.com/Glyndor/homebrew-tap/security) tab.
+
 [MIT](LICENSE).

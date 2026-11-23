@@ -1,0 +1,124 @@
+{
+  "checks": [
+    "ML-DSA-65 verifier",
+    "audit gate",
+    "brew style",
+    "dco / Signed-off-by present on every commit",
+    "empty-diff / empty diff",
+    "line-limit / line limit",
+    "products match the generator",
+    "shell / shellcheck",
+    "shell / test",
+    "workflow-lint / workflow-lint"
+  ],
+  "rules": [
+    {
+      "parameters": {
+        "code_scanning_tools": [
+          {
+            "alerts_threshold": "errors",
+            "security_alerts_threshold": "high_or_higher",
+            "tool": "CodeQL"
+          }
+        ]
+      },
+      "type": "code_scanning"
+    },
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
+    {
+      "parameters": {
+        "allowed_merge_methods": [
+          "squash"
+        ],
+        "dismiss_stale_reviews_on_push": true,
+        "dismissal_restriction": {
+          "allowed_actors": [],
+          "enabled": false
+        },
+        "require_code_owner_review": false,
+        "require_extra_approval_for_unattributed_changes": true,
+        "require_last_push_approval": false,
+        "required_approving_review_count": 0,
+        "required_review_thread_resolution": true,
+        "required_reviewers": []
+      },
+      "type": "pull_request"
+    },
+    {
+      "type": "required_linear_history"
+    },
+    {
+      "type": "required_signatures"
+    },
+    {
+      "parameters": {
+        "do_not_enforce_on_create": true,
+        "required_status_checks": [
+          {
+            "context": "shell / test",
+            "integration_id": 15368
+          },
+          {
+            "context": "shell / shellcheck",
+            "integration_id": 15368
+          },
+          {
+            "context": "line-limit / line limit",
+            "integration_id": 15368
+          },
+          {
+            "context": "dco / Signed-off-by present on every commit",
+            "integration_id": 15368
+          },
+          {
+            "context": "workflow-lint / workflow-lint",
+            "integration_id": 15368
+          },
+          {
+            "context": "empty-diff / empty diff",
+            "integration_id": 15368
+          },
+          {
+            "context": "audit gate",
+            "integration_id": 15368
+          },
+          {
+            "context": "brew style",
+            "integration_id": 15368
+          },
+          {
+            "context": "products match the generator",
+            "integration_id": 15368
+          },
+          {
+            "context": "ML-DSA-65 verifier",
+            "integration_id": 15368
+          }
+        ],
+        "strict_required_status_checks_policy": true
+      },
+      "type": "required_status_checks"
+    }
+  ],
+  "rulesets": [
+    {
+      "bypass_actors": [
+        {
+          "actor_id": 4927450,
+          "actor_type": "Integration",
+          "bypass_mode": "always"
+        }
+      ],
+      "enforcement": "active",
+      "id": 23138781,
+      "name": "protect-main-gated",
+      "updated_at": "2026-11-23T11:10:34Z"
+    }
+  ],
+  "strict": true
+}

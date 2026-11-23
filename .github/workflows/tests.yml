@@ -96,6 +96,8 @@ jobs:
         ./tests/quality/scope/suite-scope-map.test.sh
         ./tests/quality/scope/ci-job-scope-suite-needed.test.sh
         ./tests/quality/scope/ci-job-scope-packages.test.sh
+        ./tests/monitoring/check-push-to-main.test.sh
+        ./tests/monitoring/report-failure.test.sh
         ./tests/ci/suites/mldsa-job-scope.test.sh
         ./tests/ci/suites/lint-job-scope.test.sh
         ./tests/ci/policy/rules/cancel-policy.test.sh

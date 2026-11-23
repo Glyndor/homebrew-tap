@@ -1,0 +1,55 @@
+# The guards of the watchers of main: the guard of every push, the report of a failure and the
+# scheduled read of the last days. Same format as tests/mutation/catalog.txt.
+monitor-report-title	scripts/monitoring/report-failure.sh	case "$title" in *\"* | *\\*)	case "$title" in x)	tests/monitoring/report-failure.test.sh
+monitor-report-args	scripts/monitoring/report-failure.sh	[ -n "$title" ] && [ -n "$repo" ] ||	[ -n "$title" ] ||	tests/monitoring/report-failure.test.sh
+monitor-report-author	scripts/monitoring/report-failure.sh	--state open --author app/github-actions --limit 100	--state open --limit 100	tests/monitoring/report-failure.test.sh
+monitor-report-exact	scripts/monitoring/report-failure.sh	select(.title == \"$title\")	select(.title != \"\")	tests/monitoring/report-failure.test.sh
+monitor-report-create	scripts/monitoring/report-failure.sh	|| { echo "::error::the issue that says so could not be opened"; exit 2; } ;;	|| true ;;	tests/monitoring/report-failure.test.sh
+monitor-report-list	scripts/monitoring/report-failure.sh	*) echo "::error::the open issues could not be listed, so whether this was already reported is not known"; exit 2 ;;	*) ;;	tests/monitoring/report-failure.test.sh
+monitor-push-main-zeros	scripts/monitoring/check-push-to-main.sh	[ "$before" != "$zeros" ] ||	[ -n "$before" ] ||	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-hex	scripts/monitoring/check-push-to-main.sh	if ! { hex40 "$before" && hex40 "$after"; }; then fail	if ! { hex40 "$before" || hex40 "$after"; }; then fail	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-pusher	scripts/monitoring/check-push-to-main.sh	[ -n "$pusher" ] || fail "nobody	[ -n "${pusher}x" ] || fail "nobody	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-paths-read	scripts/monitoring/check-push-to-main.sh	[ -r "$paths_file" ] ||	[ -n "$paths_file" ] ||	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-actors-read	scripts/monitoring/check-push-to-main.sh	[ -r "$actors_file" ] ||	[ -n "$actors_file" ] ||	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-paths-some	scripts/monitoring/check-push-to-main.sh	[ "${#allowed[@]}" -gt 0 ] ||	[ "${#allowed[@]}" -ge 0 ] ||	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-actors-some	scripts/monitoring/check-push-to-main.sh	[ "${#actors[@]}" -gt 0 ] ||	[ "${#actors[@]}" -ge 0 ] ||	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-required-some	scripts/monitoring/check-push-to-main.sh	[ "${#required[@]}" -gt 0 ] ||	[ "${#required[@]}" -ge 0 ] ||	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-r1-parents	scripts/monitoring/check-push-to-main.sh	if [ "$nparents" != 1 ] ||	if [ "$nparents" -lt 1 ] ||	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-r1-line	scripts/monitoring/check-push-to-main.sh	|| [ "$parent" != "$previous" ]; then	|| false; then	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-last	scripts/monitoring/check-push-to-main.sh	[ "$last" = "$after" ] ||	[ -n "$last" ] ||	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-pull-one	scripts/monitoring/check-push-to-main.sh	length == 1 and (.[0]	length >= 1 and (.[0]	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-pull-merged	scripts/monitoring/check-push-to-main.sh	.merged_at != null and .merge_commit_sha == $sha	true and .merge_commit_sha == $sha	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-pull-merge-commit	scripts/monitoring/check-push-to-main.sh	and .merge_commit_sha == $sha and .base.ref == "main" and .head	and true and .base.ref == "main" and .head	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-pull-fork	scripts/monitoring/check-push-to-main.sh	.head.repo.full_name == $repo)	true)	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-committer	scripts/monitoring/check-push-to-main.sh	if [ -n "$number" ] && [ "$committer" = web-flow ] && [ "$verified" = true ]; then	if [ -n "$number" ] && [ "$verified" = true ]; then	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-verified	scripts/monitoring/check-push-to-main.sh	if [ -n "$number" ] && [ "$committer" = web-flow ] && [ "$verified" = true ]; then	if [ -n "$number" ] && [ "$committer" = web-flow ]; then	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-bypass-exact	scripts/monitoring/check-push-to-main.sh	for a in "${actors[@]}"; do [ "$a" = "$1" ] && return 0; done; return 1; }	for a in "${actors[@]}"; do [ "$a" != "" ] && return 0; done; return 1; }	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-updater-exact	scripts/monitoring/check-push-to-main.sh	is_updater() { [ -n "$1" ] && [ "$1" = "$updater" ]; }	is_updater() { [ -n "$1" ]; }	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-updater-first	scripts/monitoring/check-push-to-main.sh	updater="${actors[0]}"	updater="${actors[-1]}"	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-generated-prefix	scripts/monitoring/check-push-to-main.sh	case "$f" in "$p"*) return 0 ;; esac; done; return 1; }	case "$f" in *"$p"*) return 0 ;; esac; done; return 1; }	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-generated-empty	scripts/monitoring/check-push-to-main.sh	under_generated() { local f="$1" p; [ -n "$f" ] || return 1;	under_generated() { local f="$1" p; [ -n "$f" ] || return 0;	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-tree	scripts/monitoring/check-push-to-main.sh	[ -n "$(tree_of "$sha")" ] && [ "$(tree_of "$sha")" = "$(tree_of "$head")" ] ||	[ -n "$(tree_of "$sha")" ] ||	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-checks-app	scripts/monitoring/check-push-to-main.sh	select(.app.id == 15368)	select(.app.id != 0)	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-checks-all	scripts/monitoring/check-push-to-main.sh	all(.[]; .conclusion == "success")	any(.[]; .conclusion == "success")	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-checks-some	scripts/monitoring/check-push-to-main.sh	length > 0 and all(.[]	length >= 0 and all(.[]	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-checks-attempts	scripts/monitoring/check-push-to-main.sh	&filter=all&per_page=100" 2>/dev/null)" || runs=""	&per_page=100" 2>/dev/null)" || runs=""	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-r4-pusher	scripts/monitoring/check-push-to-main.sh	if ! is_updater "$pusher"; then	if false; then	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-r4-author	scripts/monitoring/check-push-to-main.sh	if ! is_updater "$author" || [ "$committer" != web-flow ] || [ "$verified" != true ]; then	if [ "$committer" != web-flow ] || [ "$verified" != true ]; then	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-r4-committer	scripts/monitoring/check-push-to-main.sh	if ! is_updater "$author" || [ "$committer" != web-flow ] || [ "$verified" != true ]; then	if ! is_updater "$author" || [ "$verified" != true ]; then	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-r4-verified	scripts/monitoring/check-push-to-main.sh	if ! is_updater "$author" || [ "$committer" != web-flow ] || [ "$verified" != true ]; then	if ! is_updater "$author" || [ "$committer" != web-flow ]; then	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-r4-files-limit	scripts/monitoring/check-push-to-main.sh	(.files | length) < 300 then .files[]	(.files | length) > 0 and (.files | length) < 3000 then .files[]	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-r4-rename	scripts/monitoring/check-push-to-main.sh	.files[] | .filename, (.previous_filename // empty) else empty end	.files[] | .filename else empty end	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-whole-only-direct	scripts/monitoring/check-push-to-main.sh	if [ "$direct_all" = 1 ] && [ "$bad" = 0 ]; then	if false; then	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-pull-base	scripts/monitoring/check-push-to-main.sh	and .base.ref == "main" and .head.repo	and .base.ref != "" and .head.repo	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-checks-count	scripts/monitoring/check-push-to-main.sh	(.check_runs | length) == .total_count	true	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-whole-direct-flag	scripts/monitoring/check-push-to-main.sh	direct_all=0	direct_all=1	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-exit	scripts/monitoring/check-push-to-main.sh	[ "$bad" = 0 ] || exit 1	[ "$bad" = 0 ] || exit 0	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-counts	scripts/monitoring/check-push-to-main.sh	[ "$total" -gt 0 ] && [ "$(grep -c . "$tmp/commits.jsonl")" = "$total" ] ||	[ "$total" -ge 0 ] ||	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-cap	scripts/monitoring/check-push-to-main.sh	[ "$total" -le "$max" ] ||	[ "$total" -le 100000 ] ||	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-associated-read	scripts/monitoring/check-push-to-main.sh	[ -n "$associated" ] || {	[ -n "${associated}x" ] || {	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-associated-refuse	scripts/monitoring/check-push-to-main.sh	if [ "$associated" != 0 ] && { [ -z "$merger" ] || bypasses "$merger"; }; then	if false; then	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-whole-rename	scripts/monitoring/check-push-to-main.sh	jq -c '[.files[] | .filename, (.previous_filename // empty)]' "$tmp/page.json"	jq -c '[.files[] | .filename]' "$tmp/page.json"	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-whole-some	scripts/monitoring/check-push-to-main.sh	[ "$(jq 'length' "$tmp/files.json")" -gt 0 ] &&	[ "$(jq 'length' "$tmp/files.json")" -ge 0 ] &&	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-whole-limit	scripts/monitoring/check-push-to-main.sh	[ "$(jq 'length' "$tmp/files.json")" -lt 300 ] ||	[ "$(jq 'length' "$tmp/files.json")" -lt 3000 ] ||	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-pages-empty	scripts/monitoring/check-push-to-main.sh	[ "$(jq '.commits | length' "$tmp/page.json")" -gt 0 ] ||	[ "$(jq '.commits | length' "$tmp/page.json")" -ge 0 ] ||	tests/monitoring/check-push-to-main.test.sh
+monitor-push-main-associated-merger	scripts/monitoring/check-push-to-main.sh	{ [ -z "$merger" ] || bypasses "$merger"; }	{ bypasses "$merger"; }	tests/monitoring/check-push-to-main.test.sh

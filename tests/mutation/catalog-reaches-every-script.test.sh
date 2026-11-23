@@ -44,9 +44,10 @@ check() { # <description> <expected> <actual>
 # line naming the script that is exempt, prefixed "exempt".
 unmutated() {
 	local root="$1" script area name suite
-	local catalogue="$root/tests/mutation/catalog.txt" runner="$root/tests/mutation/run-mutations.sh"
+	local runner="$root/tests/mutation/run-mutations.sh"
 	local mutated excluded
-	mutated="$(awk -F'\t' '!/^[[:space:]]*#/ && NF == 5 { print $2 }' "$catalogue" | LC_ALL=C sort -u)"
+	# catalog.txt and every file of catalog.d/, which the runner reads as one catalogue.
+	mutated="$(cat "$root/tests/mutation/catalog.txt" "$root"/tests/mutation/catalog.d/*.txt 2>/dev/null | awk -F'\t' '!/^[[:space:]]*#/ && NF == 5 { print $2 }' | LC_ALL=C sort -u)"
 	excluded="$(awk '
 		/^EXCLUDED(_SUITES)?=\(/ { inside = 1; next }
 		inside && /^\)/ { inside = 0 }
@@ -78,7 +79,7 @@ done < "$WORK/here"
 check "every script under scripts/ is mutated by the catalogue, or its suite cannot run in the sweep" "0" \
 	"$(grep -vc '^exempt ' "$WORK/here")"
 check "and the catalogue mutates at least one script, so the walk read something" "1" \
-	"$(awk -F'\t' '!/^[[:space:]]*#/ && NF == 5 && $2 ~ /^scripts\// { found = 1 } END { print found + 0 }' "$HERE/tests/mutation/catalog.txt")"
+	"$(cat "$HERE/tests/mutation/catalog.txt" "$HERE"/tests/mutation/catalog.d/*.txt 2>/dev/null | awk -F'\t' '!/^[[:space:]]*#/ && NF == 5 && $2 ~ /^scripts\// { found = 1 } END { print found + 0 }')"
 
 # --- a planted tree, so the walk is seen to find what it is for ------------------
 toy() { # <name>: a tree with two scripts, a catalogue that mutates the first and a runner excluding nothing

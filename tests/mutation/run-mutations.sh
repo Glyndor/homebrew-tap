@@ -76,11 +76,23 @@ REPO="$(cd "$REPO" 2>/dev/null && pwd)" || {
 	echo "run-mutations.sh: no repository at $REPO" >&2
 	exit 2
 }
-[ -n "$CATALOG" ] || CATALOG="$REPO/tests/mutation/catalog.txt"
-[ -f "$CATALOG" ] || {
-	echo "run-mutations.sh: no catalogue at $CATALOG" >&2
-	exit 2
-}
+# Without --catalog the catalogue is catalog.txt and every file of catalog.d/ after it, in the
+# order LC_ALL=C sorts their names, so that no file has to hold more than the line limit allows.
+# They share one set of ids.
+if [ -n "$CATALOG" ]; then
+	CATALOGS=("$CATALOG")
+else
+	CATALOGS=("$REPO/tests/mutation/catalog.txt")
+	if [ -d "$REPO/tests/mutation/catalog.d" ]; then
+		while IFS= read -r part; do CATALOGS+=("$part"); done < <(LC_ALL=C find "$REPO/tests/mutation/catalog.d" -maxdepth 1 -type f -name '*.txt' | LC_ALL=C sort)
+	fi
+fi
+for part in "${CATALOGS[@]}"; do
+	[ -f "$part" ] || {
+		echo "run-mutations.sh: no catalogue at $part" >&2
+		exit 2
+	}
+done
 
 # --- the suites that cannot run in a copy without git metadata ---------------
 #
@@ -122,6 +134,7 @@ OLDS=()
 NEWS=()
 TESTS=()
 
+for part in "${CATALOGS[@]}"; do
 while IFS= read -r line || [ -n "$line" ]; do
 	trimmed="${line#"${line%%[![:space:]]*}"}"
 	[ -n "$trimmed" ] || continue
@@ -149,7 +162,8 @@ while IFS= read -r line || [ -n "$line" ]; do
 	OLDS+=("$f3")
 	NEWS+=("$f4")
 	TESTS+=("$f5")
-done < "$CATALOG"
+done < "$part"
+done
 
 # The catalogue has to hold something, and every id has to be its own: an empty one reads
 # as a green run of nothing, and a repeated id lets a selection skip the second entry.

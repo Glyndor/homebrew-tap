@@ -48,6 +48,7 @@ scripts/quality/hygiene/check-doc-anchors.sh
 scripts/quality/hygiene/check-editorconfig.sh
 scripts/quality/coverage/check-suites-wired.sh
 scripts/quality/lint/check-test-job-not-switchable.sh
+scripts/quality/lint/switch-rule-forms.json
 scripts/quality/coverage/check-test-coverage.sh
 scripts/quality/lint/check-tooling-isolation.sh
 scripts/quality/scope/ci-job-scope.sh

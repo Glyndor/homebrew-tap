@@ -1,7 +1,7 @@
 # The files this repository and Glyndor/scoop-bucket carry as exact copies.
 #
 # scripts/monitoring/check-channel-drift.sh reads this file and compares every
-# path listed here with the copy the tap publishes on its main branch. A listed
+# path listed here with the copy the bucket publishes on its main branch. A listed
 # path whose text differs, or that is missing on either side, fails the check.
 #
 # One path per line, relative to the repository root. Whole-line comments and

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Fail when a file this repository shares with Glyndor/scoop-bucket has drifted
-# from the copy the tap publishes on its main branch.
+# from the copy the bucket publishes on its main branch.
 #
 # WHY THIS CHECK EXISTS
 #

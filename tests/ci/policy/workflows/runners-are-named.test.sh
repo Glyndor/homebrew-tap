@@ -7,7 +7,8 @@
 #     reason each may keep a floating label;
 #   * a matrix with `fail-fast: false` keeps spending runner minutes on the
 #     other legs after one has already decided the run, and one that leaves it
-#     out is the same as true. Every matrix says `fail-fast: true`.
+#     out is the same as true. Every matrix says `fail-fast: true`, except the ones
+#     listed below, whose legs each answer a question of their own and say `fail-fast: false`.
 #
 # The exceptions are an exact list of (workflow, job): a new job with a floating
 # label is refused until somebody lists it and writes why. The checker is shown
@@ -30,7 +31,13 @@ FLOATING = {
 }
 
 
-def problems(folder, floating):
+# (workflow, job) -> why its legs do not stop each other.
+INDEPENDENT = {
+    ("mutation.yml", "mutations"): "each fragment is a file of the catalogue and answers for its own entries; one that fails does not make what the others found worth less",
+}
+
+
+def problems(folder, floating, independent=frozenset()):
     found = []
     for path in sorted(Path(folder).glob("*.y*ml")):
         spec = yaml.safe_load(path.read_text()) or {}
@@ -41,8 +48,11 @@ def problems(folder, floating):
             if isinstance(label, str) and label.endswith("-latest") and (path.name, job_id) not in floating:
                 found.append(f"{path.name}: job `{job_id}` runs on the floating label {label}")
             matrix = (job.get("strategy") or {}).get("matrix")
-            if matrix is not None and (job.get("strategy") or {}).get("fail-fast") is not True:
-                found.append(f"{path.name}: job `{job_id}` has a matrix that does not say fail-fast: true")
+            wanted = (path.name, job_id) not in independent
+            if matrix is not None and (job.get("strategy") or {}).get("fail-fast") is not wanted:
+                found.append(f"{path.name}: job `{job_id}` has a matrix that does not say fail-fast: {str(wanted).lower()}")
+            if matrix is None and not wanted:
+                found.append(f"{path.name}: job `{job_id}` is listed as independent and has no matrix, so the entry goes")
             if (path.name, job_id) in floating and not (isinstance(label, str) and label.endswith("-latest")):
                 found.append(f"{path.name}: job `{job_id}` is listed as floating and no longer is, so the entry goes")
     return found
@@ -58,10 +68,10 @@ def check(label, expected, actual):
         print(f"FAIL  {label}: expected {expected!r}, got {actual!r}")
 
 
-def planted(body, floating=()):
+def planted(body, floating=(), independent=()):
     with tempfile.TemporaryDirectory() as folder:
         (Path(folder) / "w.yml").write_text("jobs:\n  j:\n" + body)
-        return problems(folder, set(floating))
+        return problems(folder, set(floating), set(independent))
 
 
 check("a named image is accepted", [], planted("    runs-on: ubuntu-26.04\n"))
@@ -82,8 +92,18 @@ check("a matrix that says nothing is refused",
       ["w.yml: job `j` has a matrix that does not say fail-fast: true"],
       planted("    runs-on: ubuntu-26.04\n    strategy:\n      matrix:\n        a: [1, 2]\n"))
 
+MATRIX_OFF = "    runs-on: ubuntu-26.04\n    strategy:\n      fail-fast: false\n      matrix:\n        a: [1, 2]\n"
+check("a matrix that is listed as independent and says fail-fast: false is accepted", [], planted(MATRIX_OFF, independent=[("w.yml", "j")]))
+check("a listed matrix that says fail-fast: true is refused",
+      ["w.yml: job `j` has a matrix that does not say fail-fast: false"],
+      planted("    runs-on: ubuntu-26.04\n    strategy:\n      fail-fast: true\n      matrix:\n        a: [1, 2]\n", independent=[("w.yml", "j")]))
+check("a listed job with no matrix is refused, so the entry cannot outlive its cause",
+      ["w.yml: job `j` is listed as independent and has no matrix, so the entry goes"],
+      planted("    runs-on: ubuntu-26.04\n", independent=[("w.yml", "j")]))
+check("a job that is not listed still needs fail-fast: true", ["w.yml: job `j` has a matrix that does not say fail-fast: true"], planted(MATRIX_OFF))
+
 check("every job of this repository names its image and every matrix fails fast", [],
-      problems(Path(sys.argv[1]) / ".github/workflows", set(FLOATING)))
+      problems(Path(sys.argv[1]) / ".github/workflows", set(FLOATING), set(INDEPENDENT)))
 
 print(f"\n{passed} passed, {failed} failed")
 print(f"DONE runners-are-named.test.sh {passed} {failed}")

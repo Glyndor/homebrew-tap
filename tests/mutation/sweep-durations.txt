@@ -1,0 +1,8 @@
+# What the sweep of each fragment of the catalogue costs on a GitHub runner, and how many entries it had then.
+# One line per file of the catalogue: <file> TAB <entries> TAB <seconds> TAB <where it comes from>.
+# tests/ci/policy/workflows/mutation-sweep-is-split-and-bounded.test.sh holds the bound of each fragment in
+# mutation.yml to these figures, scaled to the entries the file has now, with a half on top. Replace an
+# `estimated` line by the time the run prints when the fragment has run on a runner.
+tests/mutation/catalog.txt	260	1227	estimated from the dispatch of 2026-11-22 (run 44972571580): 1067 seconds over 226 entries, scaled to 260 entries
+tests/mutation/catalog.d/monitoring.txt	53	250	estimated from the dispatch of 2026-11-22 (run 44972571580): 1067 seconds over 226 entries, scaled to 53 entries
+tests/mutation/catalog.d/switch-rule.txt	189	892	estimated from the dispatch of 2026-11-22 (run 44972571580): 1067 seconds over 226 entries, scaled to 189 entries

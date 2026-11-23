@@ -377,6 +377,13 @@ tests/ci/policy/workflows/workflow-publish-triggers.test.sh
 tests/ci/policy/workflows/freshness-pr-scope.test.sh
 	.github/workflows/freshness.yml
 
+tests/ci/policy/workflows/mutation-sweep-is-split-and-bounded.test.sh
+	.github/workflows/mutation.yml
+	tests/mutation/catalog.txt
+	tests/mutation/catalog.d/**
+	tests/mutation/sweep-durations.txt
+	tests/ci/policy/workflows/mutation-sweep-is-split-and-bounded.test.sh
+
 # Every scheduled workflow, and the freshness jobs that watch them.
 
 tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh

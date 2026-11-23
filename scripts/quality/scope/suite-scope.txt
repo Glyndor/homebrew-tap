@@ -454,11 +454,35 @@ tests/ci/reusable/reusable-workflow-lint.test.sh
 
 tests/quality/lint/check-test-job-not-switchable.test.sh
 	scripts/quality/lint/check-test-job-not-switchable.sh
-	.github/workflows/reusable-shell-ci.yml
-	.github/workflows/tests.yml
+	.github/workflows/**
 
 tests/quality/lint/check-test-job-not-switchable-inputs.test.sh
 	scripts/quality/lint/check-test-job-not-switchable.sh
+
+tests/quality/lint/check-test-job-not-switchable-jobs.test.sh
+	scripts/quality/lint/check-test-job-not-switchable.sh
+	.github/workflows/**
+	tests/fixtures/ci/switchable-rule.sh
+
+tests/quality/lint/check-test-job-not-switchable-steps.test.sh
+	scripts/quality/lint/check-test-job-not-switchable.sh
+	.github/workflows/**
+	tests/fixtures/ci/switchable-rule.sh
+
+tests/quality/lint/check-test-job-not-switchable-pins.test.sh
+	scripts/quality/lint/check-test-job-not-switchable.sh
+	.github/workflows/**
+	tests/fixtures/ci/switchable-rule.sh
+
+tests/quality/lint/check-test-job-not-switchable-context.test.sh
+	scripts/quality/lint/check-test-job-not-switchable.sh
+	.github/workflows/**
+	tests/fixtures/ci/switchable-rule.sh
+
+tests/quality/lint/check-test-job-not-switchable-checkout.test.sh
+	scripts/quality/lint/check-test-job-not-switchable.sh
+	.github/workflows/**
+	tests/fixtures/ci/switchable-rule.sh
 
 tests/quality/lint/check-tooling-isolation.test.sh
 	scripts/quality/lint/check-tooling-isolation.sh
@@ -725,4 +749,14 @@ tests/mutation/run-mutations.test.sh
 tests/mutation/catalog-reaches-every-script.test.sh
 	tests/mutation/catalog.txt
 	tests/mutation/run-mutations.sh
+	scripts/**
+
+# The map is read against the suites and the workflow list, and the test reads
+# every suite to see which workflows it opens. Its fixtures spell workflows
+# too, so it names the folder.
+
+tests/quality/scope/suite-scope-map.test.sh
+	scripts/quality/scope/suite-scope.txt
+	.github/workflows/**
+	tests/**
 	scripts/**

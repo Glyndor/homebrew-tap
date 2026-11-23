@@ -365,6 +365,12 @@ tests/ci/policy/workflows/workflow-shape.test.sh
 tests/ci/policy/workflows/persist-credentials.test.sh
 	.github/workflows/**
 
+tests/ci/policy/workflows/skip-only-on-an-explicit-false.test.sh
+	.github/workflows/**
+
+tests/ci/policy/workflows/required-checks-are-emitted.test.sh
+	.github/workflows/**
+
 tests/ci/policy/workflows/workflow-publish-triggers.test.sh
 	.github/workflows/update.yml
 
@@ -404,6 +410,9 @@ tests/ci/policy/workflows/brew-style-scope.test.sh
 # The audit gate reads the workflow that fires the audit.
 
 tests/ci/policy/workflows/audit-scope.test.sh
+	.github/workflows/audit.yml
+
+tests/ci/policy/workflows/audit-gate.test.sh
 	.github/workflows/audit.yml
 
 # --- the reusable gates -----------------------------------------------------

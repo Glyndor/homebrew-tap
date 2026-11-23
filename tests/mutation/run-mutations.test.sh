@@ -120,6 +120,9 @@ printf '#!/usr/bin/env bash\nexit 1\n' > "$TOY/tests/broken.test.sh"
 mkdir -p "$TOY/.github/workflows"
 printf 'suites: [a, b]\n' > "$TOY/.github/workflows/w.yml"
 printf '#!/usr/bin/env bash\ngrep -qF "[a, b]" "$(dirname "$0")/../.github/workflows/w.yml" || { echo "FAIL  the workflow names its suites"; exit 1; }\n' > "$TOY/tests/w.test.sh"
+# A data file and a suite that reads it, for the mutations that target JSON.
+printf '{"suites": "alpha"}\n' > "$TOY/.github/w.json"
+printf '#!/usr/bin/env bash\ngrep -qF alpha "$(dirname "$0")/../.github/w.json" || { echo "FAIL  the data names its suites"; exit 1; }\n' > "$TOY/tests/j.test.sh"; chmod +x "$TOY/tests/j.test.sh"
 git -C "$TOY" init -q .
 git -C "$TOY" add -A
 git -C "$TOY" -c user.name=t -c user.email=t@example.invalid commit -q -m base
@@ -188,6 +191,13 @@ check "a mutation of a workflow that its suite notices passes the runner" "0" "$
 printf '%s\t%s\t%s\t%s\t%s\n' yml-syntax .github/workflows/w.yml "[a, b]" "[a, b" tests/w.test.sh >"$CATALOG"
 check "a mutation that breaks a workflow's YAML fails the runner" "1" "$(run)"
 check "and says the workflow has a syntax error" "1" "$(has 'syntax error' "$WORK/out")"
+
+# A data file is mutated like a script, and its syntax is checked as JSON.
+printf '%s\t%s\t%s\t%s\t%s\n' json-dies .github/w.json alpha omega tests/j.test.sh >"$CATALOG"
+check "a mutation of a data file that its suite notices passes the runner" "0" "$(run)"
+printf '%s\t%s\t%s\t%s\t%s\n' json-syntax .github/w.json '"alpha"}' '"alpha' tests/j.test.sh >"$CATALOG"
+check "a mutation that breaks a data file's JSON fails the runner" "1" "$(run)"
+check "and says the file has a syntax error" "1" "$(has 'syntax error' "$WORK/out")"
 
 # A suite that cannot run in a copy without git metadata is excluded, and an
 # entry that names only such a suite cannot be told from an unmutated tree.

@@ -61,6 +61,9 @@ tests/ci/docs/documented-claims.test.sh
 tests/ci/policy/rules/locale-pinned.test.sh
 tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
 tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh
+tests/ci/policy/workflows/workflows-parse-strictly.test.sh
+tests/ci/policy/workflows/runners-are-named.test.sh
+tests/ci/policy/workflows/required-check-names-are-unique.test.sh
 tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
 tests/ci/policy/workflows/workflow-shape.test.sh
 tests/ci/policy/workflows/persist-credentials.test.sh

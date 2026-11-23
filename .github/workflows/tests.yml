@@ -113,6 +113,9 @@ jobs:
         ./tests/ci/policy/workflows/workflow-publish-triggers.test.sh
         ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
         ./tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh
+        ./tests/ci/policy/workflows/workflows-parse-strictly.test.sh
+        ./tests/ci/policy/workflows/runners-are-named.test.sh
+        ./tests/ci/policy/workflows/required-check-names-are-unique.test.sh
         ./tests/ci/policy/workflows/freshness-poll-concurrency.test.sh
         ./tests/ci/policy/workflows/dependabot-groups.test.sh
         ./tests/ci/policy/workflows/workflows-run-their-scripts.test.sh

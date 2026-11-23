@@ -55,6 +55,9 @@ jobs:
   scope:
     # ubuntu-latest on purpose: this job only asks GitHub or git for data and
     # compares strings, so a new image cannot change its verdict.
+    # It stays ubuntu-latest for now: the job writes an output that a condition
+    # reads, and the rule on producers refuses a change to what such a job runs on
+    # unless an earlier pull request listed it. Naming the image is the second step.
     runs-on: ubuntu-latest
     # Only checkout and a local diff; 2 minutes bounds runner/setup stalls.
     # No hosted measurement yet; the decision itself is exercised by audit-scope.test.sh.

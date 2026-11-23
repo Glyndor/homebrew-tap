@@ -1,0 +1,122 @@
+name: Pushes to main
+
+# Every commit that reaches main is either a pull request that was judged on the tree that
+# lands, or a direct push of the updater app, which bypasses the ruleset and writes only the
+# formulae. Any other direct push, with or without a bypass, is judged by nobody, and this is
+# what notices it. It is cheap, it runs no suite, and it has no filter of paths: a push that
+# touches something the app does not write is exactly the one that has to be read.
+#
+# The script and the list of what the app writes are the ones of the commit that main HAD, not
+# the ones that were pushed, so a push cannot change its own judge. That commit is trusted only
+# once the guard has passed on it: a push that slipped past the guard (one that says [skip ci],
+# or one made while the workflow was disabled) would otherwise hand the next push a judge of its
+# own writing. The first step of the guard asks GitHub, in code written here, whether the guard
+# passed on the commit main had, waits for it when it is still running, and nothing of the
+# repository runs before it says yes. A commit that came before the workflow existed has no guard to ask and is
+# the root of the chain: it came to main through a pull request.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  # Every push is judged on its own commits.
+  group: pushes-to-main-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: every commit pushed to main is a pull request or only what the updater writes
+    runs-on: ubuntu-26.04
+    # The first step may wait for the guard of the commit main had, up to a quarter of an hour.
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      checks: read # the runs of the guard on the commit main had
+    steps:
+      - name: Ask GitHub whether the guard passed on the commit main had
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BEFORE: ${{ github.event.before }}
+          GUARD_JOB: every commit pushed to main is a pull request or only what the updater writes
+          ATTEMPTS: "60"
+          PAUSE: "15"
+        run: |
+          set -euo pipefail
+          [[ "$BEFORE" =~ ^[0-9a-f]{40}$ ]] && [[ ! "$BEFORE" =~ ^0+$ ]] || { echo "::error::the commit main had is '$BEFORE', so there is no commit to trust"; exit 1; }
+          [[ "$ATTEMPTS" =~ ^[1-9][0-9]*$ && "$PAUSE" =~ ^[0-9]+$ ]] || { echo "::error::ATTEMPTS and PAUSE must be whole numbers"; exit 1; }
+          # The root of the chain: a commit that has no workflow of the guard in it was never pushed under one.
+          if probe="$(gh api "repos/${REPO}/contents/.github/workflows/pushes-to-main.yml?ref=${BEFORE}" --jq '.type' 2>&1)"; then
+            :
+          else
+            case "$probe" in
+              *"HTTP 404"*) echo "The commit main had has no guard in it: it came through a pull request, before the guard."; exit 0 ;;
+              *) echo "::error::whether the commit main had holds the workflow of the guard cannot be read"; exit 1 ;;
+            esac
+          fi
+          enc="$(jq -rn --arg n "$GUARD_JOB" '$n | @uri')"
+          for attempt in $(seq 1 "$ATTEMPTS"); do
+            runs="$(gh api "repos/${REPO}/commits/${BEFORE}/check-runs?check_name=${enc}&filter=all&per_page=100")" || runs=""
+            verdict="$(printf '%s' "$runs" | jq -r '
+              if (.check_runs | type) == "array" and (.total_count | type) == "number" and (.check_runs | length) == .total_count
+              then [.check_runs[] | select(.app.id == 15368)] as $r
+                | if ($r | length) == 0 then "none"
+                  elif any($r[]; .status != "completed") then "running"
+                  elif all($r[]; .conclusion == "success") then "passed"
+                  else "failed" end
+              else empty end' 2>/dev/null)" || verdict=""
+            case "$verdict" in
+              passed) echo "The guard passed on the commit main had."; exit 0 ;;
+              running) echo "attempt $attempt/$ATTEMPTS: the guard is still running on the commit main had"; sleep "$PAUSE" ;;
+              none) echo "::error::no run of the guard, from GitHub Actions, is on the commit main had ($BEFORE): it was pushed with [skip ci], or its workflow was disabled, so it was judged by nobody and its scripts are not run here"; exit 1 ;;
+              failed) echo "::error::the guard did not pass on the commit main had ($BEFORE), so its scripts are not run here"; exit 1 ;;
+              *) echo "::error::the runs of the guard on the commit main had cannot be read whole"; exit 1 ;;
+            esac
+          done
+          echo "::error::the guard was still running on the commit main had after $ATTEMPTS attempts"
+          exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.before }}
+          persist-credentials: false
+
+      - name: Judge the commits of the push from the commit main had
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          PUSHER: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          bash ./scripts/monitoring/check-push-to-main.sh
+
+  report:
+    name: say it when a commit reached main that nobody judged
+    needs: guard
+    if: ${{ always() && needs.guard.result != 'success' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      # Written here and run on a runner that has checked nothing out: it holds the right to write issues, and the commit
+      # main had may be one that nobody judged.
+      - name: Open an issue unless the workflow's own is open
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: A commit reached main that no pull request judged
+        run: |
+          set -euo pipefail
+          open="$(gh issue list -R "$REPO" --state open --author app/github-actions --limit 100 --json title --jq "[.[] | select(.title == \"$TITLE\")] | length")"
+          [ "$open" != 0 ] || gh issue create -R "$REPO" --title "$TITLE" --label "type:bug" --label "prio:P1" \
+            --body "A push to main brought $COMMIT, or something before it, that is not a merged pull request and is not only what the updater app writes, or the push could not be read, or the commit main had was never judged by this guard: $RUN_URL. Nobody judged what is on main now." >/dev/null
+          exit 1

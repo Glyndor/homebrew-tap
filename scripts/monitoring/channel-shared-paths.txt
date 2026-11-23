@@ -27,8 +27,8 @@
 #   listed: scripts/release/release-signature.sh is one text in both, and so
 #   is scripts/release/products.sh, the reader of their PRODUCTS tables.
 #
-#   scripts/monitoring/check-suite-on-main.sh, which has three different
-#   implementations, one per channel, and is meant to.
+#   scripts/monitoring/main-ruleset.expected.json, which describes the ruleset of main of
+#   each repository and differs by design.
 #
 #   The drift checkers themselves. Each names the repositories it reads, so
 #   the same text in three places would be three wrong files.

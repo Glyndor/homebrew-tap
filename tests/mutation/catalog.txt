@@ -147,8 +147,6 @@ channel-https	scripts/monitoring/check-channel-drift.sh	--proto =https --proto-r
 reusable-https	scripts/monitoring/check-reusable-drift.sh	--proto =https --proto-redir =https --connect-timeout 10 --max-time 60 --max-filesize 1048576	--connect-timeout 10 --max-time 60 --max-filesize 1048576	tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
 render-drift-https	scripts/monitoring/check-render-drift.sh	--proto =https --proto-redir =https --connect-timeout 10 --max-time 60 --max-filesize 1048576	--connect-timeout 10 --max-time 60 --max-filesize 1048576	tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
 render-drift-compared-zero	scripts/monitoring/check-render-drift.sh	if [ "$compared" -eq 0 ]; then	if false; then	tests/monitoring/check-render-drift.test.sh
-suite-on-main-cancelled	scripts/monitoring/check-suite-on-main.sh	select(.status == "completed" and .conclusion != "cancelled")	select(.status == "completed")	tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
-suite-on-main-empty	scripts/monitoring/check-suite-on-main.sh	if [ -z "$picked" ]; then	if false; then	tests/monitoring/check-suite-on-main.test.sh
 render-version-guard	scripts/release/render-formulae.sh	"" | *[!0-9A-Za-z.+-]* | .* | *.)	"" | .* | *.)	tests/release/render-formulae/render-formulae-version.test.sh
 render-symlink	scripts/release/render-formulae.sh	if [ -L "$target" ]; then	if false; then	tests/release/render-formulae/render-formulae-symlink.test.sh
 render-directory	scripts/release/render-formulae.sh	if [ -d "$target" ]; then	if false; then	tests/release/render-formulae/render-formulae-symlink.test.sh

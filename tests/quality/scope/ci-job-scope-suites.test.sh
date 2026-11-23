@@ -447,11 +447,7 @@ check "and none of the suites that read neither" "1" \
 # The list of those suites is written here and not read from the map: a map
 # that stops binding the fixture to one of them is exactly what this case has
 # to catch, and a list read from the map would shrink with it.
-FIXTURE_SUITES="tests/monitoring/check-suite-on-main.test.sh
-tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh
-tests/monitoring/check-suite-on-main/check-suite-on-main-retry.test.sh
-tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
-tests/monitoring/check-render-drift.test.sh
+FIXTURE_SUITES="tests/monitoring/check-render-drift.test.sh
 tests/monitoring/check-render-drift/check-render-drift-drift.test.sh
 tests/monitoring/check-render-drift/check-render-drift-missing.test.sh
 tests/monitoring/check-render-drift/check-render-drift-network.test.sh

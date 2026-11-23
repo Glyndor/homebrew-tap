@@ -384,13 +384,90 @@ jobs:
           # HEAD request from CI.
           brew audit --strict "${names[@]}"
 
+  validate-macos:
+    name: Validate on macOS
+    needs: render
+    # The audit that runs on macOS is the one of the spec a macOS user installs, which is
+    # the one that Homebrew resolves on that system, so the label is the floating one, as
+    # in audit.yml, and the verdict is the one of the macOS a user has today. A push to
+    # main no longer runs audit.yml, so this is where the macOS spec of what is about to be
+    # committed is read, before it lands.
+    runs-on: macos-latest
+    # No secret reaches this job and none may: it runs Homebrew, and Homebrew
+    # installs gems from RubyGems on demand.
+    permissions:
+      contents: read
+    # The validate step runs `brew style` and `brew audit --strict`, and brew
+    # updates itself before doing anything unless told not to. tests.yml
+    # already sets both variables and a bound for exactly that reason (a
+    # `brew style` hung for 45 minutes on 2026-08-11 with neither). The audit
+    # is measured at 25 to 96 seconds on the macOS runner that runs the same
+    # command, with one outlier at 246. Thirty minutes is the bound audit.yml gives the
+    # same command on the same runner, far below the six-hour default.
+    timeout-minutes: 30
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+    # The job runs on every run, and its steps only when something changed,
+    # so that `commit` can depend on it with the default rule: it runs only
+    # when this job succeeded. A skipped job would skip `commit`, and with it
+    # the hourly mint that proves the credential still works.
+    steps:
+      - if: needs.render.outputs.changed == '1'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download the rendered formulae
+        if: needs.render.outputs.changed == '1'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: rendered-formulae
+          path: ${{ runner.temp }}/rendered
+
+      # What is audited has to be what is committed, so the downloaded files
+      # are checked against the render job's digests and only then put in
+      # place of the checkout's Formula/.
+      - name: Put the rendered bytes in the workspace
+        if: needs.render.outputs.changed == '1'
+        env:
+          RENDERED_DIGESTS: ${{ needs.render.outputs.digests }}
+        run: |
+          set -euo pipefail
+          expected="$RUNNER_TEMP/expected.sha256"
+          printf '%s' "$RENDERED_DIGESTS" | base64 -d > "$expected"
+          bash ./scripts/artifacts/formulae-digests.sh place "$RUNNER_TEMP/rendered" . "$expected"
+
+      - name: Audit the macOS spec of the re-rendered formulae
+        if: needs.render.outputs.changed == '1'
+        run: |
+          set -euo pipefail
+          # The same audit as audit.yml, over the formulae about to be committed: the workspace
+          # is linked in as the tap, so what is audited is the rendered bytes and not the
+          # published main branch, and it is trusted after the link.
+          tap_dir="$(brew --repository)/Library/Taps/glyndor/homebrew-tap"
+          mkdir -p "$(dirname "$tap_dir")"
+          ln -s "$GITHUB_WORKSPACE" "$tap_dir"
+          brew trust glyndor/tap
+          shopt -s nullglob
+          names=()
+          for formula in Formula/*.rb; do
+            names+=("glyndor/tap/$(basename "$formula" .rb)")
+          done
+          if [ ${#names[@]} -eq 0 ]; then
+            echo "::error::no formulae found under Formula/; refusing to commit an empty tap"
+            exit 1
+          fi
+          echo "auditing: ${names[*]}"
+          brew audit --strict "${names[@]}"
+
   commit:
     name: Commit
     # Both, and with the default rule: this job runs only when the render and
     # the validation succeeded. It carries no `if:` of its own, because any
     # status function there (`always()`, `!cancelled()`) would let it run
     # after a failed validation.
-    needs: [render, validate]
+    needs: [render, validate, validate-macos]
     # The image is named, as everywhere else: a new one arrives as a commit.
     runs-on: ubuntu-26.04
     # contents:read is enough for GITHUB_TOKEN: the write goes through the

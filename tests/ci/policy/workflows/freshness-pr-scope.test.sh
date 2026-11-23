@@ -39,7 +39,8 @@ pr = on.get("pull_request")
 need = {".github/workflows/freshness.yml",
         ".github/workflows/reusable-dependabot-freshness.yml",
         ".github/workflows/reusable-schedule-freshness.yml",
-        "scripts/monitoring/check-suite-on-main.sh",
+        "scripts/monitoring/check-main-ruleset.sh",
+        "scripts/monitoring/main-ruleset.expected.json",
         "scripts/monitoring/check-tool-versions.sh"}
 if not present:
     print("ok")  # no pull_request trigger at all is also fine
@@ -58,20 +59,20 @@ plant() { # $1 = file, rest = the pull_request block lines
 	local f="$1"; shift
 	{ printf 'on:\n'; printf '  %s\n' "$@"; printf 'jobs: {}\n'; } > "$f"
 }
-FULL=('pull_request:' '  paths:' '    - .github/workflows/freshness.yml' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - scripts/monitoring/check-suite-on-main.sh' '    - scripts/monitoring/check-tool-versions.sh')
+FULL=('pull_request:' '  paths:' '    - .github/workflows/freshness.yml' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - scripts/monitoring/check-main-ruleset.sh' '    - scripts/monitoring/main-ruleset.expected.json' '    - scripts/monitoring/check-tool-versions.sh')
 
 plant "$WORK/c/good.yml" "${FULL[@]}"
-check "the five files and nothing else pass" "ok" "$(scope "$WORK/c/good.yml")"
+check "the six files and nothing else pass" "ok" "$(scope "$WORK/c/good.yml")"
 plant "$WORK/c/unfiltered.yml" 'pull_request:'
 check "an unfiltered pull_request trigger is reported" "the pull_request trigger has no paths filter" "$(scope "$WORK/c/unfiltered.yml")"
-plant "$WORK/c/noself.yml" 'pull_request:' '  paths:' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - scripts/monitoring/check-suite-on-main.sh' '    - scripts/monitoring/check-tool-versions.sh'
+plant "$WORK/c/noself.yml" 'pull_request:' '  paths:' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - scripts/monitoring/check-main-ruleset.sh' '    - scripts/monitoring/main-ruleset.expected.json' '    - scripts/monitoring/check-tool-versions.sh'
 check "a filter that leaves out the workflow itself is reported" \
 	"paths missing: ['.github/workflows/freshness.yml']; paths not allowed: []" "$(scope "$WORK/c/noself.yml")"
 plant "$WORK/c/noscript.yml" 'pull_request:' '  paths:' '    - .github/workflows/freshness.yml' '    - .github/workflows/reusable-dependabot-freshness.yml' '    - .github/workflows/reusable-schedule-freshness.yml' '    - scripts/monitoring/check-tool-versions.sh'
 check "a filter that leaves out the script the suite job runs is reported" \
-	"paths missing: ['scripts/monitoring/check-suite-on-main.sh']; paths not allowed: []" "$(scope "$WORK/c/noscript.yml")"
+	"paths missing: ['scripts/monitoring/check-main-ruleset.sh', 'scripts/monitoring/main-ruleset.expected.json']; paths not allowed: []" "$(scope "$WORK/c/noscript.yml")"
 plant "$WORK/c/wide.yml" "${FULL[@]}" '    - README.md'
-check "a filter wider than the five files is reported" \
+check "a filter wider than the six files is reported" \
 	"paths missing: []; paths not allowed: ['README.md']" "$(scope "$WORK/c/wide.yml")"
 
 plant "$WORK/c/notools.yml" "${FULL[@]:0:${#FULL[@]}-1}"
@@ -80,16 +81,16 @@ check "a filter that leaves out the script the tool-versions job runs is reporte
 
 check "the live freshness workflow passes" "ok" "$(scope "$HERE/.github/workflows/freshness.yml")"
 
-# The suite poll waits up to twenty minutes on a push, so a pull request that is
+# The ruleset check waits up to twenty minutes on a push, so a pull request that is
 # pushed again must cancel the superseded poll, and main and the schedule never.
 poll="$(python3 - "$HERE/.github/workflows/freshness.yml" <<'PY'
 import sys, yaml
-job = yaml.safe_load(open(sys.argv[1]))["jobs"]["tests-on-main"]
+job = yaml.safe_load(open(sys.argv[1]))["jobs"]["ruleset"]
 c = job.get("concurrency") or {}
 print(c.get("cancel-in-progress", "missing"))
 PY
 )"
-check "the suite poll is cancelled by a newer push only on a pull request" \
+check "the ruleset check is cancelled by a newer push only on a pull request" \
 	"\${{ github.event_name == 'pull_request' }}" "$poll"
 
 echo

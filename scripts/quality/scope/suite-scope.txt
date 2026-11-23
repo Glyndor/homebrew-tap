@@ -365,6 +365,22 @@ tests/ci/policy/workflows/workflow-shape.test.sh
 tests/ci/policy/workflows/persist-credentials.test.sh
 	.github/workflows/**
 
+tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh
+	.github/workflows/**
+	tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh
+
+tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
+	.github/workflows/**
+	tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
+
+tests/ci/policy/workflows/main-judges-from-the-commit-it-had.test.sh
+	.github/workflows/**
+	tests/ci/policy/workflows/main-judges-from-the-commit-it-had.test.sh
+
+tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+	.github/workflows/**
+	tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+
 tests/ci/policy/workflows/skip-only-on-an-explicit-false.test.sh
 	.github/workflows/**
 
@@ -622,24 +638,13 @@ tests/governance/check-issue-templates.test.sh
 
 # --- the monitoring gates ---------------------------------------------------
 #
-# The suite-on-main gate reads the run history, not the tree; its script is
-# the only file input. The three suites around it share the fixture.
+# The ruleset watcher reads the rules from GitHub, not the tree; its script and the copy
+# it compares with are the inputs.
 
-tests/monitoring/check-suite-on-main.test.sh
-	scripts/monitoring/check-suite-on-main.sh
-	tests/fixtures/monitoring/**
-
-tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh
-	scripts/monitoring/check-suite-on-main.sh
-	tests/fixtures/monitoring/**
-
-tests/monitoring/check-suite-on-main/check-suite-on-main-retry.test.sh
-	scripts/monitoring/check-suite-on-main.sh
-	tests/fixtures/monitoring/**
-
-tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
-	scripts/monitoring/check-suite-on-main.sh
-	tests/fixtures/monitoring/**
+tests/monitoring/check-main-ruleset.test.sh
+	scripts/monitoring/check-main-ruleset.sh
+	scripts/monitoring/main-ruleset.expected.json
+	tests/monitoring/check-main-ruleset.test.sh
 
 # The guard of what reaches main and the report of a failure that no pull request could block read
 # GitHub, not the tree: their scripts and the list of what the updater app writes are the inputs.

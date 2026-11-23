@@ -1,0 +1,124 @@
+name: Generated on main
+
+# The updater app regenerates the formulae and pushes them to main with no pull request: the
+# ruleset lets it bypass, and that is the only way something reaches main that a pull request
+# did not judge. update.yml validates what it renders before it pushes, and this judges what
+# was pushed, because the bytes that landed are the ones that count and no pull request is
+# there to block. It runs only when a push changes what the app writes (Formula/), and only
+# the jobs that judge that content: not the suites, which a pull request already ran.
+#
+# A failure here has nobody to block, so the last job opens an issue. The paths below are
+# held by tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh against what
+# update.yml commits.
+on:
+  push:
+    branches: [main]
+    paths:
+      - Formula/**
+
+permissions:
+  contents: read
+
+concurrency:
+  # Every push is judged on its own commit.
+  group: generated-on-main-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  products:
+    name: the formulae that landed match the generator
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      # The tree that judges is the one main HAD, taken first, and every script below is run from it. What was pushed is
+      # brought in afterwards as data, the formulae and nothing else, so nothing of the pushed commit runs in this job: a
+      # push that changes a script cannot change the check that reads it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.before }}
+          persist-credentials: false
+
+      - name: What was pushed, as data
+        env:
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$AFTER"
+          rm -rf Formula
+          git checkout "$AFTER" -- Formula
+
+      - name: Formula/ must match PRODUCTS
+        run: |
+          set -euo pipefail
+          bash ./scripts/artifacts/check-products-consistent.sh
+
+      - name: Every formula must match what the generator emits
+        run: |
+          set -euo pipefail
+          bash ./scripts/artifacts/check-formulae.sh
+
+      # What the pull requests run, and a push of the app would otherwise skip: a formula never goes back to an older
+      # release. It judges what was pushed, in the working tree, against the commit main had.
+      - name: A formula never goes back to an older release
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          bash ./scripts/artifacts/check-version-monotonic.sh "$BEFORE"
+
+  style:
+    name: brew style of the formulae that landed
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+    steps:
+      # The tree that judges is the one main HAD, taken first, and every script below is run from it. What was pushed is
+      # brought in afterwards as data, the formulae and nothing else, so nothing of the pushed commit runs in this job: a
+      # push that changes a script cannot change the check that reads it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.before }}
+          persist-credentials: false
+
+      - name: What was pushed, as data
+        env:
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$AFTER"
+          rm -rf Formula
+          git checkout "$AFTER" -- Formula
+
+      - name: Validate formulae with the preinstalled Homebrew
+        run: |
+          set -euo pipefail
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew style Formula/*.rb
+
+  report:
+    name: say it when a formula that landed fails
+    needs: [products, style]
+    if: ${{ always() && (needs.products.result != 'success' || needs.style.result != 'success') }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      # Written here and run on a runner that has checked nothing out: the report is made by the one job that holds the
+      # right to write issues, and it must not run code that comes from the repository, which a push can change.
+      - name: Open an issue unless the workflow's own is open
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: A formula pushed to main by the updater does not pass
+        run: |
+          set -euo pipefail
+          open="$(gh issue list -R "$REPO" --state open --author app/github-actions --limit 100 --json title --jq "[.[] | select(.title == \"$TITLE\")] | length")"
+          [ "$open" != 0 ] || gh issue create -R "$REPO" --title "$TITLE" --label "type:bug" --label "prio:P1" \
+            --body "The updater pushed $COMMIT to main and a job that judges what it wrote failed: $RUN_URL. No pull request could block it, so the formulae that are published may be wrong until this is looked at." >/dev/null
+          exit 1

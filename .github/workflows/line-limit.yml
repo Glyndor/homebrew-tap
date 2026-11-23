@@ -5,8 +5,14 @@ name: Line limit
 
 on:
   pull_request:
-  push:
-    branches: [main]
+  # No `push` to main: what lands there came through a pull request that this workflow
+  # judged, on the tree that lands, because the ruleset requires the branch up to date and
+  # the checks that judge the pull request. One actor bypasses it, the app that regenerates
+  # the formulae and pushes them with no pull request; that path is judged by update.yml
+  # before it pushes and by generated-on-main.yml and audit.yml after. freshness.yml reads
+  # the ruleset and compares it with the copy in the repository.
+  # tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh holds the list of the
+  # workflows that do run on a push, with the reason of each.
 
 permissions:
   contents: read

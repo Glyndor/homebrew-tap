@@ -69,6 +69,12 @@ ruleset, which is assumed to move on any edit, the bypass list included; that ha
 measured. When you change the ruleset on purpose, update the copy in a pull request of its
 own, or the next scheduled run opens an issue.
 
+**What installs from the tap is tried, not only read.** `install-from-the-tap.yml` runs when a formula is pushed,
+and on demand, on macOS and on Linux: `brew tap`, `brew install glyndor/tap/<formula>`, the program prints the
+version of the formula, `brew test`, and the formula of the commit before it upgrades to the current one with `brew
+upgrade` (`scripts/monitoring/install-from-the-tap.sh`, tested against a stub of brew; the steps on a runner have not
+run yet). `published-bytes.yml` downloads every asset a formula names and compares it with the formula's digest.
+
 **The validation that runs INSIDE `update.yml` before the commit is the only
 gate between a bad render and `brew install`**, because the bot's push skips the
 required checks. It is covered by `tests/publication/update/update-workflow.test.sh`, which

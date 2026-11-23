@@ -660,6 +660,23 @@ tests/monitoring/report-failure.test.sh
 	scripts/monitoring/report-failure.sh
 	tests/monitoring/report-failure.test.sh
 
+# The install of a formula from the tap and the search of the formula before it read the history of the
+# formulae and the workflow that runs them; the workflow, which runs them on a push, is read by the policy suite.
+
+tests/monitoring/previous-formula.test.sh
+	scripts/monitoring/previous-formula.sh
+
+tests/monitoring/check-published-formulae.test.sh
+	scripts/monitoring/check-published-formulae.sh
+
+tests/monitoring/install-from-the-tap.test.sh
+	scripts/monitoring/install-from-the-tap.sh
+	scripts/monitoring/previous-formula.sh
+
+tests/ci/policy/workflows/install-covers-the-tap.test.sh
+	.github/workflows/install-from-the-tap.yml
+	Formula/**
+
 # The reusable drift gate compares the seven reusables this repository
 # carries, so every one of them is an input of its verdict.
 

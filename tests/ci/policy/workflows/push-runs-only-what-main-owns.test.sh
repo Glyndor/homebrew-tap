@@ -34,10 +34,12 @@ ON_PUSH = {
     "generated-on-main.yml": "the updater app bypasses the ruleset and pushes the formulae with no pull request, so what it pushed is judged here",
     "pushes-to-main.yml": "a commit that reached main with no pull request and that is not what the updater writes is judged by nobody, so this reads every push",
     "audit.yml": "the updater app bypasses the ruleset and pushes the formulae with no pull request, so what it pushed is audited here",
+    "published-bytes.yml": "the updater app bypasses the ruleset and pushes the formulae with no pull request, so the bytes behind what it pushed are read against its digests here",
+    "install-from-the-tap.yml": "the updater app bypasses the ruleset and pushes the formulae with no pull request, so what it pushed is installed from the tap here, as a user does",
 }
 # The workflows of the list that judge what the updater app writes: their `paths` have to cover everything
 # the app commits, read from the step of update.yml that commits it.
-GENERATED = ("generated-on-main.yml", "audit.yml")
+GENERATED = ("generated-on-main.yml", "audit.yml", "install-from-the-tap.yml", "published-bytes.yml")
 # The workflow that judges every push: it has no filter of paths, and it takes its judge, the
 # script and the list, from the commit that main had (`github.event.before`) in every checkout,
 # never from what was pushed, so a push cannot change how it is judged.

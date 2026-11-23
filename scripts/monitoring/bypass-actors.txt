@@ -1,0 +1,2 @@
+# the updater app comes first, and it is the only actor that pushes with no pull request; the others are actors that bypass the ruleset
+glyndor-updater[bot]

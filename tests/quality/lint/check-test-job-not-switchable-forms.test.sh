@@ -230,11 +230,24 @@ plant() { # <file> <job> <condition>
 plant tests.yml formulae "steps.scope.outputs.run_style != 'false'"
 plant tests.yml products "github.event_name == 'pull_request'"
 plant update.yml validate "needs.render.outputs.changed == '1'"
+plant update.yml validate-macos "needs.render.outputs.changed == '1'"
 
 # The job-level forms the forms list for a workflow a repository may not have yet are accepted where they stand.
 base_repo
 printf 'name: Planted\non: workflow_dispatch\njobs:\n  render:\n    runs-on: x\n    steps: [{run: "true"}]\n  validate:\n    needs: render\n    runs-on: x\n    steps: [{run: "true"}]\n  commit:\n    needs: [render, validate]\n    runs-on: x\n    steps: [{run: "true"}]\n' > "$G/.github/workflows/update.yml"
 out="$(run_base "$G" "$BASE")"
 check "the needs the forms list for the jobs of update.yml are not refused" "0" "$(said "$out" 'carries `needs:`')"
+base_repo
+printf 'name: Planted\non: workflow_dispatch\njobs:\n  render:\n    runs-on: x\n    steps: [{run: "true"}]\n  validate:\n    needs: render\n    runs-on: x\n    steps: [{run: "true"}]\n  validate-macos:\n    needs: render\n    runs-on: x\n    steps: [{run: "true"}]\n  commit:\n    needs: [render, validate, validate-macos]\n    runs-on: x\n    steps: [{run: "true"}]\n' > "$G/.github/workflows/update.yml"
+out="$(run_base "$G" "$BASE")"
+check "the needs the forms list for the macOS validation and the commit that waits for it are not refused" "0" "$(said "$out" 'carries `needs:`')"
+base_repo
+printf 'name: Planted\non: push\njobs:\n  products:\n    runs-on: x\n    steps: [{run: "true"}]\n  style:\n    runs-on: x\n    steps: [{run: "true"}]\n  report:\n    needs: [products, style]\n    if: ${{ always() && (needs.products.result != '"'"'success'"'"' || needs.style.result != '"'"'success'"'"') }}\n    runs-on: x\n    steps: [{run: "true"}]\n' > "$G/.github/workflows/generated-on-main.yml"
+out="$(run_base "$G" "$BASE")"
+check "the form the forms list for the job that reports what the updater pushed is not refused" "0" "$(said "$out" 'carries a job-level `if:`')"
+base_repo
+printf 'name: Planted\non: push\njobs:\n  guard:\n    runs-on: x\n    steps: [{run: "true"}]\n  report:\n    needs: guard\n    if: ${{ always() && needs.guard.result != '"'"'success'"'"' }}\n    runs-on: x\n    steps: [{run: "true"}]\n' > "$G/.github/workflows/pushes-to-main.yml"
+out="$(run_base "$G" "$BASE")"
+check "the form the forms list for the job that reports a push nobody judged is not refused" "0" "$(said "$out" 'carries a job-level `if:`')"
 
 finish

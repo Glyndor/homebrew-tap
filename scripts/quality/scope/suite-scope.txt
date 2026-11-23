@@ -634,6 +634,20 @@ tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
 	scripts/monitoring/check-suite-on-main.sh
 	tests/fixtures/monitoring/**
 
+# The guard of what reaches main and the report of a failure that no pull request could block read
+# GitHub, not the tree: their scripts and the list of what the updater app writes are the inputs.
+
+tests/monitoring/check-push-to-main.test.sh
+	scripts/monitoring/check-push-to-main.sh
+	scripts/monitoring/generated-paths.txt
+	scripts/monitoring/bypass-actors.txt
+	scripts/monitoring/main-ruleset.expected.json
+	tests/monitoring/check-push-to-main.test.sh
+
+tests/monitoring/report-failure.test.sh
+	scripts/monitoring/report-failure.sh
+	tests/monitoring/report-failure.test.sh
+
 # The reusable drift gate compares the seven reusables this repository
 # carries, so every one of them is an input of its verdict.
 
@@ -780,6 +794,7 @@ tests/mutation/run-mutations.test.sh
 # excluded suites and the names of the scripts it walks, nothing in them.
 tests/mutation/catalog-reaches-every-script.test.sh
 	tests/mutation/catalog.txt
+	tests/mutation/catalog.d/**
 	tests/mutation/run-mutations.sh
 	scripts/**
 

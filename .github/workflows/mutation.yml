@@ -15,40 +15,63 @@ on:
     # and the other schedules of this repository already sit at 08:13, 09:19,
     # 09:41 and every half hour.
     - cron: "23 5 * * 1"
+    # A single run, on 24 November at 09:23 UTC, to try the sweep by fragments on a runner and give the
+    # freshness watcher the scheduled run it has not had: the one of 23 November was cut at its bound,
+    # and a manual run is not a scheduled one. The pull request that replaces the estimated durations
+    # in tests/mutation/sweep-durations.txt by the measured ones removes this line; left in, it would
+    # fire every 24 November.
+    - cron: "23 9 24 11 *"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: mutation-${{ github.ref }}
+  # The group is per run outside a pull request. A group shared by the schedule and a
+  # manual run lets GitHub drop the run that is still waiting when a newer one queues, even
+  # with `cancel-in-progress: false`, and a scheduled run that never ends is one the
+  # freshness watcher can never count. tests/ci/policy/rules/cancel-policy.test.sh holds
+  # this for every workflow that has a schedule.
+  group: mutation-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   # A scheduled run is never replaced by the next one: each answers for the
   # state of the guards on the day it ran.
   cancel-in-progress: false
 
 jobs:
   mutations:
-    name: the guards still die under their mutations
+    name: the guards still die under their mutations ({{ matrix.fragment }})
     # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on
     # 2026-11-20. The image is named because this job's verdict depends on the
     # tools it ships, so a new image arrives as a commit and not overnight.
     runs-on: ubuntu-26.04
-    # Each entry is a copy of the tree and the suites it names, so the run
-    # grows with the catalogue. Measured on 2026-11-21: 360 seconds over 115
-    # entries, about 3 seconds an entry, on a machine with other work running.
-    # Twenty minutes is over three times that, room for about 380 entries at
-    # the same rate, and still short of a hang. The runner prints its own
-    # duration, so each weekly log shows how close the catalogue has come.
-    # This comment used to give 2m16s over 55 entries, under a bound of
-    # fifteen minutes, and kept them while the catalogue doubled: a total goes
-    # stale with the next entry, and the rate per entry does not.
-    timeout-minutes: 20
+    # One job for each file of the catalogue, so the sweep takes as long as its largest file and
+    # not as long as all of them. The whole sweep in one job was cut at its twenty minutes on
+    # 2026-11-23, and GitHub reports a job that exceeds its bound as `cancelled`: not a success,
+    # so the freshness watcher cannot count it, and the grace period of a new cron ends with its
+    # first run. The bound of each fragment is its measured time, in tests/mutation/
+    # sweep-durations.txt, scaled to the entries it has and with a half on top; the policy suite
+    # named below fails the pull request that makes a fragment outgrow it, and the one that adds a
+    # file of the catalogue that is not listed here. A fragment that fails does not stop the rest.
+    # tests/ci/policy/workflows/mutation-sweep-is-split-and-bounded.test.sh holds all of it.
+    timeout-minutes: ${{ matrix.minutes }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - fragment: tests/mutation/catalog.txt
+            minutes: 35
+          - fragment: tests/mutation/catalog.d/monitoring.txt
+            minutes: 10
+          - fragment: tests/mutation/catalog.d/switch-rule.txt
+            minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Break every guard on purpose and watch the suites notice
+      - name: Break every guard of the fragment on purpose and watch the suites notice
+        env:
+          FRAGMENT: ${{ matrix.fragment }}
         run: |
           set -euo pipefail
-          bash ./tests/mutation/run-mutations.sh
+          bash ./tests/mutation/run-mutations.sh --catalog "$FRAGMENT"

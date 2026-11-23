@@ -93,6 +93,7 @@ tests/ci/policy/workflows/skip-only-on-an-explicit-false.test.sh python3-yaml
 tests/ci/policy/workflows/required-checks-are-emitted.test.sh python3-yaml
 tests/ci/policy/workflows/workflow-publish-triggers.test.sh python3-yaml
 tests/ci/policy/workflows/freshness-pr-scope.test.sh python3-yaml
+tests/ci/policy/workflows/mutation-sweep-is-split-and-bounded.test.sh python3-yaml
 tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh python3-yaml
 tests/ci/policy/workflows/workflows-parse-strictly.test.sh python3-yaml
 tests/ci/policy/workflows/runners-are-named.test.sh python3-yaml

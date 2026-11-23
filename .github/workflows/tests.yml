@@ -114,6 +114,7 @@ jobs:
         ./tests/ci/policy/workflows/required-checks-are-emitted.test.sh
         ./tests/ci/policy/workflows/workflow-publish-triggers.test.sh
         ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
+        ./tests/ci/policy/workflows/mutation-sweep-is-split-and-bounded.test.sh
         ./tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh
         ./tests/ci/policy/workflows/workflows-parse-strictly.test.sh
         ./tests/ci/policy/workflows/runners-are-named.test.sh

@@ -36,7 +36,7 @@ check("required check name survives", "brew style", job["name"])
 check("the job itself is never skipped", None, job.get("if"))
 check("checkout fetches the merge parent", 2, checkout["with"]["fetch-depth"])
 check("checkout does not persist credentials", False, checkout["with"]["persist-credentials"])
-check("brew style runs only on a true decision", "steps.scope.outputs.run_style == 'true'", style["if"])
+check("brew style skips only on an explicit false", "steps.scope.outputs.run_style != 'false'", style["if"])
 triggers = doc.get("on", doc.get(True))
 check("PR trigger has no paths filter", None, triggers["pull_request"])
 

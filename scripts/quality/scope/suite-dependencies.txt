@@ -87,6 +87,8 @@ tests/ci/suites/mldsa-job-scope.test.sh python3-yaml
 tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh python3-yaml
 tests/ci/policy/workflows/workflow-shape.test.sh python3-yaml
 tests/ci/policy/workflows/persist-credentials.test.sh python3-yaml
+tests/ci/policy/workflows/skip-only-on-an-explicit-false.test.sh python3-yaml
+tests/ci/policy/workflows/required-checks-are-emitted.test.sh python3-yaml
 tests/ci/policy/workflows/workflow-publish-triggers.test.sh python3-yaml
 tests/ci/policy/workflows/freshness-pr-scope.test.sh python3-yaml
 tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh python3-yaml
@@ -106,6 +108,7 @@ tests/quality/lint/check-test-job-not-switchable-checkout.test.sh python3-yaml
 tests/quality/lint/check-tooling-isolation.test.sh python3-yaml
 tests/ci/policy/rules/brew-jobs-are-bounded.test.sh python3-yaml
 tests/ci/policy/workflows/audit-scope.test.sh python3-yaml
+tests/ci/policy/workflows/audit-gate.test.sh python3-yaml
 tests/publication/audit/audit-runs-on-a-schedule.test.sh python3-yaml
 tests/publication/audit/audit-trusts-the-linked-tap.test.sh python3-yaml
 tests/publication/update/update-audits-before-commit.test.sh python3-yaml

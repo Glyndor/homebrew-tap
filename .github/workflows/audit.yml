@@ -5,8 +5,11 @@ name: Audit
 # standard rather than this repository's logic against its own: a red here
 # usually means Homebrew changed what it accepts, not that the generator broke.
 #
-# Job id unchanged. A required status check is named
-# `<caller job id> / <inner job name>` and the file is not part of that name.
+# The required check is the `audit gate` job at the bottom, not `brew audit`:
+# a job skipped by the scope decision reports Success, so the gate is the one
+# that tells a skipped audit that was not needed from one that did not run.
+# A required status check is named by the job's `name:`, and the file is not
+# part of that name.
 
 on:
   # The schedule checks published formulae against changes in Homebrew's rules
@@ -88,14 +91,18 @@ jobs:
 
   audit:
     needs: scope
-    # A skipped required job reports Success. That is intentional when the PR
-    # changed no formula or audit logic: Homebrew rule changes are covered by
-    # the daily cron. The audit reads no repository scripts, so scripts/** is
-    # deliberately absent from the allowlist above. Push/schedule always run.
-    # !cancelled() rather than success(): if the scope job itself fails, the audit
-    # runs instead of being skipped, because a skipped required check reports
-    # Success. Unlike always(), it does not start in a run that was cancelled.
-    if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.run_audit == 'true') }}
+    # This job is skipped when the PR changed no formula or audit logic:
+    # Homebrew rule changes are covered by the daily cron. The audit reads no
+    # repository scripts, so scripts/** is deliberately absent from the
+    # allowlist above. Push/schedule always run.
+    #
+    # A skipped job reports Success, so this job is not the required check: the
+    # `gate` job below is. It only skips when the scope job answered `false`.
+    # A scope job that failed, or answered nothing, leaves the output empty, and
+    # an empty output is not a `false`: the audit runs. !cancelled() rather than
+    # success() so that it starts when the scope job failed, and unlike always()
+    # it does not start in a run that was cancelled.
+    if: ${{ !cancelled() && needs.scope.outputs.run_audit != 'false' }}
     name: brew audit
     # macos-latest is left floating, unlike the Linux jobs. What decides this
     # verdict is Homebrew's rule set, and the Homebrew preinstalled on any macOS
@@ -162,3 +169,45 @@ jobs:
           # SHA256SUMS the generator verifies is what proves the assets, not a
           # HEAD request from CI.
           brew audit --strict "${names[@]}"
+
+  # The one check a ruleset requires from this workflow. It runs whatever the
+  # other two did, and fails unless the audit either passed or was skipped
+  # because the scope job said so. GitHub counts a skipped required job as
+  # passed, so requiring `brew audit` itself let 11 of the last 12 pull requests
+  # merge without an audit having looked at them, and a scope job that failed
+  # would have been read as "nothing to audit". The scope job's own result is
+  # not part of any ordering condition: if it fails, nothing here is skipped as
+  # green, and this job is what turns red.
+  gate:
+    name: audit gate
+    needs: [scope, audit]
+    if: always()
+    # ubuntu-26.04 is named because a new image arrives as a commit. The job
+    # reads three values and compares strings.
+    runs-on: ubuntu-26.04
+    # Bound: it reads three values. Five minutes bounds a hang.
+    timeout-minutes: 5
+    steps:
+      - name: Tell an audit that was not needed from one that did not run
+        env:
+          SCOPE: ${{ needs.scope.result }}
+          RUN_AUDIT: ${{ needs.scope.outputs.run_audit }}
+          AUDIT: ${{ needs.audit.result }}
+        run: |
+          set -euo pipefail
+          if [ "$SCOPE" != success ]; then
+            echo "::error::the scope job ended $SCOPE, so nothing says the audit was not needed"
+            exit 1
+          fi
+          case "$RUN_AUDIT:$AUDIT" in
+            false:skipped)
+              echo "The scope job found no formula or audit logic changed, so the audit was not needed."
+              ;;
+            true:success | :success)
+              echo "The audit ran and passed."
+              ;;
+            *)
+              echo "::error::the scope job said run_audit='$RUN_AUDIT' and the audit ended $AUDIT"
+              exit 1
+              ;;
+          esac

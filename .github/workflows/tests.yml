@@ -108,6 +108,8 @@ jobs:
         ./tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
         ./tests/ci/policy/workflows/workflow-shape.test.sh
         ./tests/ci/policy/workflows/persist-credentials.test.sh
+        ./tests/ci/policy/workflows/skip-only-on-an-explicit-false.test.sh
+        ./tests/ci/policy/workflows/required-checks-are-emitted.test.sh
         ./tests/ci/policy/workflows/workflow-publish-triggers.test.sh
         ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
         ./tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh
@@ -136,6 +138,7 @@ jobs:
         ./tests/quality/lint/check-tooling-isolation.test.sh
         ./tests/ci/policy/rules/brew-jobs-are-bounded.test.sh
         ./tests/ci/policy/workflows/audit-scope.test.sh
+        ./tests/ci/policy/workflows/audit-gate.test.sh
         ./tests/publication/audit/audit-runs-on-a-schedule.test.sh
         ./tests/publication/audit/audit-trusts-the-linked-tap.test.sh
         ./tests/publication/update/update-audits-before-commit.test.sh
@@ -380,7 +383,7 @@ jobs:
           echo "run_style=$run_style" >> "$GITHUB_OUTPUT"
 
       - name: Validate formulae with the preinstalled Homebrew
-        if: steps.scope.outputs.run_style == 'true'
+        if: steps.scope.outputs.run_style != 'false'
         run: |
           set -euo pipefail
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"

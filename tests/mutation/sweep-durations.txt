@@ -8,3 +8,4 @@ tests/mutation/catalog.d/monitoring.txt	53	305	measured on a runner by the dispa
 tests/mutation/catalog.d/switch-rule.txt	189	1324	measured on a runner by the dispatch of 2026-11-24 (run 45381371691): 1324 seconds over 189 entries
 tests/mutation/catalog.d/ruleset.txt	30	141	estimated from the dispatch of 2026-11-22 (run 44972571580): 1067 seconds over 226 entries, scaled to 30 entries
 tests/mutation/catalog.d/install.txt	37	175	estimated from the dispatch of 2026-11-22 (run 44972571580): 1067 seconds over 226 entries, scaled to 37 entries
+tests/mutation/catalog.d/verify-published.txt	12	57	estimated from the dispatch of 2026-11-22 (run 44972571580): 1067 seconds over 226 entries, scaled to 12 entries

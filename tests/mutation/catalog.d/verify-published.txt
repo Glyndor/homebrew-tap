@@ -1,0 +1,14 @@
+# The guards of the read of the published formulae against the signed SHA256SUMS.
+# Same format as tests/mutation/catalog.txt, which says what every field means.
+verify-published-digest	scripts/release/verify-published.sh	if [ "$signed" != "$digest" ]; then	if false; then	tests/release/verify-published.test.sh
+verify-published-listed	scripts/release/verify-published.sh	signed="$(hash_of "$asset")" || {	signed="$(hash_of "$asset" || echo "$digest")" || {	tests/release/verify-published.test.sh
+verify-published-signature	scripts/release/verify-published.sh	if verify_sha256sums "$repo" "$tag" "$name"; then	if verify_sha256sums "$repo" "$tag" "$name" || :; then	tests/release/verify-published.test.sh
+verify-published-reads-a-release-once	scripts/release/verify-published.sh	[ -z "${release_list[$key]:-}" ]	true	tests/release/verify-published.test.sh
+verify-published-a-refused-release-fails-every-asset	scripts/release/verify-published.sh	[ "${release_list[$key]}" = refused ]	false	tests/release/verify-published.test.sh
+verify-published-repository	scripts/release/verify-published.sh	"$prefix"*) rest="${url#"$prefix"}" ;;	"$prefix"* | *) rest="${url#*/releases/download/}" ;;	tests/release/verify-published.test.sh
+verify-published-one-asset-of-one-release	scripts/release/verify-published.sh	"" | */*)	"" | zzz/*)	tests/release/verify-published.test.sh
+verify-published-no-row	scripts/release/verify-published.sh	if [ -z "$repo" ]; then	if false; then	tests/release/verify-published.test.sh
+verify-published-nothing-read	scripts/release/verify-published.sh	if [ "$checked" -eq 0 ]; then	if false; then	tests/release/verify-published.test.sh
+verify-published-failures	scripts/release/verify-published.sh	if [ "$failed" -ne 0 ]; then	if false; then	tests/release/verify-published.test.sh
+verify-published-flag-dispatches	scripts/release/render-formulae.sh	if [ "$VERIFY_PUBLISHED" = 1 ]; then	if false; then	tests/release/verify-published.test.sh
+verify-published-attestation	scripts/release/verify-published.sh	verify_attestation "$repo" "$tag" "$asset" "$signed" || {	: || {	tests/release/verify-published.test.sh

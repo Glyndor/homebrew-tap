@@ -154,6 +154,16 @@ tests/release/render-formulae/render-formulae-hash-of.test.sh
 	scripts/release/render-formulae.sh
 	tests/release/render-formulae/render-formulae-hash-of.test.sh
 
+tests/release/verify-published.test.sh
+	scripts/release/render-formulae.sh
+	scripts/release/verify-published.sh
+	scripts/release/release-signature.sh
+	tests/fixtures/release/**
+
+tests/ci/policy/workflows/published-bytes-order.test.sh
+	.github/workflows/published-bytes.yml
+	.github/workflows/update.yml
+
 tests/release/render-formulae/render-formulae-products.test.sh
 	scripts/release/render-formulae.sh
 	scripts/release/release-signature.sh

@@ -9,6 +9,11 @@
 #
 # Run by .github/workflows/update.yml on a schedule and on demand.
 #
+# With --verify-published it renders nothing: it reads every formula already in
+# Formula/ against the signed SHA256SUMS of the release each url names
+# (scripts/release/verify-published.sh), and is run by
+# .github/workflows/published-bytes.yml.
+#
 # Exit codes: 0 every product rendered; 3 at least one product was skipped and
 # the rest rendered (update.yml commits those, then fails the job); anything
 # else stops publication, including a refused release downgrade.
@@ -115,8 +120,13 @@ MAX_ASSET_BYTES=104857600
 # no environment variable that could swap the trust anchor from outside. This is
 # the shape Glyndor/apt's verify-debs.sh already uses, where the key is an
 # argument for the same reason.
+VERIFY_PUBLISHED=0
 while [ $# -gt 0 ]; do
 	case "$1" in
+		--verify-published)
+			VERIFY_PUBLISHED=1
+			shift
+			;;
 		--pubkey)
 			[ $# -ge 2 ] || { echo "--pubkey needs a value" >&2; exit 2; }
 			RELEASE_PUBKEY_B64="$2"
@@ -200,6 +210,10 @@ trap 'rm -rf "$work"' EXIT
 # lists it, so check-channel-drift compares the whole of it, comments included.
 # shellcheck disable=SC1091 # the path is resolved at run time, next to this file
 . "$(dirname "${BASH_SOURCE[0]}")/release-signature.sh"
+# `--verify-published` reads the formulae already in Formula/ against the signed SHA256SUMS of the releases their urls
+# name, and renders nothing. It lives in a file of its own so that this one stays under its line limit.
+# shellcheck disable=SC1091 # the path is resolved at run time, next to this file
+. "$(dirname "${BASH_SOURCE[0]}")/verify-published.sh"
 
 # Verify the build provenance of the release. The signature on SHA256SUMS
 # proves the digests the renderer is about to write into formulae; it does
@@ -884,6 +898,11 @@ for entry in "${PRODUCTS[@]}"; do
 	fi
 	seen_formulae["$formula"]=1
 done
+
+if [ "$VERIFY_PUBLISHED" = 1 ]; then
+	verify_published "$root" "$work"
+	exit $?
+fi
 
 # Formula/ is a directory of the repository, and it is where every formula
 # below is written. If it is a symlink, all of those writes land somewhere

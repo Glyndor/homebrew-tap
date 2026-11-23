@@ -6,10 +6,9 @@ name: Published bytes
 #
 # `brew install` refuses an asset whose digest is not the one the formula declares, so a wrong digest on main is a
 # formula that fails for every user. Each formula's urls are downloaded and compared with its digests
-# (scripts/monitoring/check-published-formulae.sh). That the digests are the ones of the signed SHA256SUMS of the
-# release is the renderer's check, made when it renders; reading them again here against the signed list, as the
-# bucket does with `render-manifests.sh --verify-published`, needs the renderer split first (it is at 437 of its
-# 500 lines), and is the gap this leaves.
+# (scripts/monitoring/check-published-formulae.sh). Each digest is then read against the signed SHA256SUMS of the
+# release its url names (render-formulae.sh --verify-published), so a digest of an asset nobody signed is refused
+# even when the bytes behind the url match it.
 #
 # The workflow has no required status check: it answers about published main, not about the pull request that may
 # fix it. Freshness watches its cron.
@@ -47,7 +46,44 @@ jobs:
           persist-credentials: false
           ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.sha }}
 
-      - name: Read every asset a formula names against its digest
+      - name: Validate every published formula before downloading its asset
+        run: bash ./scripts/artifacts/check-formulae.sh
+
+      - name: Compare every published asset with its formula digest
+        run: bash ./scripts/monitoring/check-published-formulae.sh
+
+      # The comparison above proves the bytes behind each url are the bytes the formula declares. It does not prove
+      # the digest was ever signed: a file added to a release by someone who cannot forge its SHA256SUMS signature
+      # has the digest of its own bytes. So each formula is also read against the signed SHA256SUMS of the release
+      # its url names, with the verifier and the key the render uses. The install step is the render job's, word for
+      # word (tests/ci/policy/workflows/published-bytes-order.test.sh holds the two together), and this job holds no
+      # secret.
+      - name: Install the signature verifier
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-cryptography
+          # The ML-DSA-65 half of the release signature needs cryptography
+          # 50.0.2, which the distribution does not carry. It is installed only
+          # once the renderer's ML-DSA-65 key slot holds a key, the first
+          # moment a second signature can be checked at all: until then the
+          # renderer refuses a SHA256SUMS.mldsa65.sig before the library is
+          # needed, and this job installs nothing from PyPI. The wheel is
+          # pinned by hash and binary only, so nothing is resolved at install
+          # time and no build script runs in the job that holds no secret; the
+          # venv lives outside the workspace.
+          if grep -qE '^RELEASE_PQ_PUBKEY2?_B64="[A-Za-z0-9+/]+={0,2}"$' scripts/release/render-formulae.sh; then
+            python3 -m venv "$RUNNER_TEMP/mldsa-venv"
+            "$RUNNER_TEMP/mldsa-venv/bin/python" -m pip install --quiet --disable-pip-version-check --require-hashes --only-binary=:all: -r scripts/release/render-requirements.txt
+          fi
+
+      - name: Read every formula digest against the signed checksums
+        env:
+          # Read-only, for `gh attestation verify` of each asset: the token of the run has `contents: read` and nothing else.
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          bash ./scripts/monitoring/check-published-formulae.sh
+          mldsa_venv="${RUNNER_TEMP:-}/mldsa-venv"
+          if [ -x "$mldsa_venv/bin/python3" ]; then
+            PATH="$mldsa_venv/bin:$PATH"
+          fi
+          bash ./scripts/release/render-formulae.sh --verify-published

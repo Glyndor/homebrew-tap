@@ -31,8 +31,8 @@
 #   - a second tag inside the same formula;
 #   - an asset the roster row does not declare, in a url or in the install body;
 #   - a sha256 that is not 64 lowercase hexadecimal characters;
-#   - a statement the generator does not emit: `system`, `exec`, a backtick,
-#     `post_install`, `resource`, `patch`, `depends_on`, anything else;
+#   - a statement the generator does not emit: `system` outside the `test` block,
+#     `exec`, a backtick, `post_install`, `resource`, `patch`, `depends_on`, anything else;
 #   - a formula whose name no roster row declares, and a roster with no rows
 #     at all (an empty roster must fail, not pass vacuously).
 #

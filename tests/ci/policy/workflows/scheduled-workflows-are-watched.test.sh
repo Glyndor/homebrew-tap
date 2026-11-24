@@ -48,6 +48,8 @@ import yaml
 
 LIMIT = {"daily": 3, "weekly": 15}
 NUMBER = re.compile(r"[0-9]+")
+# The hours of a run tried on one day of the year: one hour, or a few of them.
+HOURS = re.compile(r"[0-9]+(,[0-9]+)*")
 
 
 def load(path):
@@ -62,7 +64,7 @@ def cadence(cron):
     minute, hour, dom, month, dow = fields
     # One run on one day of the year, to try a workflow on a runner once: it says nothing about how often
     # the workflow fires, so it does not count towards its cadence.
-    if NUMBER.fullmatch(minute) and NUMBER.fullmatch(hour) and NUMBER.fullmatch(dom) and NUMBER.fullmatch(month) and dow == "*":
+    if NUMBER.fullmatch(minute) and HOURS.fullmatch(hour) and NUMBER.fullmatch(dom) and NUMBER.fullmatch(month) and dow == "*":
         return "once"
     if not NUMBER.fullmatch(minute) or dom != "*" or month != "*":
         return None
@@ -139,6 +141,13 @@ check "a weekly cron with one extra run on one day of the year is still weekly" 
 fresh; printf 'on:\n  schedule:\n    - cron: "23 5 * * 1"\n    - cron: "23 9 24 11 *"\njobs: {}\n' > "$WORK/w/weekly.yml"; watch weekly.yml 10
 check "and it is still held to the limit of a weekly cron" \
 	"weekly.yml is weekly and watch-weekly allows 10 days, not 15" "$(audit "$WORK/w")"
+
+fresh; printf 'on:\n  schedule:\n    - cron: "23 5 * * 1"\n    - cron: "23 2,5,8 25 11 *"\njobs: {}\n' > "$WORK/w/weekly.yml"; watch weekly.yml 15
+check "a weekly cron with runs at three hours over one day of the year is still weekly" "ok" "$(audit "$WORK/w")"
+
+fresh; plant onlyrange.yml "23 2,5,8 25 11 *"; watch onlyrange.yml 15
+check "and a workflow whose only runs are those of one day, at several hours, still has no cadence to watch" \
+	"onlyrange.yml: cannot tell the cadence of ['23 2,5,8 25 11 *']" "$(audit "$WORK/w")"
 
 fresh; plant onlyonce.yml "23 9 24 11 *"; watch onlyonce.yml 15
 check "a workflow whose only run is one day of the year has no cadence to watch and is reported" \

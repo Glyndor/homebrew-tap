@@ -814,3 +814,6 @@ tests/quality/scope/suite-scope-map.test.sh
 	.github/workflows/**
 	tests/**
 	scripts/**
+
+tests/monitoring/scheduled-run-exists.test.sh
+	scripts/monitoring/scheduled-run-exists.sh

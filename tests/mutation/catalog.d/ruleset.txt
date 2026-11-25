@@ -1,0 +1,31 @@
+# The guards of the watcher of the ruleset of main. Same format as tests/mutation/catalog.txt.
+main-ruleset-repo	scripts/monitoring/check-main-ruleset.sh	[ -n "$repo" ] ||	[ -n "${repo}x" ] ||	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-strict-field	scripts/monitoring/check-main-ruleset.sh	.parameters.strict_required_status_checks_policy]	.parameters.do_not_enforce_on_create]	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-checks	scripts/monitoring/check-main-ruleset.sh	.parameters.required_status_checks[]?.context]	.parameters.required_status_checks[]?.integration_id | tostring]	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-rules-parameters	scripts/monitoring/check-main-ruleset.sh	{type} + (if .parameters then {parameters} else {} end)	{type}	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-rulesets-name	scripts/monitoring/check-main-ruleset.sh	{id, name, enforcement, updated_at: $stamps	{id, enforcement, updated_at: $stamps	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-time-read	scripts/monitoring/check-main-ruleset.sh	[ -n "$utc" ] ||	[ -n "${utc}x" ] ||	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-equal	scripts/monitoring/check-main-ruleset.sh	if [ "$snapshot" = "$want" ]; then	if [ -n "$snapshot" ]; then	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-snapshot	scripts/monitoring/check-main-ruleset.sh	[ -n "$snapshot" ] || report	[ -n "${snapshot}x" ] || report	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-schedule	scripts/monitoring/check-main-ruleset.sh	if [ "${EVENT:-}" = schedule ]; then	if [ -n "${EVENT:-}" ]; then	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-author	scripts/monitoring/check-main-ruleset.sh	--state open --author app/github-actions --limit 100	--state open --limit 100	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-title	scripts/monitoring/check-main-ruleset.sh	select(.title == \"$title\")	select(.title != \"\")	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-bypass-hidden	scripts/monitoring/check-main-ruleset.sh	if [ "$hidden" = 1 ]; then	if [ "$hidden" = 2 ]; then	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-bypass-del	scripts/monitoring/check-main-ruleset.sh	.rulesets |= map(del(.bypass_actors))	.rulesets |= map(.)	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-bypass-fields	scripts/monitoring/check-main-ruleset.sh	[.bypass_actors[] | {actor_id, actor_type, bypass_mode}]	[.bypass_actors[] | {actor_id, actor_type}]	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-bypass-kept	scripts/monitoring/check-main-ruleset.sh	then {bypass_actors: $bypass[(.id | tostring)]} else {} end	then {} else {} end	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-create-fails	scripts/monitoring/check-main-ruleset.sh	|| { echo "::error::the issue that says so could not be opened"; exit 2; } ;;	|| true ;;	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-list-fails	scripts/monitoring/check-main-ruleset.sh	*) echo "::error::the open issues could not be listed, so whether this was already reported is not known"; exit 2 ;;	*) ;;	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-detail-read	scripts/monitoring/check-main-ruleset.sh	|| report "the ruleset $id could not be read, so what CI assumes about main is not known"	|| detail=""	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-detail-parse	scripts/monitoring/check-main-ruleset.sh	jq -e 'type == "object"'	jq -e 'true'	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-detail-has	scripts/monitoring/check-main-ruleset.sh	jq -e 'has("bypass_actors")'	jq -e 'true'	tests/monitoring/check-main-ruleset.test.sh
+main-ruleset-detail-list	scripts/monitoring/check-main-ruleset.sh	[ -n "$list" ] || report "the bypass list	[ -n "${list}x" ] || report "the bypass list	tests/monitoring/check-main-ruleset.test.sh
+guard-ran-stop-not-reached-fails	.github/workflows/freshness.yml	[ "$found" = 1 ] || {	true || {	tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
+guard-ran-reads-every-page	.github/workflows/freshness.yml	for page in $(seq 1 "$MAX_PAGES"); do	for page in 1; do	tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
+guard-ran-a-hundred-goes-on	.github/workflows/freshness.yml	elif length == 100 then "more"	elif length == 0 then "more"	tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
+guard-ran-verified-from-is-a-hash	.github/workflows/freshness.yml	[[ "$VERIFIED_FROM" =~ ^[0-9a-f]{40}$ ]] ||	true ||	tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
+push-guard-passed-is-all-success	.github/workflows/pushes-to-main.yml	elif all($r[]; .conclusion == "success") then "passed"	elif true then "passed"	tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+push-guard-running-is-waited-for	.github/workflows/pushes-to-main.yml	elif any($r[]; .status != "completed") then "running"	elif false then "running"	tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+push-guard-no-run-stops	.github/workflows/pushes-to-main.yml	if ($r | length) == 0 then "none"	if ($r | length) == -1 then "none"	tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+push-guard-zero-before-stops	.github/workflows/pushes-to-main.yml	&& [[ ! "$BEFORE" =~ ^0+$ ]]	&& true	tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+push-guard-pre-guard-root	.github/workflows/pushes-to-main.yml	*"HTTP 404"*) echo "The commit main had has no guard in it	*"HTTP 404"*) exit 1; echo "The commit main had has no guard in it	tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh

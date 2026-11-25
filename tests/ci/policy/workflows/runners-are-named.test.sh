@@ -27,6 +27,7 @@ passed = failed = 0
 # (workflow, job) -> why a floating label stays.
 FLOATING = {
     ("audit.yml", "scope"): "writes an output a condition reads; naming the image is a producer change that needs its own earlier pull request",
+    ("update.yml", "validate-macos"): "the verdict is the one of the macOS a user installing today gets, as in audit.yml, and the audit of the update has to agree with the one of the push that follows",
     ("audit.yml", "audit"): "the verdict is the one of the macOS a user installing today gets, and Homebrew is replaced by GitHub every week whatever the label says",
 }
 

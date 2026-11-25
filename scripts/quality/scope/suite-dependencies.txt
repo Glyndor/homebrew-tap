@@ -68,10 +68,7 @@ tests/ci/reusable/reusable-dependabot-freshness.test.sh -
 tests/ci/reusable/reusable-schedule-freshness.test.sh -
 tests/ci/policy/rules/network-calls-are-bounded.test.sh -
 tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh -
-tests/monitoring/check-suite-on-main.test.sh -
-tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh -
-tests/monitoring/check-suite-on-main/check-suite-on-main-retry.test.sh -
-tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh -
+tests/monitoring/check-main-ruleset.test.sh -
 tests/mutation/run-mutations.test.sh -
 
 # python3-yaml

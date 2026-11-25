@@ -37,8 +37,17 @@ on:
   schedule:
     - cron: "19 9 * * *"
   pull_request:
+  # A push to main runs the audit only when it changes what the updater app writes. What lands
+  # through a pull request was audited by that pull request on the tree that lands, because
+  # the ruleset requires the branch up to date and the aggregator; the one actor that
+  # bypasses it is the updater app, which pushes with no pull request, so what it pushed is
+  # audited here, on macOS, after update.yml audited it before pushing. The paths are held
+  # by tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh against what
+  # update.yml commits.
   push:
     branches: [main]
+    paths:
+      - Formula/**
 
 permissions:
   contents: read

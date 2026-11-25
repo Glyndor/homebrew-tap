@@ -278,10 +278,6 @@ plant update.yml validate-macos "needs.render.outputs.changed == '1'"
 
 # The job-level forms the forms list for a workflow a repository may not have yet are accepted where they stand.
 base_repo
-printf 'name: Planted\non: workflow_dispatch\njobs:\n  render:\n    runs-on: x\n    steps: [{run: "true"}]\n  validate:\n    needs: render\n    runs-on: x\n    steps: [{run: "true"}]\n  commit:\n    needs: [render, validate]\n    runs-on: x\n    steps: [{run: "true"}]\n' > "$G/.github/workflows/update.yml"
-out="$(run_base "$G" "$BASE")"
-check "the needs the forms list for the jobs of update.yml are not refused" "0" "$(said "$out" 'carries `needs:`')"
-base_repo
 printf 'name: Planted\non: workflow_dispatch\njobs:\n  render:\n    runs-on: x\n    steps: [{run: "true"}]\n  validate:\n    needs: render\n    runs-on: x\n    steps: [{run: "true"}]\n  validate-macos:\n    needs: render\n    runs-on: x\n    steps: [{run: "true"}]\n  commit:\n    needs: [render, validate, validate-macos]\n    runs-on: x\n    steps: [{run: "true"}]\n' > "$G/.github/workflows/update.yml"
 out="$(run_base "$G" "$BASE")"
 check "the needs the forms list for the macOS validation and the commit that waits for it are not refused" "0" "$(said "$out" 'carries `needs:`')"

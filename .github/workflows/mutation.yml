@@ -15,12 +15,13 @@ on:
     # and the other schedules of this repository already sit at 08:13, 09:19,
     # 09:41 and every half hour.
     - cron: "23 5 * * 1"
-    # A single run, on 24 November at 09:23 UTC, to try the sweep by fragments on a runner and give the
-    # freshness watcher the scheduled run it has not had: the one of 23 November was cut at its bound,
-    # and a manual run is not a scheduled one. The pull request that replaces the estimated durations
-    # in tests/mutation/sweep-durations.txt by the measured ones removes this line; left in, it would
-    # fire every 24 November.
-    - cron: "23 9 24 11 *"
+    # The cron of one run on 24 November did not fire: GitHub starts a scheduled run late and drops some under load, and
+    # the Monday one of 23 November was cut at its bound. The freshness watcher wants a scheduled run that succeeded and a
+    # manual one is not that, so this tries at three hours, three hours apart: 02:23, 05:23 and 08:23 UTC on 25 November.
+    # Each job asks first, in a step, whether a scheduled run has already succeeded, and leaves the sweep undone, with success,
+    # when it has, so once one has the others cost a minute. The weekly run never asks. The tries are removed once one has
+    # succeeded; left in, they would fire every year.
+    - cron: "23 2,5,8 25 11 *"
   workflow_dispatch:
 
 permissions:
@@ -59,19 +60,39 @@ jobs:
       matrix:
         include:
           - fragment: tests/mutation/catalog.txt
-            minutes: 35
+            minutes: 25
           - fragment: tests/mutation/catalog.d/monitoring.txt
             minutes: 10
           - fragment: tests/mutation/catalog.d/switch-rule.txt
-            minutes: 25
+            minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      # Whether a scheduled run has succeeded already, for the runs that exist only to try again. The step never fails: every
+      # doubt answers that the sweep must run, and the weekly run is never skipped (scripts/monitoring/scheduled-run-exists.sh).
+      - name: Ask whether the sweep still has something to answer
+        id: ask
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOW: mutation.yml
+          DAYS: "3"
+          THIS_RUN_ID: ${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          WEEKLY_CRON: "23 5 * * 1"
+        run: bash ./scripts/monitoring/scheduled-run-exists.sh >> "$GITHUB_OUTPUT"
+
       - name: Break every guard of the fragment on purpose and watch the suites notice
         env:
           FRAGMENT: ${{ matrix.fragment }}
+          SKIP: ${{ steps.ask.outputs.skip }}
         run: |
           set -euo pipefail
+          if [ "$SKIP" = true ]; then
+            echo "a scheduled run has succeeded already; this one has nothing left to answer"
+            exit 0
+          fi
           bash ./tests/mutation/run-mutations.sh --catalog "$FRAGMENT"

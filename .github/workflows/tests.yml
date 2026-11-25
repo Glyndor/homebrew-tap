@@ -156,6 +156,7 @@ jobs:
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-push.test.sh
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-retry.test.sh
         ./tests/monitoring/check-suite-on-main/check-suite-on-main-order.test.sh
+        ./tests/monitoring/scheduled-run-exists.test.sh
         ./tests/mutation/run-mutations.test.sh
         ./tests/mutation/catalog-reaches-every-script.test.sh
         ./tests/ci/docs/documented-test-command.test.sh

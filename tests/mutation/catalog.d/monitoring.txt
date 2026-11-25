@@ -53,16 +53,3 @@ monitor-push-main-whole-some	scripts/monitoring/check-push-to-main.sh	[ "$(jq 'l
 monitor-push-main-whole-limit	scripts/monitoring/check-push-to-main.sh	[ "$(jq 'length' "$tmp/files.json")" -lt 300 ] ||	[ "$(jq 'length' "$tmp/files.json")" -lt 3000 ] ||	tests/monitoring/check-push-to-main.test.sh
 monitor-push-main-pages-empty	scripts/monitoring/check-push-to-main.sh	[ "$(jq '.commits | length' "$tmp/page.json")" -gt 0 ] ||	[ "$(jq '.commits | length' "$tmp/page.json")" -ge 0 ] ||	tests/monitoring/check-push-to-main.test.sh
 monitor-push-main-associated-merger	scripts/monitoring/check-push-to-main.sh	{ [ -z "$merger" ] || bypasses "$merger"; }	{ bypasses "$merger"; }	tests/monitoring/check-push-to-main.test.sh
-scheduled-run-not-itself	scripts/monitoring/scheduled-run-exists.sh	and (.id | tostring) != $this 	and true 	tests/monitoring/scheduled-run-exists.test.sh
-scheduled-run-inside-the-window	scripts/monitoring/scheduled-run-exists.sh	 and .created_at >= $cutoff	 and true	tests/monitoring/scheduled-run-exists.test.sh
-scheduled-run-only-a-schedule	scripts/monitoring/scheduled-run-exists.sh	.event == "schedule" and 	true and 	tests/monitoring/scheduled-run-exists.test.sh
-scheduled-run-only-a-success	scripts/monitoring/scheduled-run-exists.sh	and .conclusion == "success" 	and true 	tests/monitoring/scheduled-run-exists.test.sh
-scheduled-run-window-is-a-number	scripts/monitoring/scheduled-run-exists.sh	'' | *[!0-9]* | 0*) echo "::warning::the window	'') echo "::warning::the window	tests/monitoring/scheduled-run-exists.test.sh
-scheduled-run-id-is-a-number	scripts/monitoring/scheduled-run-exists.sh	case "$THIS_RUN_ID" in '' | *[!0-9]*)	case "$THIS_RUN_ID" in 'x')	tests/monitoring/scheduled-run-exists.test.sh
-scheduled-run-workflow-is-a-name	scripts/monitoring/scheduled-run-exists.sh	case "$WORKFLOW" in '' | */* | *[!A-Za-z0-9._-]*)	case "$WORKFLOW" in '')	tests/monitoring/scheduled-run-exists.test.sh
-scheduled-run-api-failure-runs-the-sweep	scripts/monitoring/scheduled-run-exists.sh	|| { echo "::warning::the runs of $WORKFLOW could not be read; the sweep runs" >&2; answer false; }	|| true	tests/monitoring/scheduled-run-exists.test.sh
-scheduled-run-one-is-enough	scripts/monitoring/scheduled-run-exists.sh	[ "$count" -ge 1 ] && answer true	[ "$count" -ge 0 ] && answer true	tests/monitoring/scheduled-run-exists.test.sh
-scheduled-run-none-runs-the-sweep	scripts/monitoring/scheduled-run-exists.sh	[ "$count" -ge 1 ] && answer true	[ "$count" -ge 1 ] || answer true	tests/monitoring/scheduled-run-exists.test.sh
-scheduled-run-only-a-schedule-event	scripts/monitoring/scheduled-run-exists.sh	[ "${EVENT_NAME:-}" = schedule ] || answer false	[ "${EVENT_NAME:-}" = schedule ] || true	tests/monitoring/scheduled-run-exists.test.sh
-scheduled-run-never-the-weekly	scripts/monitoring/scheduled-run-exists.sh	[ "${EVENT_SCHEDULE:-}" != "$WEEKLY_CRON" ] || answer false	[ "${EVENT_SCHEDULE:-}" != "$WEEKLY_CRON" ] || true	tests/monitoring/scheduled-run-exists.test.sh
-scheduled-run-the-weekly-is-named	scripts/monitoring/scheduled-run-exists.sh	[ -n "$WEEKLY_CRON" ] || {	[ -n "x$WEEKLY_CRON" ] || {	tests/monitoring/scheduled-run-exists.test.sh

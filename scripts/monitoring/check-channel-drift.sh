@@ -82,6 +82,11 @@ SIBLING_REPO="Glyndor/scoop-bucket"
 # The data file that names the shared paths, relative to the repository root.
 PATHS_FILE="scripts/monitoring/channel-shared-paths.txt"
 
+# The one listed file that is not a copy line for line: some of its entries are of each repository. Those named in the
+# list beside this script are left out of both sides by common-switch-forms.sh, and the rest is compared.
+FORMS_PATH="scripts/quality/lint/switch-rule-forms.json"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 root="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 paths_file="${2:-$root/$PATHS_FILE}"
 
@@ -236,6 +241,16 @@ while IFS= read -r path; do
 		continue
 	fi
 
+	if [ "$path" = "$FORMS_PATH" ]; then
+		if ! "$HERE/common-switch-forms.sh" "$mine" "$tmp/remote" "$root/scripts/monitoring/differing-switch-forms.txt" \
+			"$tmp/mine.common" "$tmp/remote.common"; then
+			echo "::error file=$path::the part of $path the two channels share cannot be taken from the two copies" >&2
+			absent=1
+			continue
+		fi
+		mine="$tmp/mine.common"
+		cp "$tmp/remote.common" "$tmp/remote"
+	fi
 	normalise "$mine" > "$tmp/mine.normalised"
 	normalise "$tmp/remote" > "$tmp/remote.normalised"
 	compared=$((compared + 1))

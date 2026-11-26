@@ -154,6 +154,31 @@ scenario nolist scripts/a.sh
 rm "$LIST"
 check "a missing path list fails" "1" "$(rc_of)"
 
+# The forms of the switch rule are compared without the entries named as of each repository.
+FORMS=scripts/quality/lint/switch-rule-forms.json
+forms() { # <file> <form of the listed job> <form of the other>
+	printf '{"conditional_jobs": [{"file": "w.yml", "job": "own", "forms": ["%s"]}, {"file": "w.yml", "job": "both", "forms": ["%s"]}], "step_conditions": []}\n' "$2" "$3" > "$1"
+}
+forms_scenario() { # <name> <theirs: listed> <theirs: other>
+	scenario "$1" "$FORMS" scripts/a.sh
+	forms "$ROOT/$FORMS" mine same; forms "$STUB/$FORMS" "$2" "$3"
+	mkdir -p "$ROOT/scripts/monitoring"
+	printf 'conditional_jobs\tw.yml\town\n' > "$ROOT/scripts/monitoring/differing-switch-forms.txt"
+}
+forms_scenario forms-own theirs same
+check "forms that differ only in a listed entry agree" "0 1" "$(rc_of) $(said 'compared 2 shared file(s)')"
+forms_scenario forms-shared theirs changed
+check "forms that differ in another entry are drift" "1 1" "$(rc_of) $(said "$FORMS differs from Glyndor/")"
+check "and the entry is named" "1" "$(said 'changed')"
+forms_scenario forms-stale mine same
+check "a listed entry that no longer differs fails the comparison" "1 1" "$(rc_of) $(said 'cannot be taken from the two copies')"
+forms_scenario forms-nolist theirs same
+rm "$ROOT/scripts/monitoring/differing-switch-forms.txt"
+check "forms with no list beside them fail, and are not compared whole or passed" "1 1" "$(rc_of) $(said 'cannot be taken from the two copies')"
+scenario other-json scripts/b.json
+printf '{"a": 1}\n' > "$ROOT/scripts/b.json"; printf '{"a": 2}\n' > "$STUB/scripts/b.json"
+check "any other file is still compared line for line" "1" "$(rc_of)"
+
 check "the real list names files that exist in this repository" "0" \
 	"$(missing=0; while IFS= read -r p; do case "$p" in ''|'#'*) continue;; esac; [ -f "$HERE/$p" ] || missing=$((missing + 1)); done < "$HERE/scripts/monitoring/channel-shared-paths.txt"; echo "$missing")"
 

@@ -1,0 +1,12 @@
+# The entries of scripts/quality/lint/switch-rule-forms.json that are of each channel repository, left out of the
+# comparison between the two: 'section<TAB>workflow<TAB>job'. Everything else in that file has to be the same in both.
+# common-switch-forms.sh refuses a line under which the two copies say the same. This file is a shared copy: both
+# repositories leave out the same entries.
+#
+# The report of what the app pushed waits for the checks of each channel: formulae and style in the tap, formulae being
+# manifests in the bucket.
+conditional_jobs	.github/workflows/generated-on-main.yml	report
+# The update of the tap also audits on macOS what it rendered, and its commit waits for that; the bucket has no such job.
+conditional_jobs	.github/workflows/update.yml	commit
+conditional_jobs	.github/workflows/update.yml	validate-macos
+step_conditions	.github/workflows/update.yml	validate-macos

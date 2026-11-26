@@ -115,6 +115,7 @@ jobs:
         ./tests/quality/hygiene/check-editorconfig.test.sh
         ./tests/monitoring/check-reusable-drift.test.sh
         ./tests/monitoring/check-channel-drift.test.sh
+        ./tests/monitoring/common-switch-forms.test.sh
         ./tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh
         ./tests/ci/policy/workflows/workflow-shape.test.sh
         ./tests/ci/policy/workflows/persist-credentials.test.sh

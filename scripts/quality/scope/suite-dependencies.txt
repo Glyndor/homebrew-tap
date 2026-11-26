@@ -57,6 +57,7 @@ tests/ci/reusable/reusable-dco.test.sh -
 tests/quality/hygiene/check-editorconfig.test.sh -
 tests/monitoring/check-reusable-drift.test.sh -
 tests/monitoring/check-channel-drift.test.sh -
+tests/monitoring/common-switch-forms.test.sh -
 tests/ci/policy/rules/drift-watchers-transfer-cap.test.sh -
 tests/monitoring/check-push-to-main.test.sh -
 tests/monitoring/report-failure.test.sh -

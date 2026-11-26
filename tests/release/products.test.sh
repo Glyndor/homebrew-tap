@@ -107,14 +107,15 @@ second_readers() { # <root> <exempt path>...: the files under <root> that look f
 		keep=1
 		for exempt in "$@"; do [ "$rel" = "$exempt" ] && keep=0; done
 		[ "$keep" -eq 1 ] || continue
-		if grep -v '^[[:space:]]*#' "$file" | sed 's/no PRODUCTS=( table//' | grep -qE \
+		# Consume every line so an early match cannot break the pipe under pipefail.
+		if grep -v '^[[:space:]]*#' "$file" | sed 's/no PRODUCTS=( table//' | grep -E \
 			-e 'PRODUCTS[[:space:]]*\+?=' \
 			-e '(declare|typeset|local|readonly)[[:space:]]+-[A-Za-z]+[[:space:]]+PRODUCTS' \
 			-e 'PRODUCTS.*(\<(sed|grep|egrep|fgrep|awk|gawk|perl|rg)\>|re\.[a-z]+\()' \
 			-e '(\<(sed|grep|egrep|fgrep|awk|gawk|perl|rg)\>|re\.[a-z]+\().*PRODUCTS' \
 			-e '/[^/ ]*PRODUCTS' \
 			-e 'render-[a-z]+\.sh.*(=\(|,/)' \
-			-e '(=\(|,/).*render-[a-z]+\.sh'; then
+			-e '(=\(|,/).*render-[a-z]+\.sh' > /dev/null; then
 			echo "$rel"
 		fi
 	done < <(find "$root/scripts" "$root/.github" -type f 2> /dev/null | sort)
@@ -162,6 +163,16 @@ check "the scan flags every spelling of a second reader, and only those" \
 	".github/workflows/inline.yml scripts/gates/append.sh scripts/gates/caret.sh scripts/gates/declare.sh scripts/gates/name-only.sh scripts/gates/python.sh scripts/gates/renderer-first.sh scripts/gates/renderer-range.sh scripts/gates/ruby.sh scripts/gates/spaced.sh scripts/gates/table-first.sh scripts/gates/window.sh " "$found"
 unexempted="$(second_readers "$FX" | grep -c '^scripts/release/')"
 check "and the reader and the renderer would be flagged without their exemption" "2" "$unexempted"
+
+# An early match followed by more than a pipe buffer must still flag the file.
+LARGE_FX="$WORK/large-fx"
+mkdir -p "$LARGE_FX/scripts" "$LARGE_FX/.github"
+{
+	printf 'PRODUCTS=(\n'
+	awk 'BEGIN { for (i = 0; i < 131072; i++) print "echo padding padding padding padding padding padding padding padding" }'
+} > "$LARGE_FX/scripts/large.sh"
+check "the scan flags an early match in a large file under pipefail" \
+	"scripts/large.sh" "$(second_readers "$LARGE_FX")"
 
 echo
 echo "$pass passed, $fail failed"

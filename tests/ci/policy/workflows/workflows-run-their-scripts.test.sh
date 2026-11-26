@@ -21,7 +21,9 @@ PINNED = {
     "dco-on-main.yml": ["scripts/governance/check-dco-on-main.sh"],
     "drift.yml": ["scripts/monitoring/check-channel-drift.sh", "scripts/monitoring/check-render-drift.sh", "scripts/monitoring/check-reusable-drift.sh"],
     "freshness.yml": ["scripts/monitoring/check-main-ruleset.sh", "scripts/monitoring/check-tool-versions.sh"],
+    "install-from-the-tap.yml": ["scripts/monitoring/install-from-the-tap.sh"],
     "mutation.yml": ["tests/mutation/run-mutations.sh"],
+    "published-bytes.yml": ["scripts/monitoring/check-published-formulae.sh"],
     "tests.yml": ["scripts/artifacts/check-formulae.sh", "scripts/artifacts/check-products-consistent.sh", "scripts/artifacts/check-version-monotonic.sh"],
     "update.yml": ["scripts/artifacts/check-formulae.sh", "scripts/artifacts/formulae-digests.sh", "scripts/release/render-formulae.sh"],
 }

@@ -1,0 +1,51 @@
+name: Published bytes
+
+# On-demand verification of the bytes behind every formula on main, and on every push to main that touches
+# Formula/, so a formula the updater app pushed with no pull request is read as soon as it lands. It has no cron
+# yet: a cron comes with the watcher that reads it, in a pull request of its own once this file is on main.
+#
+# `brew install` refuses an asset whose digest is not the one the formula declares, so a wrong digest on main is a
+# formula that fails for every user. Each formula's urls are downloaded and compared with its digests
+# (scripts/monitoring/check-published-formulae.sh). That the digests are the ones of the signed SHA256SUMS of the
+# release is the renderer's check, made when it renders; reading them again here against the signed list, as the
+# bucket does with `render-manifests.sh --verify-published`, needs the renderer split first (it is at 437 of its
+# 500 lines), and is the gap this leaves.
+#
+# The workflow has no required status check: it answers about published main, not about the pull request that may
+# fix it.
+#
+# Cost: one release download per declared architecture, currently four. The script bounds each transfer to 120
+# seconds and to 100 MiB, with three attempts per asset.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - Formula/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: published-bytes-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify published bytes
+    # ubuntu-latest resolved to ubuntu-26.04 in apt's publish runs on 2026-11-20. The image is named because this
+    # job's verdict depends on the tools it ships, so a new image arrives as a commit and not overnight.
+    runs-on: ubuntu-26.04
+    # Four assets at three 120-second attempts each leave under twenty-four minutes of transfer budget in the
+    # worst case, and an honest run is seconds: measured by hand on 2026-11-24, four assets in under ten seconds.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.sha }}
+
+      - name: Read every asset a formula names against its digest
+        run: |
+          set -euo pipefail
+          bash ./scripts/monitoring/check-published-formulae.sh

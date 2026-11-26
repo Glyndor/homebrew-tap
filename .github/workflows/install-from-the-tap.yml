@@ -1,0 +1,69 @@
+name: Install from the tap
+
+# `brew style` and `brew audit` read a formula as text. This installs it, as a user does:
+# `brew tap`, `brew install glyndor/tap/<formula>`, the program prints the version the formula declares,
+# `brew test` passes, and the formula of the commit before it upgrades with `brew upgrade` to the current one
+# (scripts/monitoring/install-from-the-tap.sh, which holds every step and has its own suite with a stub of brew).
+# It runs on macOS and on Linux with the Homebrew the runner carries, because the formula has a branch for each.
+#
+# It runs when a push changes a formula, which is what the updater app does, with no pull request in front of it;
+# and on demand. Never on a pull request: it reads the tap as published, not the change of a pull request. A
+# failure has no pull request to block, so it is a red run. It has no cron yet: the weekly one, because Homebrew
+# changes under a formula that does not, comes with the watcher that reads it, in a pull request of its own once
+# this file is on main.
+#
+# NOT VERIFIED YET: the script is tested against a stub of brew, and the steps of this workflow have not run on a
+# runner. The first run (a manual one, from main) is what shows whether `brew` on the runner answers the way the
+# stub does, and whether the upgrade really replaces the program. Until a scheduled run has ended well, the cron
+# is in its grace period and no longer than that.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - Formula/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: install-from-the-tap-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  install:
+    # Every formula of the tap, on each system. The policy suite named below holds the list to the folder.
+    # A leg that fails does not stop the others: each answers for its own system.
+    # tests/ci/policy/workflows/install-covers-the-tap.test.sh holds all of it.
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-latest is a floating label on purpose, as in audit.yml: what a user gets is the macOS of today.
+        runner: [macos-latest, ubuntu-26.04]
+        formula: [podup]
+    runs-on: ${{ matrix.runner }}
+    # One install, one uninstall, one install and one upgrade of a single binary, with no build: measured by
+    # the same steps of audit.yml at under three minutes on the macOS runner. Thirty is a bound for a slow
+    # download, not an honest run.
+    timeout-minutes: 30
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The history of the formula is what the commit before it is found in.
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.sha }}
+
+      - name: Install the formula and upgrade it from the version before
+        env:
+          FORMULA: ${{ matrix.formula }}
+        run: |
+          set -euo pipefail
+          if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+            eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          fi
+          bash ./scripts/monitoring/install-from-the-tap.sh "$FORMULA"

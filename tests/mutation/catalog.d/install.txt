@@ -1,0 +1,38 @@
+# The guards of the install of a formula from the tap and of the search of the formula before it.
+# Same format as tests/mutation/catalog.txt, which says what every field means.
+install-tap-formula-does-not-start-out	scripts/monitoring/install-from-the-tap.sh	|| fail "$formula does not start: $out"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-the-tap-tap-cannot-be-added	scripts/monitoring/install-from-the-tap.sh	|| fail "the tap $tap cannot be added"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-the-clone-of-tap-cannot-be-found	scripts/monitoring/install-from-the-tap.sh	|| fail "the clone of $tap cannot be found"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-the-clone-of-tap-is-not-a-folder-dir	scripts/monitoring/install-from-the-tap.sh	|| fail "the clone of $tap is not a folder: $dir"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-the-clone-of-tap-has-no-head	scripts/monitoring/install-from-the-tap.sh	|| fail "the clone of $tap has no HEAD"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-brew-does-not-report-a-stable-version-of-tap-f	scripts/monitoring/install-from-the-tap.sh	|| fail "brew does not report a stable version of $tap/$formula"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-brew-install-tap-formula-failed	scripts/monitoring/install-from-the-tap.sh	|| fail "brew install $tap/$formula failed"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-brew-installed-formula-installed-not-the-want	scripts/monitoring/install-from-the-tap.sh	|| fail "brew installed $formula $(installed), not the $want its formula declares"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-brew-test-tap-formula-failed	scripts/monitoring/install-from-the-tap.sh	|| fail "brew test $tap/$formula failed"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-the-commit-sha-of-file-is-not-in-the-clone-of	scripts/monitoring/install-from-the-tap.sh	|| fail "the commit $sha of $file is not in the clone of $tap"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-brew-uninstall-formula-failed	scripts/monitoring/install-from-the-tap.sh	|| fail "brew uninstall $formula failed"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-the-formula-of-sha-cannot-be-put-in-the-clone	scripts/monitoring/install-from-the-tap.sh	|| fail "the formula of $sha cannot be put in the clone of $tap"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-brew-install-of-the-formula-of-sha-failed	scripts/monitoring/install-from-the-tap.sh	|| fail "brew install of the formula of $sha failed"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-the-formula-of-sha-installed-formula-installed	scripts/monitoring/install-from-the-tap.sh	|| fail "the formula of $sha installed $formula $(installed), not its $before"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-the-current-formula-cannot-be-put-back-in-the	scripts/monitoring/install-from-the-tap.sh	|| fail "the current formula cannot be put back in the clone of $tap"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-brew-upgrade-tap-formula-failed	scripts/monitoring/install-from-the-tap.sh	|| fail "brew upgrade $tap/$formula failed"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-after-brew-upgrade-formula-is-installed-not-wa	scripts/monitoring/install-from-the-tap.sh	|| fail "after brew upgrade $formula is $(installed), not $want"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-brew-test-tap-formula-failed-after-the-upgrade	scripts/monitoring/install-from-the-tap.sh	|| fail "brew test $tap/$formula failed after the upgrade"	|| true	tests/monitoring/install-from-the-tap.test.sh
+install-tap-exit-3-when-nothing-earlier	scripts/monitoring/install-from-the-tap.sh	exit 3	exit 0	tests/monitoring/install-from-the-tap.test.sh
+previous-formula-same-version-is-not-previous	scripts/monitoring/previous-formula.sh	key(before) < current	key(before) <= current	tests/monitoring/previous-formula.test.sh
+previous-formula-nothing-below-is-exit-3	scripts/monitoring/previous-formula.sh	sys.exit(3)	sys.exit(0)	tests/monitoring/previous-formula.test.sh
+previous-formula-pre-release-below-release	scripts/monitoring/previous-formula.sh	0 if pre else 1	1 if pre else 0	tests/monitoring/previous-formula.test.sh
+previous-formula-numeric-identifiers	scripts/monitoring/previous-formula.sh	(0, int(p), "") if p.isdigit() else	(1, 0, p) if p.isdigit() else	tests/monitoring/previous-formula.test.sh
+previous-formula-not-semver	scripts/monitoring/previous-formula.sh	    if not m:	    if False:	tests/monitoring/previous-formula.test.sh
+previous-formula-no-single-release	scripts/monitoring/previous-formula.sh	if now is None:	if False:	tests/monitoring/previous-formula.test.sh
+published-formulae-no-formulae	scripts/monitoring/check-published-formulae.sh	if [ "${#formulae[@]}" -eq 0 ]; then	if false; then	tests/monitoring/check-published-formulae.test.sh
+published-formulae-names-no-asset	scripts/monitoring/check-published-formulae.sh	if [ -z "$pairs" ]; then	if false; then	tests/monitoring/check-published-formulae.test.sh
+published-formulae-plain-glyndor-asset	scripts/monitoring/check-published-formulae.sh	if [[ ! "$url" =~ ^https://github\.com/Glyndor/[A-Za-z0-9_.-]+/releases/download/v[0-9A-Za-z.+-]+/[A-Za-z0-9_.-]+$ ]]; then	if false; then	tests/monitoring/check-published-formulae.test.sh
+published-formulae-lowercase-digest	scripts/monitoring/check-published-formulae.sh	if [[ ! "$expected" =~ ^[0-9a-f]{64}$ ]]; then	if false; then	tests/monitoring/check-published-formulae.test.sh
+published-formulae-download-fails	scripts/monitoring/check-published-formulae.sh	if ! download_asset "$url" "$destination" "$tmp/curl.err"; then	if false; then	tests/monitoring/check-published-formulae.test.sh
+published-formulae-success-without-file	scripts/monitoring/check-published-formulae.sh	if [ ! -f "$destination" ]; then	if false; then	tests/monitoring/check-published-formulae.test.sh
+published-formulae-over-the-cap	scripts/monitoring/check-published-formulae.sh	if [ "$(stat -c%s "$destination")" -gt "$MAX_ASSET_BYTES" ]; then	if false; then	tests/monitoring/check-published-formulae.test.sh
+published-formulae-digest-differs	scripts/monitoring/check-published-formulae.sh	if [ "$actual" != "$expected" ]; then	if false; then	tests/monitoring/check-published-formulae.test.sh
+published-formulae-some-failed	scripts/monitoring/check-published-formulae.sh	if [ "$failed" -ne 0 ]; then	if false; then	tests/monitoring/check-published-formulae.test.sh
+published-formulae-three-attempts	scripts/monitoring/check-published-formulae.sh	DOWNLOAD_ATTEMPTS=3	DOWNLOAD_ATTEMPTS=1	tests/monitoring/check-published-formulae.test.sh
+published-formulae-https-only	scripts/monitoring/check-published-formulae.sh	--proto =https --proto-redir =https	--proto =https,http --proto-redir =https	tests/monitoring/check-published-formulae.test.sh

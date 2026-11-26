@@ -34,6 +34,7 @@ FLOATING = {
 
 # (workflow, job) -> why its legs do not stop each other.
 INDEPENDENT = {
+    ("install-from-the-tap.yml", "install"): "each leg is a system and answers for its own: a formula that does not install on macOS says nothing about Linux",
     ("mutation.yml", "mutations"): "each fragment is a file of the catalogue and answers for its own entries; one that fails does not make what the others found worth less",
 }
 

@@ -120,6 +120,10 @@ jobs:
         ./tests/ci/policy/workflows/required-checks-are-emitted.test.sh
         ./tests/ci/policy/workflows/workflow-publish-triggers.test.sh
         ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
+        ./tests/ci/policy/workflows/install-covers-the-tap.test.sh
+        ./tests/monitoring/previous-formula.test.sh
+        ./tests/monitoring/check-published-formulae.test.sh
+        ./tests/monitoring/install-from-the-tap.test.sh
         ./tests/ci/policy/workflows/mutation-sweep-is-split-and-bounded.test.sh
         ./tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh
         ./tests/ci/policy/workflows/workflows-parse-strictly.test.sh

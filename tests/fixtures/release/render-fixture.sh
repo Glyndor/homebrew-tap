@@ -234,6 +234,9 @@ for ((i = 0; i < ${#args[@]}; i++)); do
 done
 [ -n "$output" ] || { echo "curl stub: no -o output" >&2; exit 1; }
 [ -n "$url" ] || { echo "curl stub: no url" >&2; exit 1; }
+# CURL_STUB_LOG, when set, receives one line per transfer asked for, so a test can
+# count how many times a release was read.
+if [ -n "${CURL_STUB_LOG:-}" ]; then echo "$url" >> "$CURL_STUB_LOG"; fi
 # https://github.com/owner/repo/releases/download/TAG/ASSET
 path="${url#https://github.com/}"
 owner_repo="${path%%/releases/download/*}"
@@ -369,7 +372,7 @@ generator_with() { # $1=destination $2...=table rows
 		!inside        { print }
 	' "$GENERATOR" > "$dest"
 	chmod +x "$dest"
-	cp "$(dirname "$GENERATOR")/release-signature.sh" "$(dirname "$dest")/"
+	cp "$(dirname "$GENERATOR")/release-signature.sh" "$(dirname "$GENERATOR")/verify-published.sh" "$(dirname "$dest")/"
 }
 
 run() { # $1=script $2=repo root ; prints nothing, returns the exit status
@@ -379,7 +382,7 @@ run() { # $1=script $2=repo root ; prints nothing, returns the exit status
 # A repo root with a Formula/ directory, for the generator to write into.
 new_root() { # $1=path
 	rm -rf "$1"; mkdir -p "$1/scripts" "$1/scripts/release" "$1/Formula"
-	cp "$(dirname "$GENERATOR")/release-signature.sh" "$1/scripts/release/"
+	cp "$(dirname "$GENERATOR")/release-signature.sh" "$(dirname "$GENERATOR")/verify-published.sh" "$1/scripts/release/"
 }
 
 # The one product row both files build their tables from. shellcheck cannot

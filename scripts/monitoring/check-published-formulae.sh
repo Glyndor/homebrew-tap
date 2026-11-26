@@ -65,7 +65,9 @@ for formula in "${formulae[@]}"; do
 	fi
 	while IFS=$'\t' read -r url expected; do
 		assets=$((assets + 1))
-		if [[ ! "$url" =~ ^https://github\.com/Glyndor/[A-Za-z0-9_.-]+/releases/download/v[0-9A-Za-z.+-]+/[A-Za-z0-9_.-]+$ ]]; then
+		# Each segment has to hold a letter or a digit: an HTTP client resolves "." and ".." before it asks, so a
+		# segment of dots names another asset than the one the url reads as.
+		if [[ ! "$url" =~ ^https://github\.com/Glyndor/[A-Za-z0-9_.-]*[A-Za-z0-9][A-Za-z0-9_.-]*/releases/download/v[0-9A-Za-z]*[A-Za-z0-9][0-9A-Za-z.+-]*/[A-Za-z0-9_.-]*[A-Za-z0-9][A-Za-z0-9_.-]*$ ]]; then
 			echo "::error file=$formula::$url is not a plain asset of a release of a Glyndor repository" >&2
 			failed=$((failed + 1))
 			continue

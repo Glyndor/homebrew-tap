@@ -93,6 +93,18 @@ fresh; formula probe "url \"$URL/../probe-linux-x86_64\"" "sha256 \"$(sum probe-
 check "a url that climbs out of the release fails" "1" "$(run)"
 fresh; formula probe "url \"$URL/probe-linux-x86_64?x=1\"" "sha256 \"$(sum probe-linux-x86_64)\""
 check "a url with a query fails" "1" "$(run)"
+# A segment made only of dots is resolved by the client before it asks, so the url names another asset than the one it
+# reads as. Each one is refused before anything is fetched.
+release="https://github.com/Glyndor/probe/releases/download"
+for bad in "https://github.com/Glyndor/./releases/download/v1.0.0/probe-linux-x86_64" \
+	"https://github.com/Glyndor/../releases/download/v1.0.0/probe-linux-x86_64" \
+	"$release/v../probe-linux-x86_64" "$release/v1.0.0/." "$release/v1.0.0/.." "$release/v1.0.0/..."; do
+	fresh; formula probe "url \"$bad\"" "sha256 \"$(sum probe-linux-x86_64)\""
+	check "a segment of dots fails: ${bad#https://github.com/Glyndor/}" "1 1 0" \
+		"$(run) $(said 'is not a plain asset of a release of a Glyndor repository') $(calls)"
+done
+fresh; formula probe "url \"https://github.com/Glyndor/probe.tool/releases/download/v1.0.0-rc.1+b5/probe-linux-x86_64\"" "sha256 \"$(sum probe-linux-x86_64)\""
+check "dots beside letters and digits are still a plain asset" "0 0" "$(run) $(said 'is not a plain asset')"
 
 fresh; formula probe "url \"$URL/probe-linux-x86_64\"" "sha256 \"$(sum probe-linux-x86_64 | tr a-f A-F)\""
 check "a digest in capitals fails" "1" "$(run)"

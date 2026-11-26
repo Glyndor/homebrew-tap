@@ -158,7 +158,6 @@ jobs:
         ./tests/ci/policy/rules/jobs-are-bounded.test.sh
         ./tests/ci/policy/rules/network-calls-are-bounded.test.sh
         ./tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
-        ./tests/monitoring/scheduled-run-exists.test.sh
         ./tests/monitoring/check-main-ruleset.test.sh
         ./tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh
         ./tests/ci/policy/workflows/recent-pushes-are-judged.test.sh

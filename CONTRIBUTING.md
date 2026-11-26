@@ -73,8 +73,8 @@ own, or the next scheduled run opens an issue.
 **What installs from the tap is tried, not only read.** `install-from-the-tap.yml` runs when a formula is pushed,
 weekly and on demand, on macOS and on Linux: `brew tap`, `brew install glyndor/tap/<formula>`, the program prints the
 version of the formula, `brew test`, and the formula of the commit before it upgrades to the current one with `brew
-upgrade` (`scripts/monitoring/install-from-the-tap.sh`, tested against a stub of brew; the steps on a runner have not
-run yet). `published-bytes.yml` downloads every asset a formula names and compares it with the formula's digest.
+upgrade` (`scripts/monitoring/install-from-the-tap.sh`, tested against a stub of brew, and run on macOS and Linux
+runners; it trusts the tap with `brew trust --tap`, which Homebrew asks of a tap that is not its own). `published-bytes.yml` downloads every asset a formula names and compares it with the formula's digest.
 
 **The validation that runs INSIDE `update.yml` before the commit is the only
 gate between a bad render and `brew install`**, because the bot's push skips the

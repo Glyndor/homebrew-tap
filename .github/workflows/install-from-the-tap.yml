@@ -11,10 +11,11 @@ name: Install from the tap
 # reads the tap as published, not the change of a pull request. A failure has no pull request to block, so it is
 # a red run, and freshness.yml watches the weekly cron.
 #
-# NOT VERIFIED YET: the script is tested against a stub of brew, and the steps of this workflow have not run on a
-# runner. The first run (a manual one, from main) is what shows whether `brew` on the runner answers the way the
-# stub does, and whether the upgrade really replaces the program. Until a scheduled run has ended well, the cron
-# is in its grace period and no longer than that.
+# The script is tested against a stub of brew, and its steps have run on the runners. The first manual runs, on
+# 26 November 2026, failed on macOS and Linux because Homebrew refuses a formula of a tap that is not trusted; the
+# script trusts the tap now, and a manual run of that change passed on both (it installed the formula, installed the
+# one of the commit before it and upgraded it). Until a scheduled run has ended well, the cron is in its grace period
+# and no longer than that.
 on:
   schedule:
     - cron: "37 6 * * 2"

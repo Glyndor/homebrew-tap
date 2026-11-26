@@ -251,6 +251,45 @@ verify good
 check "recorded bytes the roster refuses are stopped in the commit job" "1" "$rc"
 check "by the roster check" "1" "$(grep -c 'do not match what scripts/release/render-formulae.sh emits' "$WORK/out")"
 
+# --- the job that mints the updater app's token runs on main only ------------------------------------
+# A manual run starts from any branch. The commit job declares the environment whose branch policy admits main, and
+# its first step, before anything else, refuses any other ref.
+guard_problems() { # $1 = workflow file
+	python3 -I - "$1" <<'PY'
+import sys, yaml
+job = yaml.load(open(sys.argv[1], encoding="utf-8"), Loader=yaml.BaseLoader)["jobs"]["commit"]
+if job.get("environment") != "publish":
+    print("the commit job does not declare the environment publish")
+first = job["steps"][0]
+if "uses" in first or "if" in first or first.get("env", {}).get("REF") != "${{ github.ref }}" or "refs/heads/main" not in first.get("run", ""):
+    print("the first step of the commit job is not the refusal of any ref but main")
+PY
+}
+guard_file="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/.github/workflows/update.yml"
+check "update.yml mints the updater app's token on main only" "" "$(guard_problems "$guard_file")"
+guard_run="$(python3 -I -c 'import sys,yaml; print(yaml.safe_load(open(sys.argv[1]))["jobs"]["commit"]["steps"][0]["run"])' "$guard_file")"
+for ref in refs/heads/main refs/heads/mainx refs/heads/fix refs/tags/v1 ""; do
+	guard_rc=0; REF="$ref" bash -c "$guard_run" > "$WORK/guard.out" 2>&1 || guard_rc=$?
+	if [ "$ref" = refs/heads/main ]; then
+		check "its first step lets main through" "0" "$guard_rc"
+	else
+		check "its first step refuses '$ref' and says nothing is committed" "1 1" "$guard_rc $(grep -c 'nothing is committed' "$WORK/guard.out")"
+	fi
+done
+for sabotage in environment first-step; do
+	python3 -I - "$guard_file" "$WORK/guard-$sabotage.yml" "$sabotage" <<'PY'
+import sys, yaml
+doc = yaml.load(open(sys.argv[1], encoding="utf-8"), Loader=yaml.BaseLoader)
+job = doc["jobs"]["commit"]
+if sys.argv[3] == "environment":
+    del job["environment"]
+else:
+    job["steps"].pop(0)
+yaml.safe_dump(doc, open(sys.argv[2], "w"), sort_keys=False)
+PY
+	check "a commit job without its $sabotage is reported" "1" "$([ -n "$(guard_problems "$WORK/guard-$sabotage.yml")" ] && echo 1 || echo 0)"
+done
+
 echo
 echo "$pass passed, $fail failed"
 printf 'DONE %s %d %d\n' "${BASH_SOURCE[0]##*/}" "$pass" "$fail"

@@ -37,6 +37,10 @@ starts() { # the program prints the version it was asked for
 }
 
 brew tap "$tap" || fail "the tap $tap cannot be added"
+# Homebrew loads the formulae of a tap that is not its own only once the tap is trusted ("Refusing to load formula
+# from untrusted tap"), and `brew trust` is the command it documents for that. It names this tap and nothing else,
+# in the trust store of the runner, which is a machine that is thrown away; no global check is turned off.
+brew trust --tap "$tap" || fail "the tap $tap cannot be trusted, so brew would refuse to load its formulae"
 dir="$(brew --repository "$tap")" || fail "the clone of $tap cannot be found"
 [ -d "$dir" ] || fail "the clone of $tap is not a folder: $dir"
 current="$(git -C "$dir" rev-parse HEAD)" || fail "the clone of $tap has no HEAD"

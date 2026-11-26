@@ -56,7 +56,9 @@ jobs:
           persist-credentials: false
           # The history of the formula is what the commit before it is found in.
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.sha }}
+          # A manual run reads the branch it is started from, which from main is the tap as published, and from a branch
+          # is the change that is being tried on the runners before it is merged.
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref || github.sha }}
 
       - name: Install the formula and upgrade it from the version before
         env:

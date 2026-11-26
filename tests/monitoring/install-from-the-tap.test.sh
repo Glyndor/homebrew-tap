@@ -47,6 +47,7 @@ program() { # <what it prints>
 calls() { local n; n=$(( $(cat "$STATE/n.$1" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$STATE/n.$1"; echo "$n"; }
 case "$1" in
 	tap) [ -z "${STUB_TAP_FAIL:-}" ] ;;
+	trust) echo "$*" >> "$STATE/trust.calls"; [ -z "${STUB_TRUST_FAIL:-}" ] ;;
 	--repository)
 		[ -z "${STUB_NO_CLONE:-}" ] || exit 1
 		if [ -n "${STUB_CLONE_MISSING:-}" ]; then echo "$STATE/no-such-folder"
@@ -104,6 +105,12 @@ check "the same version rendered twice is no earlier version either" "3" "$(run)
 
 plant v5.0.0 v6.0.0; export STUB_TAP_FAIL=1; check "a tap that cannot be added fails" "1" "$(run)"; unset STUB_TAP_FAIL
 check "and says so" "1" "$(said 'cannot be added')"
+plant v5.0.0 v6.0.0; export STUB_TRUST_FAIL=1; check "a tap that cannot be trusted fails" "1" "$(run)"; unset STUB_TRUST_FAIL
+check "and says so, naming the tap" "1" "$(said 'tap probe/tap cannot be trusted')"
+check "and nothing was installed after it" "0" "$(cat "$S/n.install" 2>/dev/null || echo 0)"
+plant v5.0.0 v6.0.0; run >/dev/null
+check "the tap is trusted once, by name, with the flag brew documents for a tap" "trust --tap probe/tap" "$(tr '\n' ' ' < "$S/trust.calls" | sed 's/ $//')"
+check "and only that: nothing is trusted that is not the tap" "1" "$(wc -l < "$S/trust.calls" | tr -d ' ')"
 plant v5.0.0 v6.0.0; export STUB_NO_CLONE=1; check "a tap with no clone to find fails" "1" "$(run)"; unset STUB_NO_CLONE
 plant v5.0.0 v6.0.0; export STUB_NO_VERSION=1; check "a formula brew reports no version for fails" "1" "$(run)"; unset STUB_NO_VERSION
 check "and says so" "1" "$(said 'does not report a stable version')"

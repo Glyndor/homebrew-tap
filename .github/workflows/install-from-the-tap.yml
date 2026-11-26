@@ -7,16 +7,17 @@ name: Install from the tap
 # It runs on macOS and on Linux with the Homebrew the runner carries, because the formula has a branch for each.
 #
 # It runs when a push changes a formula, which is what the updater app does, with no pull request in front of it;
-# and on demand. Never on a pull request: it reads the tap as published, not the change of a pull request. A
-# failure has no pull request to block, so it is a red run. It has no cron yet: the weekly one, because Homebrew
-# changes under a formula that does not, comes with the watcher that reads it, in a pull request of its own once
-# this file is on main.
+# weekly, because Homebrew changes under a formula that does not; and on demand. Never on a pull request: it
+# reads the tap as published, not the change of a pull request. A failure has no pull request to block, so it is
+# a red run, and freshness.yml watches the weekly cron.
 #
 # NOT VERIFIED YET: the script is tested against a stub of brew, and the steps of this workflow have not run on a
 # runner. The first run (a manual one, from main) is what shows whether `brew` on the runner answers the way the
 # stub does, and whether the upgrade really replaces the program. Until a scheduled run has ended well, the cron
 # is in its grace period and no longer than that.
 on:
+  schedule:
+    - cron: "37 6 * * 2"
   workflow_dispatch:
   push:
     branches: [main]

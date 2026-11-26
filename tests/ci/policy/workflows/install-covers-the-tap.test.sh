@@ -5,8 +5,8 @@
 #   * the formulae of its matrix are the files of Formula/, both ways: a formula added to the tap and not to the
 #     matrix is a formula nobody installs, and one left in the matrix after it left the tap is a job that fails;
 #   * the matrix has a macOS runner and a Linux runner, and the Linux one names its image;
-#   * it runs on dispatch and on a push that changes Formula/ and nothing else, and on no pull
-#     request (its cron comes with the watcher that reads it, in a pull request after this one): it reads the tap as published, and a pull request has not published anything;
+#   * it runs on a schedule, on dispatch and on a push that changes Formula/ and nothing else, and on no pull
+#     request: it reads the tap as published, and a pull request has not published anything;
 #   * its steps use only actions of GitHub (`actions/`), pinned to a commit, and its checkout keeps the history
 #     the previous formula is found in and keeps no credential;
 #   * its job has a bound, and a leg that fails does not stop the other.
@@ -53,7 +53,7 @@ def problems(repo):
         found.append("the job has no bound of its own")
     for bad in sorted({"pull_request", "pull_request_target"} & set(on)):
         found.append(f"it runs on {bad}")
-    for need in ("workflow_dispatch", "push"):
+    for need in ("schedule", "workflow_dispatch", "push"):
         if need not in on:
             found.append(f"it does not run on {need}")
     push = on.get("push") or {}
@@ -80,7 +80,7 @@ def plant(formulae, mutate=lambda spec: None, on=None):
         for f in formulae:
             (repo / "Formula" / f"{f}.rb").write_text("class X < Formula\nend\n")
         spec = {
-            "on": on or {"workflow_dispatch": None, "push": {"branches": ["main"], "paths": ["Formula/**"]}},
+            "on": on or {"schedule": [{"cron": "0 0 * * 2"}], "workflow_dispatch": None, "push": {"branches": ["main"], "paths": ["Formula/**"]}},
             "jobs": {"install": {
                 "strategy": {"fail-fast": False, "matrix": {"runner": ["macos-latest", "ubuntu-26.04"], "formula": ["podup"]}},
                 "runs-on": "${{ matrix.runner }}", "timeout-minutes": 30,
@@ -114,9 +114,9 @@ check("a Linux runner that is a floating label is refused", ["the Linux runner u
 check("a job that does not run on the runner of its leg is refused", ["the job does not run on the runner of its leg"], plant(["podup"], lambda s: job(s).update({"runs-on": "ubuntu-26.04"})))
 check("a leg that stops the other is refused", ["a leg that fails stops the other: fail-fast is not false"], plant(["podup"], lambda s: job(s)["strategy"].update({"fail-fast": True})))
 check("a job with no bound is refused", ["the job has no bound of its own"], plant(["podup"], lambda s: job(s).pop("timeout-minutes")))
-check("a run on a pull request is refused", ["it runs on pull_request"], plant(["podup"], on={"workflow_dispatch": None, "push": {"paths": ["Formula/**"]}, "pull_request": None}))
-check("a run with no push is refused", ["it does not run on push", "its push runs for None and not for Formula/** alone"], plant(["podup"], on={"workflow_dispatch": None}))
-check("a push for more than the formulae is refused", ["its push runs for ['Formula/**', 'docs/**'] and not for Formula/** alone"], plant(["podup"], on={"workflow_dispatch": None, "push": {"paths": ["Formula/**", "docs/**"]}}))
+check("a run on a pull request is refused", ["it runs on pull_request"], plant(["podup"], on={"schedule": [{"cron": "0 0 * * 2"}], "workflow_dispatch": None, "push": {"paths": ["Formula/**"]}, "pull_request": None}))
+check("a run with no schedule is refused", ["it does not run on schedule"], plant(["podup"], on={"workflow_dispatch": None, "push": {"paths": ["Formula/**"]}}))
+check("a push for more than the formulae is refused", ["its push runs for ['Formula/**', 'docs/**'] and not for Formula/** alone"], plant(["podup"], on={"schedule": [{"cron": "0 0 * * 2"}], "workflow_dispatch": None, "push": {"paths": ["Formula/**", "docs/**"]}}))
 check("a step of a third party is refused", ["a step uses someone/action@" + "b" * 40 + ", which is not an action of GitHub pinned to a commit"], plant(["podup"], lambda s: job(s)["steps"].append({"uses": "someone/action@" + "b" * 40})))
 check("an action of GitHub pinned to a tag is refused", ["a step uses actions/cache@v4, which is not an action of GitHub pinned to a commit"], plant(["podup"], lambda s: job(s)["steps"].append({"uses": "actions/cache@v4"})))
 check("a checkout without the history is refused", ["the checkout does not keep the history, so the commit before the formula cannot be found"], plant(["podup"], lambda s: job(s)["steps"][0]["with"].update({"fetch-depth": 1})))

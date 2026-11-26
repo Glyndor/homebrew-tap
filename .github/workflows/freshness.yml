@@ -196,6 +196,28 @@ jobs:
       workflow: audit.yml
       max-age-days: 3
 
+  # The install of the formula from the tap runs weekly and when a formula changes; a cron that stops firing would
+  # leave a tap nobody installs from. Weekly, so fifteen days, by the rule above.
+  freshness-install:
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/reusable-schedule-freshness.yml
+    with:
+      workflow: install-from-the-tap.yml
+      max-age-days: 15
+
+  # The bytes behind the formulae are read daily and when a formula is pushed; a cron that stops firing would leave
+  # a digest nobody compares. Daily, so three days, by the rule above.
+  freshness-published-bytes:
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/reusable-schedule-freshness.yml
+    with:
+      workflow: published-bytes.yml
+      max-age-days: 3
+
   # mutation.yml runs the catalogue every Monday and on demand, never on a
   # pull request, so its cron is the only thing that asks whether the guards
   # still die under their mutations. A cron that stops takes that question

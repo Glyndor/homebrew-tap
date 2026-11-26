@@ -1,8 +1,8 @@
 name: Published bytes
 
-# On-demand verification of the bytes behind every formula on main, and on every push to main that touches
-# Formula/, so a formula the updater app pushed with no pull request is read as soon as it lands. It has no cron
-# yet: a cron comes with the watcher that reads it, in a pull request of its own once this file is on main.
+# Daily and on-demand verification of the bytes behind every formula on main. A push to main that touches
+# Formula/ runs it too, so a formula the updater app pushed with no pull request is read without waiting for the
+# next daily slot; the schedule remains the backstop.
 #
 # `brew install` refuses an asset whose digest is not the one the formula declares, so a wrong digest on main is a
 # formula that fails for every user. Each formula's urls are downloaded and compared with its digests
@@ -12,11 +12,13 @@ name: Published bytes
 # 500 lines), and is the gap this leaves.
 #
 # The workflow has no required status check: it answers about published main, not about the pull request that may
-# fix it.
+# fix it. Freshness watches its cron.
 #
 # Cost: one release download per declared architecture, currently four. The script bounds each transfer to 120
 # seconds and to 100 MiB, with three attempts per asset.
 on:
+  schedule:
+    - cron: "23 7 * * *"
   workflow_dispatch:
   push:
     branches: [main]

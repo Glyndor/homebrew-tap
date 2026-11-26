@@ -36,3 +36,4 @@ published-formulae-digest-differs	scripts/monitoring/check-published-formulae.sh
 published-formulae-some-failed	scripts/monitoring/check-published-formulae.sh	if [ "$failed" -ne 0 ]; then	if false; then	tests/monitoring/check-published-formulae.test.sh
 published-formulae-three-attempts	scripts/monitoring/check-published-formulae.sh	DOWNLOAD_ATTEMPTS=3	DOWNLOAD_ATTEMPTS=1	tests/monitoring/check-published-formulae.test.sh
 published-formulae-https-only	scripts/monitoring/check-published-formulae.sh	--proto =https --proto-redir =https	--proto =https,http --proto-redir =https	tests/monitoring/check-published-formulae.test.sh
+install-trust-the-tap	scripts/monitoring/install-from-the-tap.sh	brew trust --tap "$tap" || fail "the tap $tap cannot be trusted, so brew would refuse to load its formulae"	true || fail "x"	tests/monitoring/install-from-the-tap.test.sh

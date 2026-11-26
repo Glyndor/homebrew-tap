@@ -11,8 +11,9 @@ name: empty-diff (reusable)
 # Add this as an advisory caller in every repository that opens PRs against
 # `main`, then promote it to a required status check once the emitted check
 # name has stayed stable across a few weeks of green. Promoting it before
-# the name has settled is how a phantom required check is created (see the
-# `dco` and `line-limit` reusable docs for the by-name matching detail).
+# the name has settled is how a phantom required check is created: a required
+# status check is matched by name, so the name this job emits has to be the name the
+# ruleset carries, and a job renamed later renames the check.
 
 on:
   workflow_call:

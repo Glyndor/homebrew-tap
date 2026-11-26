@@ -24,7 +24,7 @@ name: update
 # this workflow before the commit, no pull request review stands between that
 # commit and somebody's `brew install`.
 #
-# Three jobs, and the split is the security boundary, not tidiness:
+# Four jobs, and the split is the security boundary, not tidiness:
 #
 #   render    renders Formula/, holds it to the roster, and records the SHA-256
 #             of every file in its job outputs. No secret.
@@ -32,6 +32,9 @@ name: update
 #             secret. Homebrew installs the Ruby gems those commands need from
 #             RubyGems when they are missing, so this job runs code nobody here
 #             chose, and it is kept away from the key for that reason.
+#   validate-macos
+#             runs `brew audit --strict` on the macOS spec of those bytes. No
+#             secret, for the same reason `validate` holds none.
 #   commit    the only job that mints the updater app's token. It runs no
 #             `brew` and installs nothing; it checks the files it is about to
 #             commit against the digests the render job recorded, holds them to
@@ -80,7 +83,7 @@ permissions:
 
 # Never run two updates at once: they would race on main's HEAD (the second
 # would fail its expectedHeadOid check and drop the update to the next run).
-# The group covers the whole run, all three jobs.
+# The group covers the whole run, all four jobs.
 concurrency:
   group: update-formulae
   cancel-in-progress: false

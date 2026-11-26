@@ -289,7 +289,7 @@ check "and sets no changed output" "" "$(output changed)"
 # These conditions are evaluated by the Actions engine, so they can be read but
 # not executed here. Reading them still catches the wiring being dropped.
 
-# The steps live in three jobs now, so each condition is read off its own step
+# The steps live in four jobs now, so each condition is read off its own step
 # rather than counted across the file: a count cannot tell which step lost it.
 step_if() { # $1=step name substring; prints that step's `if:` value, or nothing
 	awk -v want="name: $1" '

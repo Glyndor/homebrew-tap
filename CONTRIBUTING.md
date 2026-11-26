@@ -295,6 +295,10 @@ them). The scripts and tests listed in `scripts/monitoring/channel-shared-paths.
 copies kept identical to the bucket's (`scripts/monitoring/check-channel-drift.sh` compares them).
 Nothing from the siblings is executed: the three drift watchers fetch their copies over https
 from `raw.githubusercontent.com` to compare them, never to run them.
+`switch-rule-forms.json` is compared in part: the entries that
+`scripts/monitoring/differing-switch-forms.txt` names are of each repository and left out of
+both copies. The jobs of a repository that keep a floating runner label are in its own
+`tests/ci/policy/workflows/runners-exceptions.json`.
 
 **Job ids are load-bearing.** A required status check is named
 `<caller job id> / <inner job name>` when the job lives in a reusable that the caller

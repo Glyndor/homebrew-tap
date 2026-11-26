@@ -420,6 +420,7 @@ tests/ci/policy/workflows/workflows-parse-strictly.test.sh
 
 tests/ci/policy/workflows/runners-are-named.test.sh
 	.github/**
+	tests/ci/policy/workflows/runners-exceptions.json
 
 tests/ci/policy/workflows/required-check-names-are-unique.test.sh
 	.github/**
@@ -698,8 +699,15 @@ tests/monitoring/check-reusable-drift.test.sh
 # with the sibling channel, so the list and everything it names are inputs of
 # its verdict.
 
+tests/monitoring/common-switch-forms.test.sh
+	scripts/monitoring/common-switch-forms.sh
+	scripts/monitoring/differing-switch-forms.txt
+	scripts/quality/lint/switch-rule-forms.json
+	tests/monitoring/common-switch-forms.test.sh
+
 tests/monitoring/check-channel-drift.test.sh
 	scripts/monitoring/check-channel-drift.sh
+	scripts/monitoring/common-switch-forms.sh
 	scripts/monitoring/channel-shared-paths.txt
 	scripts/quality/**
 	tests/ci/**

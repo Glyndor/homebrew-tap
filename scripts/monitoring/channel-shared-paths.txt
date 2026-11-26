@@ -30,6 +30,13 @@
 #   scripts/monitoring/main-ruleset.expected.json, which describes the ruleset of main of
 #   each repository and differs by design.
 #
+#   tests/ci/policy/workflows/runners-exceptions.json, the jobs of this repository that keep a floating runner label
+#   or whose matrix legs run on. The test that reads it is listed and refuses an entry for a job that is not here.
+#
+#   Listed, and compared only in part: scripts/quality/lint/switch-rule-forms.json. The entries named in
+#   scripts/monitoring/differing-switch-forms.txt are of each repository; check-channel-drift.sh leaves them out of
+#   both copies and compares everything else.
+#
 #   The drift checkers themselves. Each names the repositories it reads, so
 #   the same text in three places would be three wrong files.
 #
@@ -49,6 +56,9 @@ scripts/quality/hygiene/check-editorconfig.sh
 scripts/quality/coverage/check-suites-wired.sh
 scripts/quality/lint/check-test-job-not-switchable.sh
 scripts/quality/lint/switch-rule-forms.json
+scripts/monitoring/common-switch-forms.sh
+scripts/monitoring/differing-switch-forms.txt
+tests/monitoring/common-switch-forms.test.sh
 scripts/quality/coverage/check-test-coverage.sh
 scripts/quality/lint/check-tooling-isolation.sh
 scripts/quality/scope/ci-job-scope.sh

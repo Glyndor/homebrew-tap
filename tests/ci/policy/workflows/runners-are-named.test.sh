@@ -3,20 +3,25 @@
 #
 #   * `ubuntu-latest` and `macos-latest` are labels GitHub repoints on its own
 #     schedule, so a job that uses one changes what it runs on without a commit
-#     here. Every job names its image, except the ones listed below with the
-#     reason each may keep a floating label;
+#     here. Every job names its image, except the ones listed as floating, with
+#     the reason each may keep a floating label;
 #   * a matrix with `fail-fast: false` keeps spending runner minutes on the
 #     other legs after one has already decided the run, and one that leaves it
-#     out is the same as true. Every matrix says `fail-fast: true`, except the ones
-#     listed below, whose legs each answer a question of their own and say `fail-fast: false`.
+#     out is the same as true. Every matrix says `fail-fast: true`, except the
+#     ones listed as independent, whose legs each answer a question of their own
+#     and say `fail-fast: false`.
 #
-# The exceptions are an exact list of (workflow, job): a new job with a floating
-# label is refused until somebody lists it and writes why. The checker is shown
-# to refuse each form on planted workflows first.
+# Both lists are exact, by (workflow, job), and of each repository: they are in
+# runners-exceptions.json beside this file, which the sibling channel does not
+# share, while this file is a copy it does. A new job with a floating label is
+# refused until somebody lists it and writes why, and an entry for a job that is
+# not here is refused. The checker is shown to refuse each form on planted
+# workflows first.
 # Requires: bash, python3 with PyYAML.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 python3 -I - "$HERE" <<'PY'
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -24,19 +29,41 @@ from pathlib import Path
 import yaml
 
 passed = failed = 0
-# (workflow, job) -> why a floating label stays.
-FLOATING = {
-    ("audit.yml", "scope"): "writes an output a condition reads; naming the image is a producer change that needs its own earlier pull request",
-    ("update.yml", "validate-macos"): "the verdict is the one of the macOS a user installing today gets, as in audit.yml, and the audit of the update has to agree with the one of the push that follows",
-    ("audit.yml", "audit"): "the verdict is the one of the macOS a user installing today gets, and Homebrew is replaced by GitHub every week whatever the label says",
-}
+HERE = Path(sys.argv[1])
+EXCEPTIONS = "tests/ci/policy/workflows/runners-exceptions.json"
 
 
-# (workflow, job) -> why its legs do not stop each other.
-INDEPENDENT = {
-    ("install-from-the-tap.yml", "install"): "each leg is a system and answers for its own: a formula that does not install on macOS says nothing about Linux",
-    ("mutation.yml", "mutations"): "each fragment is a file of the catalogue and answers for its own entries; one that fails does not make what the others found worth less",
-}
+def load_exceptions(path, folder):
+    """The exceptions of this repository: ({(workflow, job): why} floating, the same for independent, what is wrong)."""
+    def once(pairs):
+        keys = [k for k, _ in pairs]
+        if len(set(keys)) != len(keys):
+            raise ValueError("a key is written twice")
+        return dict(pairs)
+
+    try:
+        data = json.loads(path.read_text(), object_pairs_hook=once)
+    except (OSError, ValueError) as error:
+        return {}, {}, [f"the exceptions cannot be read: {type(error).__name__}"]
+    if not isinstance(data, dict) or sorted(data) != ["floating", "independent"] \
+            or not all(isinstance(v, list) for v in data.values()):
+        return {}, {}, ["the exceptions are not the two lists floating and independent"]
+    found, out = [], {}
+    for name in ("floating", "independent"):
+        out[name] = {}
+        for entry in data[name]:
+            if not (isinstance(entry, list) and len(entry) == 3 and all(isinstance(x, str) and x.strip() for x in entry)):
+                found.append(f"{name}: an entry is not [workflow, job, why]")
+                continue
+            workflow, job, why = entry
+            if (workflow, job) in out[name]:
+                found.append(f"{name}: {workflow} `{job}` is listed twice")
+            out[name][(workflow, job)] = why
+            spec = folder / workflow
+            jobs = (yaml.safe_load(spec.read_text()) or {}).get("jobs") or {} if spec.is_file() else {}
+            if job not in jobs:
+                found.append(f"{name}: {workflow} has no job `{job}` in this repository, so the entry goes")
+    return out["floating"], out["independent"], found
 
 
 def problems(folder, floating, independent=frozenset()):
@@ -104,8 +131,35 @@ check("a listed job with no matrix is refused, so the entry cannot outlive its c
       planted("    runs-on: ubuntu-26.04\n", independent=[("w.yml", "j")]))
 check("a job that is not listed still needs fail-fast: true", ["w.yml: job `j` has a matrix that does not say fail-fast: true"], planted(MATRIX_OFF))
 
+def loaded(text, jobs="jobs:\n  j:\n    runs-on: x\n"):
+    with tempfile.TemporaryDirectory() as folder:
+        (Path(folder) / "w.yml").write_text(jobs)
+        listed = Path(folder) / "x.json"
+        if text is not None:
+            listed.write_text(text)
+        return load_exceptions(listed, Path(folder))[2]
+
+
+GOOD = '{"floating": [["w.yml", "j", "why"]], "independent": []}'
+check("exceptions that name a job of the repository load", [], loaded(GOOD))
+check("no exceptions file is refused", ["the exceptions cannot be read: FileNotFoundError"], loaded(None))
+check("exceptions that are not JSON are refused", ["the exceptions cannot be read: JSONDecodeError"], loaded("{"))
+check("a key written twice is refused", ["the exceptions cannot be read: ValueError"],
+      loaded('{"floating": [], "floating": [], "independent": []}'))
+check("a missing list is refused", ["the exceptions are not the two lists floating and independent"], loaded('{"floating": []}'))
+check("an entry with no reason is refused", ["floating: an entry is not [workflow, job, why]"],
+      loaded('{"floating": [["w.yml", "j", " "]], "independent": []}'))
+check("an entry listed twice is refused", ["independent: w.yml `j` is listed twice"],
+      loaded('{"floating": [], "independent": [["w.yml", "j", "a"], ["w.yml", "j", "b"]]}'))
+check("an entry for a job that is not here is refused", ["floating: w.yml has no job `k` in this repository, so the entry goes"],
+      loaded('{"floating": [["w.yml", "k", "why"]], "independent": []}'))
+check("an entry for a workflow that is not here is refused", ["floating: z.yml has no job `j` in this repository, so the entry goes"],
+      loaded('{"floating": [["z.yml", "j", "why"]], "independent": []}'))
+
+FLOATING, INDEPENDENT, unreadable = load_exceptions(HERE / EXCEPTIONS, HERE / ".github/workflows")
+check("the exceptions of this repository name its own jobs", [], unreadable)
 check("every job of this repository names its image and every matrix fails fast", [],
-      problems(Path(sys.argv[1]) / ".github/workflows", set(FLOATING), set(INDEPENDENT)))
+      problems(HERE / ".github/workflows", set(FLOATING), set(INDEPENDENT)))
 
 print(f"\n{passed} passed, {failed} failed")
 print(f"DONE runners-are-named.test.sh {passed} {failed}")

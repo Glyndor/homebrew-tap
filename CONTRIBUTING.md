@@ -55,7 +55,8 @@ judged by that pull request on the tree that lands, because the ruleset requires
 to be up to date and the checks that judge it. The one path that skips that is the app's
 push, and it is covered twice: `update.yml` renders, checks and audits the formulae (on Linux
 and on macOS) before it pushes, and `generated-on-main.yml` and `audit.yml` judge what was
-pushed, with an issue when that fails. `pushes-to-main.yml` reads every push, with no filter of
+pushed. `generated-on-main.yml` opens an issue when that fails, because no pull request is left to
+block it; `audit.yml` leaves a red run. `pushes-to-main.yml` reads every push, with no filter of
 paths, and fails with an issue when a commit reached `main` that is neither a merged pull request
 nor only what the app writes (`scripts/monitoring/generated-paths.txt`); it takes its script and
 its list from the commit that `main` had, so a push cannot change how it is judged. Nothing else
@@ -81,11 +82,12 @@ required checks. It is covered by `tests/publication/update/update-workflow.test
 extracts the workflow's own `run:` blocks and executes them as they ship rather
 than against a copy.
 
-The workflow runs in three jobs, and only `commit` ever holds the app's key.
+The workflow runs in four jobs, and only `commit` ever holds the app's key.
 `render` renders the formulae and records their SHA-256 in its job outputs;
-`validate` runs `brew style` and `brew audit --strict`, which can install Ruby
-gems, so it holds no secret; `commit` runs no `brew`, commits only files that
-match the recorded digests, and needs both. Keep any new `brew` command, or any
+`validate` runs `brew style` and `brew audit --strict` on Linux, and
+`validate-macos` runs the audit on macOS, both of which can install Ruby gems,
+so neither holds a secret; `commit` runs no `brew`, commits only files that
+match the recorded digests, and needs all three. Keep any new `brew` command, or any
 install, out of the `commit` job: `tests/publication/update/update-key-isolation.test.sh`
 and the `workflow-lint` check refuse it.
 
@@ -139,7 +141,7 @@ There is no `develop`. Branch from `main`, open a pull request against
 - **Commits are signed**, GPG or SSH. `required_signatures` is enforced on
   `main`, and rebase-merge is disabled because GitHub re-creates rebased
   commits without signatures.
-- **Conventional Commit title** on the pull request.
+- **Conventional Commit title** on the pull request. Nothing in CI checks it today: it is a convention, and the review of the pull request is what holds it.
 
 ## Tests
 
@@ -282,6 +284,10 @@ catch, because a count per file cannot tell one guard from another.
 | `drift.yml` | a copy this repository shares with a sibling channel no longer agrees: a reusable workflow, the renderer's verification logic, or one of the scripts and tests the tap and the bucket carry as exact copies |
 | `dco-on-main.yml` | a human commit reached `main` without a `Signed-off-by` trailer; detection after the push, not prevention |
 | `mutation.yml` | a guard of the scripts stopped dying when it was broken on purpose: the suite that watches it no longer notices |
+| `generated-on-main.yml` | a formula that the updater app pushed to `main` does not match the generator or does not pass `brew style`; a failed run opens an issue, because no pull request is left to block it |
+| `pushes-to-main.yml` | a commit reached `main` that no pull request judged and that is not only what the updater app writes, or the commit `main` had was never judged by this guard; a failed run opens an issue |
+| `published-bytes.yml` | the bytes behind a published formula do not match the digest that the formula declares |
+| `install-from-the-tap.yml` | a formula cannot be installed from the published tap, or cannot be upgraded from the version before it |
 
 Every reusable lives in `.github/workflows/reusable-*.yml` as a copy kept identical in logic to the
 copies in the sibling channels (`scripts/monitoring/check-reusable-drift.sh` compares
@@ -291,8 +297,11 @@ Nothing from the siblings is executed: the three drift watchers fetch their copi
 from `raw.githubusercontent.com` to compare them, never to run them.
 
 **Job ids are load-bearing.** A required status check is named
-`<caller job id> / <inner job name>`, so renaming a job renames its check.
-Move jobs between files freely; renaming one is a ruleset change.
+`<caller job id> / <inner job name>` when the job lives in a reusable that the caller
+invokes (`dco / Signed-off-by present on every commit`, `line-limit / line limit`,
+`shell / test`), and by the job's `name:` when the workflow defines the job itself (`audit gate`,
+`brew style`, `products match the generator`, `ML-DSA-65 verifier`). Either way, renaming a job
+renames its check. Move jobs between files freely; renaming one is a ruleset change.
 
 ## Security
 

@@ -14,12 +14,12 @@ name: Freshness
 # Separate from the suite on purpose. These fail because something did not
 # happen elsewhere, never because this pull request is wrong.
 #
-# So: pull request, push to main, and a `schedule` as well. A watcher that
-# fires only on a cron shares the failure mode it exists to catch, which is
-# why the first two triggers carry it; but a repository that goes quiet stops
-# checking its own freshness, and that is real here, because update.yml
-# commits straight to `main`, so `main` moves with nobody opening a pull
-# request. The cron covers exactly that stretch.
+# So: a pull request, path-filtered, and a `schedule`. A watcher that fires only on
+# a cron shares the failure mode it exists to catch, which is why the pull request
+# carries it; but a repository that goes quiet stops checking its own freshness, and
+# that is real here, because update.yml commits straight to `main`, so `main` moves
+# with nobody opening a pull request. The cron covers exactly that stretch. There is
+# no `push` trigger: see the comment on the triggers below.
 #
 # None of these jobs may become a required check. They report on a cron that
 # stopped firing somewhere else, so a red one says nothing about the change
@@ -238,54 +238,6 @@ jobs:
       workflow: mutation.yml
       max-age-days: 15
 
-  # Watches the suite, the way reusable-schedule-freshness watches a cron:
-  # fails when a run that should have been green was not. The other jobs in
-  # this file fail for ABSENCE (a schedule stopped firing). Tests fails for
-  # a different reason -- presence with a bad conclusion -- and
-  # reusable-schedule-freshness cannot see it, because the newest
-  # *successful* scheduled run is independent of what happened on the last
-  # push. A merge that landed a red Tests re-run on `main` is invisible to
-  # every other watcher in this file.
-  #
-  # Measured 2026-09-06 across the three channels: `Tests` failed on `main`
-  # for twenty minutes (19:32 to 19:52 UTC) while a pull request whose run
-  # was still reporting got merged, and the only reason anybody noticed was
-  # that somebody went looking. This job surfaces that within one push or
-  # one freshness tick.
-  #
-  # Two modes, picked by the script from GITHUB_EVENT_NAME:
-  #
-  # On push, the verdict is the tests.yml run on main whose head_sha
-  # equals the pushed commit (GITHUB_SHA). On 2026-09-19, in
-  # scoop-bucket, the push that fixed a red main had a green tests.yml,
-  # but this job ran at the same moment, read the newest COMPLETED run,
-  # which was the previous commit's red one, and put a red cross on the
-  # repair. Picking the run with the matching head_sha closes that race. The script polls up to 80 times with 15 s between
-  # attempts (20 minutes, inside this job's 25-minute timeout); a
-  # `cancelled` conclusion for the pushed commit is RED, because nothing
-  # newer can answer for that commit.
-  #
-  # On schedule and pull_request, the verdict is the newest completed run
-  # on main, sorted by created_at newest first, because the API does not
-  # guarantee that order: the schedule-freshness gate went false red twice
-  # on trusting it (Glyndor/apt#249, Glyndor/scoop-bucket#173).
-  # `cancelled` conclusions are skipped with a count: a cancelled run
-  # means a newer push superseded it, not that the suite is red.
-  #
-  # `per_page=30` in both modes. A page that comes back unsorted cannot
-  # be trusted on its own, and thirty is comfortably above what any
-  # realistic day on this repository produces (measured: zero to three
-  # Tests runs on main per day over the last week).
-  #
-  # DELIBERATELY NOT A REQUIRED STATUS CHECK. A red `main` would then
-  # block the pull request that repairs it, which deepens the failure
-  # this exists to surface. The check name must stay advisory: the rule
-  # that fixes a red `main` is "land a forward fix", and a required
-  # check is the rule that prevents it. Keep this out of the ruleset.
-  #
-  # permissions match reusable-schedule-freshness: reading this
-  # repository's run history needs `actions: read`, and a job cannot
-  # elevate beyond its workflow's grant.
   # What lets CI skip the suites on a push to main is the ruleset: the branch has to be up to
   # date, the aggregator and the checks that judge a pull request are required, and nobody
   # bypasses, so the tree that lands is the tree a pull request tested. This reads what is in

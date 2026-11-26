@@ -60,12 +60,13 @@ is published (`.github/workflows/update.yml#update`,
   workflows, and signs the bot's commits through `createCommitOnBranch`
   (`.github/workflows/update.yml#Commit the update to main (GitHub-signed)`). One trust domain; see Out of scope.
 - **The update bot.** `update.yml` runs on an hourly schedule that GitHub
-  often runs late, in three jobs that each hold a
+  often runs late, in four jobs that each hold a
   read-only `GITHUB_TOKEN` (`contents: read`). `render` renders the formulae
   and records their SHA-256 in its job outputs (`.github/workflows/update.yml#render`),
-  `validate` runs `brew style` and `brew audit --strict` on them
-  (`.github/workflows/update.yml#validate`), and `commit` commits them
-  (`.github/workflows/update.yml#commit`). The write goes through a token
+  `validate` runs `brew style` and `brew audit --strict` on them on Linux
+  (`.github/workflows/update.yml#validate`), `validate-macos` runs the audit on
+  the macOS spec (`.github/workflows/update.yml#validate-macos`), and `commit`
+  commits them (`.github/workflows/update.yml#commit`). The write goes through a token
   minted for the `glyndor-updater` GitHub App (`contents: write` on this
   repository only) by `actions/create-github-app-token`, from a long-lived
   private key held as the repository secret `UPDATER_APP_PRIVATE_KEY`, and only

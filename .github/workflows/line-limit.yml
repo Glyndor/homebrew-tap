@@ -33,7 +33,7 @@ jobs:
       #
       # Nothing needed splitting to turn this on. Counted the way the check
       # counts -- comments and blank lines dropped -- the longest YAML in the
-      # three channel repositories is 183 lines against a soft limit of 300.
+      # repository is 267 lines (.github/workflows/update.yml) against a soft limit of 300.
       #
       # `txt` is there for the lists and maps the tools read. The largest file
       # no gate opened was scripts/quality/scope/suite-scope.txt, the map that

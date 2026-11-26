@@ -487,7 +487,17 @@ jobs:
     # runs is the runner image (git, gh, jq, python3), this repository's own
     # scripts from a fresh checkout, and three first-party actions pinned by
     # commit.
+    # The environment whose branch policy admits main only: it is what releases a secret kept in it to this job, and what
+    # GitHub decides outside this file, so a branch cannot take it away from itself.
+    environment: publish
     steps:
+      # A manual run can be started from any branch, and this job would run that branch's steps with the updater app's
+      # key. This refuses anything but main before anything else runs. It is not the defence on its own, since a branch
+      # can edit this file: the environment above is, once the secret is kept in it.
+      - name: Refuse any ref but main
+        env:
+          REF: ${{ github.ref }}
+        run: '[ "$REF" = refs/heads/main ] || { echo "::error::$REF is not refs/heads/main; nothing is committed"; exit 1; }'
       - if: needs.render.outputs.changed == '1'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -312,3 +312,4 @@ audit-gate-skip-by-decision	.github/workflows/audit.yml	false:skipped)	true:skip
 audit-gate-ran-without-answer	.github/workflows/audit.yml	true:success | :success)	true:success)	tests/ci/policy/workflows/audit-gate.test.sh
 audit-gate-fallthrough	.github/workflows/audit.yml	echo "::error::the scope job said run_audit='$RUN_AUDIT' and the audit ended $AUDIT"	exit 0	tests/ci/policy/workflows/audit-gate.test.sh
 audit-runs-unless-false	.github/workflows/audit.yml	needs.scope.outputs.run_audit != 'false' }}	needs.scope.outputs.run_audit == 'true' }}	tests/ci/policy/workflows/audit-gate.test.sh,tests/ci/policy/workflows/audit-scope.test.sh
+update-commits-only-from-main	.github/workflows/update.yml	[ "$REF" = refs/heads/main ] ||	true ||	tests/publication/update/update-key-isolation.test.sh

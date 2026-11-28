@@ -338,3 +338,10 @@ folder-limit-the-rule-comes-from-the-base	.github/workflows/folder-limit.yml	git
 
 # An entry of the switch forms names a job of this repository.
 switch-forms-missing-job	tests/quality/lint/switch-rule-forms.test.sh	if str(entry.get("job", "")) not in jobs:	if False:	tests/quality/lint/switch-rule-forms.test.sh
+
+# The cancel script: the guards that keep the cancellation inside one pull request.
+cancel-only-the-pull-request-event	scripts/ci/cancel/others.sh	and str(run.get("event") or "") == "pull_request"	and str(run.get("event") or "") == "push"	tests/ci/cancel/others.test.sh
+cancel-only-a-commit-that-failed	scripts/ci/cancel/others.sh	FAILURE = "failure"	FAILURE = "success"	tests/ci/cancel/others.test.sh
+cancel-only-the-listed-workflows	scripts/ci/cancel/others.sh	if key not in cancellable:	if False:	tests/ci/cancel/others.test.sh
+cancel-never-an-analysis	scripts/ci/cancel/others.sh	if any(pattern in key for pattern in never):	if False and any(pattern in key for pattern in never):	tests/ci/cancel/others.test.sh
+cancel-never-its-own-run	scripts/ci/cancel/others.sh	if own and identifier == own:	if False and own and identifier == own:	tests/ci/cancel/others.test.sh

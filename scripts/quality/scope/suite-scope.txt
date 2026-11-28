@@ -369,6 +369,17 @@ tests/ci/policy/rules/jobs-are-bounded.test.sh
 
 # --- the workflow gates -----------------------------------------------------
 
+# The cancel job and the script it runs: the verdict is what the script
+# cancels and what the job holds, so both files are its inputs.
+
+tests/ci/cancel/others.test.sh
+	scripts/ci/cancel/others.sh
+	.github/workflows/cancel-others.yml
+
+# The declared permissions are read from every workflow of the repository.
+tests/ci/policy/permissions-declared.test.sh
+	.github/workflows/**
+
 tests/ci/policy/workflows/workflow-shape.test.sh
 	.github/workflows/**
 

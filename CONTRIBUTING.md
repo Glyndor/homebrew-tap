@@ -306,7 +306,7 @@ both copies. The jobs of a repository that keep a floating runner label are in i
 `<caller job id> / <inner job name>` when the job lives in a reusable that the caller
 invokes (`dco / Signed-off-by present on every commit`, `line-limit / line limit`,
 `shell / test`), and by the job's `name:` when the workflow defines the job itself (`audit gate`,
-`brew style`, `products match the generator`, `ML-DSA-65 verifier`). Either way, renaming a job
+`brew style`, `products match the generator`, `ML-DSA-65 verifier`, `folder limit`). Either way, renaming a job
 renames its check. Move jobs between files freely; renaming one is a ruleset change.
 
 ## Security

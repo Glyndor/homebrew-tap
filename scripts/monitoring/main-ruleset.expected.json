@@ -5,6 +5,7 @@
     "brew style",
     "dco / Signed-off-by present on every commit",
     "empty-diff / empty diff",
+    "folder limit",
     "line-limit / line limit",
     "products match the generator",
     "shell / shellcheck",
@@ -98,6 +99,10 @@
           {
             "context": "ML-DSA-65 verifier",
             "integration_id": 15368
+          },
+          {
+            "context": "folder limit",
+            "integration_id": 15368
           }
         ],
         "strict_required_status_checks_policy": true
@@ -117,7 +122,7 @@
       "enforcement": "active",
       "id": 23138781,
       "name": "protect-main-gated",
-      "updated_at": "2026-11-23T11:10:34Z"
+      "updated_at": "2026-11-28T12:36:18Z"
     }
   ],
   "strict": true

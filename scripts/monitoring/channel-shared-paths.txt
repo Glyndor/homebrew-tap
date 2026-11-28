@@ -125,6 +125,8 @@ tests/quality/lint/check-test-job-not-switchable-pins.test.sh
 tests/quality/lint/check-test-job-not-switchable-context.test.sh
 tests/quality/lint/check-test-job-not-switchable-checkout.test.sh
 tests/fixtures/ci/switchable-rule.sh
+tests/fixtures/ci/switch-forms.sh
+tests/fixtures/ci/switch-forms-planted.json
 tests/quality/scope/suite-scope-map.test.sh
 tests/quality/coverage/check-test-coverage.test.sh
 tests/quality/lint/check-tooling-isolation.test.sh
@@ -135,3 +137,6 @@ tests/quality/lint/lint-workflow-shell.test.sh
 tests/release/release-signature.test.sh
 tests/release/products.test.sh
 tests/release/release-signature/release-signature-mldsa.test.sh
+scripts/quality/structure/folder-limit.sh
+tests/quality/structure/folder-limit.test.sh
+tests/quality/lint/switch-rule-forms.test.sh

@@ -20,7 +20,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 # shellcheck disable=SC1091 # the fixture of the suites of this rule
 . "$HERE/tests/fixtures/ci/switchable-rule.sh"
 
-FORMS="$HERE/scripts/quality/lint/switch-rule-forms.json"
+FORMS="$FORMS_MERGED"
 EXTRA=$'name: Extra\non: pull_request\njobs:\n  later:\n    if: github.event_name == \'push\'\n    runs-on: ubuntu-latest\n    steps:\n      - run: true\n'
 forms_with() { # <dir> <python statement on d>: a copy of the forms, changed
 	mkdir -p "$1/scripts/quality/lint"

@@ -283,7 +283,7 @@ pr-superseded-no-concurrency	tests/ci/policy/workflows/pull-request-runs-are-sup
 pr-superseded-cancel	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh	if str(conc.get("cancel-in-progress", "")).strip() != WANT_CANCEL:	if False:	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
 pins-enumerated-as-keys	.github/workflows/reusable-dependabot-freshness.yml	grep -rhE '^[[:space:]]*(-[[:space:]]+)?uses:	grep -rhE 'uses:	tests/ci/reusable/reusable-dependabot-freshness.test.sh
 pins-counted-as-keys	.github/workflows/reusable-dependabot-freshness.yml	grep -rhoE '^[[:space:]]*(-[[:space:]]+)?uses:	grep -rhoE 'uses:	tests/ci/reusable/reusable-dependabot-freshness.test.sh
-map-reads-suite	tests/quality/lint/check-test-job-not-switchable-inputs.test.sh	SCRIPT="$HERE/scripts/quality/lint/check-test-job-not-switchable.sh"	SCRIPT="$HERE/scripts/quality/lint/check-test-job-not-switchable.sh"; : "$HERE/.github/workflows/tests.yml"	tests/quality/scope/suite-scope-map.test.sh
+map-reads-suite	tests/quality/lint/check-test-job-not-switchable-inputs.test.sh	SCRIPT="$HERE/scripts/quality/lint/check-test-job-not-switchable.sh"	SCRIPT="$HERE/scripts/quality/lint/check-test-job-not-switchable.sh"; : "$HERE/.github/workflows/dco.yml"	tests/quality/scope/suite-scope-map.test.sh
 map-reads-rule	tests/quality/scope/suite-scope-map.test.sh	if glob.glob(os.path.join(root, wanted)) and not any(covers(p, wanted) for p in patterns):	if False:	tests/quality/scope/suite-scope-map.test.sh
 map-reads-folder	tests/quality/scope/suite-scope-map.test.sh	wanted = ref + "/*" if ref == ".github/workflows" else ref	wanted = ref	tests/quality/scope/suite-scope-map.test.sh
 map-covers-folder-pattern	tests/quality/scope/suite-scope-map.test.sh	return path.startswith(pattern[:-2])	return True	tests/quality/scope/suite-scope-map.test.sh
@@ -323,3 +323,18 @@ forms-common-line-twice	scripts/monitoring/common-switch-forms.sh	    if tuple(f
 forms-common-stale	scripts/monitoring/common-switch-forms.sh	    if entries(mine, section, workflow, job) == entries(sibling, section, workflow, job):	    if False:	tests/monitoring/common-switch-forms.test.sh
 forms-common-leaves-out	scripts/monitoring/common-switch-forms.sh	        data[section] = [e for e in data[section] if (section, e["file"], e["job"]) not in differing]	        pass	tests/monitoring/common-switch-forms.test.sh
 forms-common-leaves-only-the-listed	scripts/monitoring/common-switch-forms.sh	(section, e["file"], e["job"]) not in differing]	e["file"] not in [w for _, w, _ in differing]]	tests/monitoring/common-switch-forms.test.sh
+
+# The files of a folder are counted against the ceiling of the base.
+folder-limit-only-the-flat-workflows-and-testdata-are-left-out	scripts/quality/structure/folder-limit.sh	/.github/workflows/ | */testdata/*) return 0 ;;	*) return 0 ;;	tests/quality/structure/folder-limit.test.sh
+folder-limit-exception-without-tabs-is-refused	scripts/quality/structure/folder-limit.sh	if [[ "$line" != *$'\t'* ]]; then	if false; then	tests/quality/structure/folder-limit.test.sh
+folder-limit-exception-needs-a-reason	scripts/quality/structure/folder-limit.sh	if [[ "$rest" != *$'\t'* || "$reason" == *$'\t'* || ! "$reason" =~ [^[:space:]] ]]; then	if false; then	tests/quality/structure/folder-limit.test.sh
+folder-limit-exception-path-is-canonical	scripts/quality/structure/folder-limit.sh	if [ -z "$dir" ] || { [ "$dir" != . ] && [[ "/$dir/" == *//* || "/$dir/" == */./* || "/$dir/" == */../* ]]; }; then	if false; then	tests/quality/structure/folder-limit.test.sh
+folder-limit-ceiling-is-a-decimal-over-twenty	scripts/quality/structure/folder-limit.sh	if [[ ! "$cap" =~ ^[1-9][0-9]{0,8}$ ]] || [ "$cap" -le 20 ]; then	if false; then	tests/quality/structure/folder-limit.test.sh
+folder-limit-duplicate-exception-is-refused	scripts/quality/structure/folder-limit.sh	if [ -n "${parsed["$dir"]:-}" ]; then	if false; then	tests/quality/structure/folder-limit.test.sh
+folder-limit-ceiling	scripts/quality/structure/folder-limit.sh	elif [ "$count" -gt "$cap" ]; then	elif false; then	tests/quality/structure/folder-limit.test.sh
+folder-limit-a-folder-over-the-base-is-refused	scripts/quality/structure/folder-limit.sh	if [ -n "${BASE:-}" ] && [ "$count" -gt "${parsed["$dir"]:-20}" ]; then	if false; then	tests/quality/structure/folder-limit.test.sh
+folder-limit-the-verdict-reaches-the-caller	scripts/quality/structure/folder-limit.sh	if [ "$failed" -ne 0 ]; then exit 1; fi	:	tests/quality/structure/folder-limit.test.sh
+folder-limit-the-rule-comes-from-the-base	.github/workflows/folder-limit.yml	git show "$base_commit:$path" > "$gate"	cp "$path" "$gate"	tests/quality/structure/folder-limit.test.sh
+
+# An entry of the switch forms names a job of this repository.
+switch-forms-missing-job	tests/quality/lint/switch-rule-forms.test.sh	if str(entry.get("job", "")) not in jobs:	if False:	tests/quality/lint/switch-rule-forms.test.sh

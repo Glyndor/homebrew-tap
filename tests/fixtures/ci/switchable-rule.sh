@@ -42,7 +42,10 @@ finish() {
 	[ "$fail" -eq 0 ]
 }
 
-new() { rm -rf "$WORK/t"; mkdir -p "$WORK/t/.github/workflows"; printf '%s' "$WORK/t"; }
+# shellcheck source=tests/fixtures/ci/switch-forms.sh
+. "$HERE/tests/fixtures/ci/switch-forms.sh"
+
+new() { rm -rf "$WORK/t"; mkdir -p "$WORK/t/.github/workflows"; with_forms "$WORK/t"; printf '%s' "$WORK/t"; }
 run_in() { ( cd "$1" && bash "$SCRIPT" 2>&1 ); }
 said() { printf '%s' "$1" | grep -q -F -- "$2" && echo 1 || echo 0; }
 
@@ -82,6 +85,8 @@ for name in names:
     for keep in {name, "tests.yml"}:
         shutil.copy(os.path.join(source, keep), os.path.join(dest, ".github/workflows", keep))
     rel = ".github/workflows/" + name
+    os.makedirs(os.path.join(dest, "scripts/quality/lint"))
+    shutil.copy(os.path.join(work, "forms.json"), os.path.join(dest, "scripts/quality/lint/switch-rule-forms.json"))
     doc = yaml.load(open(os.path.join(source, name)), Loader=LOADER)
     expected = []
     for job_id, job in doc["jobs"].items():
@@ -137,7 +142,7 @@ base_repo() { # the real callers and reusables, and the file above, as the base 
 	rm -rf "$G"; mkdir -p "$G/.github/workflows"; gitg init -q -b main
 	cp "$HERE"/.github/workflows/*.yml "$G/.github/workflows/"
 	printf '%s' "$SCOPE_FILE" > "$G/.github/workflows/freshness.yml"
-	mkdir -p "$G/scripts/quality/lint"; cp "$HERE/scripts/quality/lint/switch-rule-forms.json" "$G/scripts/quality/lint/"
+	with_forms "$G"
 	gitg add -A; gitg commit -qm base; BASE="$(gitg rev-parse HEAD)"
 }
 # The pull request changes a step or a job of a workflow the way the expression says.

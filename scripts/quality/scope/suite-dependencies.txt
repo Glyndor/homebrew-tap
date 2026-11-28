@@ -110,6 +110,7 @@ tests/ci/policy/workflows/repo/brew-style-scope.test.sh python3-yaml
 tests/ci/reusable/reusable-workflow-lint.test.sh python3-yaml
 tests/monitoring/check-tool-versions.test.sh python3-yaml
 tests/quality/lint/check-test-job-not-switchable.test.sh python3-yaml
+tests/quality/lint/switch-rule-forms.test.sh python3-yaml
 tests/quality/lint/check-test-job-not-switchable-inputs.test.sh python3-yaml
 tests/quality/lint/check-test-job-not-switchable-jobs.test.sh python3-yaml
 tests/quality/lint/check-test-job-not-switchable-steps.test.sh python3-yaml

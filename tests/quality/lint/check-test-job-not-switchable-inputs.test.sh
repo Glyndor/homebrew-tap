@@ -26,6 +26,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 SCRIPT="$HERE/scripts/quality/lint/check-test-job-not-switchable.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+# shellcheck source=tests/fixtures/ci/switch-forms.sh
+. "$HERE/tests/fixtures/ci/switch-forms.sh"
 
 pass=0
 fail=0
@@ -58,6 +60,7 @@ run_base() { # $1=dir $2=BASE_SHA -> stdout+stderr, status in $?
 new() {
 	rm -rf "$WORK/t"
 	mkdir -p "$WORK/t/.github/workflows"
+	with_forms "$WORK/t"
 	cat > "$WORK/t/.github/workflows/tests.yml" <<'EOF'
 name: Tests
 on: pull_request
@@ -200,7 +203,7 @@ base_with() {
 	while IFS='|' read -r file job exts; do
 		job_with "$G" "$file" "$job" reusable-line-limit.yml "      extensions: \"$exts\""$'\n'
 	done
-	mkdir -p "$G/scripts/quality/lint"; cp "$HERE/scripts/quality/lint/switch-rule-forms.json" "$G/scripts/quality/lint/"
+	with_forms "$G"
 	gitg add -A
 	gitg commit -qm base
 	BASE="$(gitg rev-parse HEAD)"
@@ -346,7 +349,7 @@ refused_word() { # $1=the word the message names
 base_shell() { # $1=the value the base caller passes ("" for none)
 	rm -rf "$G"; mkdir -p "$G/.github/workflows"; gitg init -q -b main
 	shell_caller "$G" "$1"
-	mkdir -p "$G/scripts/quality/lint"; cp "$HERE/scripts/quality/lint/switch-rule-forms.json" "$G/scripts/quality/lint/"
+	with_forms "$G"
 	gitg add -A; gitg commit -qm base; BASE="$(gitg rev-parse HEAD)"
 }
 

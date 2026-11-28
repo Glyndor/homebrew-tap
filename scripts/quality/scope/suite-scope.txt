@@ -509,46 +509,75 @@ tests/quality/lint/check-test-job-not-switchable.test.sh
 	scripts/quality/lint/check-test-job-not-switchable.sh
 	scripts/quality/lint/switch-rule-forms.json
 	.github/workflows/**
+	tests/fixtures/ci/switch-forms.sh
+	tests/fixtures/ci/switch-forms-planted.json
+
+# The forms of the switch rule name a workflow and a job of it, so the gate
+# that reads them reads the workflows of this repository too.
+
+tests/quality/lint/switch-rule-forms.test.sh
+	scripts/quality/lint/switch-rule-forms.json
+	.github/workflows/**
 
 tests/quality/lint/check-test-job-not-switchable-inputs.test.sh
 	scripts/quality/lint/check-test-job-not-switchable.sh
 	scripts/quality/lint/switch-rule-forms.json
+	.github/workflows/audit.yml
+	.github/workflows/freshness.yml
+	.github/workflows/generated-on-main.yml
+	.github/workflows/mutation.yml
+	.github/workflows/tests.yml
+	.github/workflows/update.yml
+	tests/fixtures/ci/switch-forms.sh
+	tests/fixtures/ci/switch-forms-planted.json
 
 tests/quality/lint/check-test-job-not-switchable-jobs.test.sh
 	scripts/quality/lint/check-test-job-not-switchable.sh
 	scripts/quality/lint/switch-rule-forms.json
 	.github/workflows/**
 	tests/fixtures/ci/switchable-rule.sh
+	tests/fixtures/ci/switch-forms.sh
+	tests/fixtures/ci/switch-forms-planted.json
 
 tests/quality/lint/check-test-job-not-switchable-steps.test.sh
 	scripts/quality/lint/check-test-job-not-switchable.sh
 	scripts/quality/lint/switch-rule-forms.json
 	.github/workflows/**
 	tests/fixtures/ci/switchable-rule.sh
+	tests/fixtures/ci/switch-forms.sh
+	tests/fixtures/ci/switch-forms-planted.json
 
 tests/quality/lint/check-test-job-not-switchable-pins.test.sh
 	scripts/quality/lint/check-test-job-not-switchable.sh
 	scripts/quality/lint/switch-rule-forms.json
 	.github/workflows/**
 	tests/fixtures/ci/switchable-rule.sh
+	tests/fixtures/ci/switch-forms.sh
+	tests/fixtures/ci/switch-forms-planted.json
 
 tests/quality/lint/check-test-job-not-switchable-forms.test.sh
 	scripts/quality/lint/check-test-job-not-switchable.sh
 	scripts/quality/lint/switch-rule-forms.json
 	.github/workflows/**
 	tests/fixtures/ci/switchable-rule.sh
+	tests/fixtures/ci/switch-forms.sh
+	tests/fixtures/ci/switch-forms-planted.json
 
 tests/quality/lint/check-test-job-not-switchable-context.test.sh
 	scripts/quality/lint/check-test-job-not-switchable.sh
 	scripts/quality/lint/switch-rule-forms.json
 	.github/workflows/**
 	tests/fixtures/ci/switchable-rule.sh
+	tests/fixtures/ci/switch-forms.sh
+	tests/fixtures/ci/switch-forms-planted.json
 
 tests/quality/lint/check-test-job-not-switchable-checkout.test.sh
 	scripts/quality/lint/check-test-job-not-switchable.sh
 	scripts/quality/lint/switch-rule-forms.json
 	.github/workflows/**
 	tests/fixtures/ci/switchable-rule.sh
+	tests/fixtures/ci/switch-forms.sh
+	tests/fixtures/ci/switch-forms-planted.json
 
 tests/quality/lint/check-tooling-isolation.test.sh
 	scripts/quality/lint/check-tooling-isolation.sh
@@ -592,6 +621,12 @@ tests/quality/lint/check-action-pins.test.sh
 	.github/actions/**
 	scripts/quality/lint/check-action-pins.sh
 
+tests/quality/structure/folder-limit.test.sh
+	.github/workflows/folder-limit.yml
+	scripts/quality/structure/**
+	tests/fixtures/ci/**
+	tests/quality/structure/**
+
 # The editorconfig gate walks EVERY tracked file, so every tracked file is an
 # input of its verdict and it runs on every pull request.
 
@@ -615,12 +650,6 @@ tests/quality/scope/ci-job-scope.test.sh
 
 tests/quality/scope/ci-job-scope-suites.test.sh
 	scripts/quality/scope/ci-job-scope.sh
-tests/quality/structure/folder-limit.test.sh
-	.github/workflows/folder-limit.yml
-	scripts/quality/structure/**
-	tests/fixtures/ci/**
-	tests/quality/structure/**
-
 	scripts/quality/scope/suite-scope.txt
 	.github/workflows/tests.yml
 	tests/quality/**

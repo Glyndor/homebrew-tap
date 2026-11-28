@@ -156,6 +156,7 @@ jobs:
         ./tests/quality/lint/check-test-job-not-switchable-forms.test.sh
         ./tests/quality/lint/check-test-job-not-switchable-context.test.sh
         ./tests/quality/lint/check-test-job-not-switchable-checkout.test.sh
+        ./tests/quality/lint/switch-rule-forms.test.sh
         ./tests/quality/lint/check-tooling-isolation.test.sh
         ./tests/ci/policy/rules/brew-jobs-are-bounded.test.sh
         ./tests/ci/policy/workflows/repo/audit-scope.test.sh

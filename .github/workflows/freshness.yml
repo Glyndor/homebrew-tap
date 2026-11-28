@@ -256,16 +256,36 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0 # the base commit of a pull request holds the script that runs
           persist-credentials: false
 
+      # The checkout of a pull request is written by the pull request and this job holds
+      # `issues: write`, so on a pull request the script that runs is the copy the base commit
+      # holds, written outside the checkout. A change to the script is judged by the base's
+      # copy and takes effect once it is merged. The expected copy stays the tree's: it is data,
+      # and a pull request that updates it has to compare the new one with the ruleset in force.
+      # An event with no base commit, and a base without the script, fail the job. An empty
+      # BASE_SHA is refused first, because `git show ":path"` reads the index of the checkout.
+      # Only a schedule and a push, which run what main holds, use the copy in the tree.
       - name: Compare the ruleset of main with the copy
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          bash ./scripts/monitoring/check-main-ruleset.sh
+          case "$EVENT" in
+            schedule | push)
+              bash ./scripts/monitoring/check-main-ruleset.sh
+              ;;
+            *)
+              [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the event names no base commit, so the script that compares the ruleset cannot be read from it"; exit 1; }
+              script="$(mktemp "$RUNNER_TEMP/check-main-ruleset.XXXXXX")"
+              git show "$BASE_SHA:scripts/monitoring/check-main-ruleset.sh" > "$script" || { echo "::error::the script cannot be read from the base commit $BASE_SHA, so the ruleset was not compared"; exit 1; }
+              bash "$script" scripts/monitoring/main-ruleset.expected.json
+              ;;
+          esac
 
   # The guard of each push does not run on a push that says [skip ci], or when its workflow is disabled, and then nobody
   # is told. This looks, from here, at the commits of main since the guard existed and asks GitHub whether the guard ran on

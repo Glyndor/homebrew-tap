@@ -69,6 +69,8 @@ the token of a workflow, so what stands in for it is the time of the last change
 ruleset, which is assumed to move on any edit, the bypass list included; that has not been
 measured. When you change the ruleset on purpose, update the copy in a pull request of its
 own, or the next scheduled run opens an issue.
+On a pull request the script that compares is the copy of the base commit, so a change to it takes
+effect once it is merged.
 
 **What installs from the tap is tried, not only read.** `install-from-the-tap.yml` runs when a formula is pushed,
 weekly and on demand, on macOS and on Linux: `brew tap`, `brew install glyndor/tap/<formula>`, the program prints the

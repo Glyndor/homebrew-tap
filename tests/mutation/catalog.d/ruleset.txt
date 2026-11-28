@@ -29,3 +29,12 @@ push-guard-running-is-waited-for	.github/workflows/pushes-to-main.yml	elif any($
 push-guard-no-run-stops	.github/workflows/pushes-to-main.yml	if ($r | length) == 0 then "none"	if ($r | length) == -1 then "none"	tests/ci/policy/workflows/repo/push-guard-trusts-the-commit-it-had.test.sh
 push-guard-zero-before-stops	.github/workflows/pushes-to-main.yml	&& [[ ! "$BEFORE" =~ ^0+$ ]]	&& true	tests/ci/policy/workflows/repo/push-guard-trusts-the-commit-it-had.test.sh
 push-guard-pre-guard-root	.github/workflows/pushes-to-main.yml	*"HTTP 404"*) echo "The commit main had has no guard in it	*"HTTP 404"*) exit 1; echo "The commit main had has no guard in it	tests/ci/policy/workflows/repo/push-guard-trusts-the-commit-it-had.test.sh
+
+# On a pull request the watcher of the ruleset runs the script of the base commit.
+ruleset-pr-runs-the-base-script	.github/workflows/freshness.yml	git show "$BASE_SHA:scripts/monitoring/check-main-ruleset.sh" > "$script"	cp scripts/monitoring/check-main-ruleset.sh "$script"	tests/ci/policy/workflows/repo/freshness-pr-scope.test.sh
+ruleset-base-without-the-script-fails	.github/workflows/freshness.yml	so the ruleset was not compared"; exit 1; }	so the ruleset was not compared"; }	tests/ci/policy/workflows/repo/freshness-pr-scope.test.sh
+ruleset-base-commit-is-named	.github/workflows/freshness.yml	[[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]] ||	true ||	tests/ci/policy/workflows/repo/freshness-pr-scope.test.sh
+ruleset-only-schedule-and-push-run-the-tree	.github/workflows/freshness.yml	schedule | push)	schedule | push | pull_request)	tests/ci/policy/workflows/repo/freshness-pr-scope.test.sh
+ruleset-pr-compares-the-tree-copy	.github/workflows/freshness.yml	bash "$script" scripts/monitoring/main-ruleset.expected.json	bash "$script" /dev/null	tests/ci/policy/workflows/repo/freshness-pr-scope.test.sh
+ruleset-base-is-the-base-of-the-event	.github/workflows/freshness.yml	BASE_SHA: ${{ github.event.pull_request.base.sha }}	BASE_SHA: ${{ github.event.pull_request.head.sha }}	tests/ci/policy/workflows/repo/freshness-pr-scope.test.sh
+ruleset-schedule-still-compares	.github/workflows/freshness.yml	bash ./scripts/monitoring/check-main-ruleset.sh	:	tests/ci/policy/workflows/repo/freshness-pr-scope.test.sh

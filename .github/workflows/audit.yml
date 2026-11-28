@@ -42,7 +42,7 @@ on:
   # the ruleset requires the branch up to date and the aggregator; the one actor that
   # bypasses it is the updater app, which pushes with no pull request, so what it pushed is
   # audited here, on macOS, after update.yml audited it before pushing. The paths are held
-  # by tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh against what
+  # by tests/ci/policy/workflows/repo/push-runs-only-what-main-owns.test.sh against what
   # update.yml commits.
   push:
     branches: [main]

@@ -19,7 +19,7 @@
 #     counted against open issues of the workflow with that exact title.
 # Requires: bash, jq, python3 with PyYAML.
 set -u
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 pass=0

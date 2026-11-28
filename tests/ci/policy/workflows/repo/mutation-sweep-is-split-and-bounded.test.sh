@@ -23,7 +23,7 @@
 # Every case is planted first, so a checker that read nothing would not pass them.
 # Requires: bash, python3 with PyYAML.
 set -euo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 python3 -I - "$HERE" <<'PY'
 import re
 import sys

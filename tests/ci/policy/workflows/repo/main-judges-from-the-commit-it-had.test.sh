@@ -11,7 +11,7 @@
 # Each rule is shown to refuse the form that breaks it, on a copy of the workflow with that one change.
 # Requires: bash, python3 with PyYAML.
 set -euo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 python3 -I - "$HERE" <<'PY'
 import copy
 import re

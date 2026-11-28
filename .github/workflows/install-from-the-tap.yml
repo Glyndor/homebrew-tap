@@ -36,7 +36,7 @@ jobs:
   install:
     # Every formula of the tap, on each system. The policy suite named below holds the list to the folder.
     # A leg that fails does not stop the others: each answers for its own system.
-    # tests/ci/policy/workflows/install-covers-the-tap.test.sh holds all of it.
+    # tests/ci/policy/workflows/repo/install-covers-the-tap.test.sh holds all of it.
     strategy:
       fail-fast: false
       matrix:

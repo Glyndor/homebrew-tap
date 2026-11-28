@@ -24,7 +24,7 @@ on:
   # the formulae and pushes them with no pull request; that path is judged by update.yml
   # before it pushes and by generated-on-main.yml and audit.yml after. freshness.yml reads
   # the ruleset and compares it with the copy in the repository.
-  # tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh holds the list of the
+  # tests/ci/policy/workflows/repo/push-runs-only-what-main-owns.test.sh holds the list of the
   # workflows that do run on a push, with the reason of each.
 
 permissions:
@@ -69,7 +69,7 @@ jobs:
         ./tests/release/render-formulae/render-formulae-version.test.sh
         ./tests/release/render-formulae/render-formulae-hash-of.test.sh
         ./tests/release/verify-published.test.sh
-        ./tests/ci/policy/workflows/published-bytes-order.test.sh
+        ./tests/ci/policy/workflows/repo/published-bytes-order.test.sh
         ./tests/release/render-formulae/render-formulae-products.test.sh
         ./tests/release/render-formulae/render-formulae-attestation.test.sh
         ./tests/release/render-formulae/render-formulae-linux-attestation.test.sh
@@ -90,6 +90,7 @@ jobs:
         ./tests/ci/policy/rules/locale-pinned.test.sh
         ./tests/quality/coverage/check-test-coverage.test.sh
         ./tests/quality/lint/check-action-pins.test.sh
+        ./tests/quality/structure/folder-limit.test.sh
         ./tests/quality/hygiene/check-doc-anchors.test.sh
         ./tests/governance/check-dco-on-main.test.sh
         ./tests/governance/check-issue-templates.test.sh
@@ -120,22 +121,22 @@ jobs:
         ./tests/ci/policy/workflows/workflow-shape.test.sh
         ./tests/ci/policy/workflows/persist-credentials.test.sh
         ./tests/ci/policy/workflows/skip-only-on-an-explicit-false.test.sh
-        ./tests/ci/policy/workflows/required-checks-are-emitted.test.sh
+        ./tests/ci/policy/workflows/repo/required-checks-are-emitted.test.sh
         ./tests/ci/policy/workflows/workflow-publish-triggers.test.sh
-        ./tests/ci/policy/workflows/freshness-pr-scope.test.sh
-        ./tests/ci/policy/workflows/install-covers-the-tap.test.sh
+        ./tests/ci/policy/workflows/repo/freshness-pr-scope.test.sh
+        ./tests/ci/policy/workflows/repo/install-covers-the-tap.test.sh
         ./tests/monitoring/previous-formula.test.sh
         ./tests/monitoring/check-published-formulae.test.sh
         ./tests/monitoring/install-from-the-tap.test.sh
-        ./tests/ci/policy/workflows/mutation-sweep-is-split-and-bounded.test.sh
+        ./tests/ci/policy/workflows/repo/mutation-sweep-is-split-and-bounded.test.sh
         ./tests/ci/policy/workflows/scheduled-workflows-are-watched.test.sh
         ./tests/ci/policy/workflows/workflows-parse-strictly.test.sh
         ./tests/ci/policy/workflows/runners-are-named.test.sh
         ./tests/ci/policy/workflows/required-check-names-are-unique.test.sh
-        ./tests/ci/policy/workflows/freshness-poll-concurrency.test.sh
-        ./tests/ci/policy/workflows/dependabot-groups.test.sh
-        ./tests/ci/policy/workflows/workflows-run-their-scripts.test.sh
-        ./tests/ci/policy/workflows/brew-style-scope.test.sh
+        ./tests/ci/policy/workflows/repo/freshness-poll-concurrency.test.sh
+        ./tests/ci/policy/workflows/repo/dependabot-groups.test.sh
+        ./tests/ci/policy/workflows/repo/workflows-run-their-scripts.test.sh
+        ./tests/ci/policy/workflows/repo/brew-style-scope.test.sh
         ./tests/monitoring/check-render-drift.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-drift.test.sh
         ./tests/monitoring/check-render-drift/check-render-drift-missing.test.sh
@@ -157,8 +158,8 @@ jobs:
         ./tests/quality/lint/check-test-job-not-switchable-checkout.test.sh
         ./tests/quality/lint/check-tooling-isolation.test.sh
         ./tests/ci/policy/rules/brew-jobs-are-bounded.test.sh
-        ./tests/ci/policy/workflows/audit-scope.test.sh
-        ./tests/ci/policy/workflows/audit-gate.test.sh
+        ./tests/ci/policy/workflows/repo/audit-scope.test.sh
+        ./tests/ci/policy/workflows/repo/audit-gate.test.sh
         ./tests/publication/audit/audit-runs-on-a-schedule.test.sh
         ./tests/publication/audit/audit-trusts-the-linked-tap.test.sh
         ./tests/publication/update/update-audits-before-commit.test.sh
@@ -166,10 +167,10 @@ jobs:
         ./tests/ci/policy/rules/network-calls-are-bounded.test.sh
         ./tests/ci/policy/rules/workflow-network-calls-are-bounded.test.sh
         ./tests/monitoring/check-main-ruleset.test.sh
-        ./tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh
-        ./tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
-        ./tests/ci/policy/workflows/main-judges-from-the-commit-it-had.test.sh
-        ./tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+        ./tests/ci/policy/workflows/repo/push-runs-only-what-main-owns.test.sh
+        ./tests/ci/policy/workflows/repo/recent-pushes-are-judged.test.sh
+        ./tests/ci/policy/workflows/repo/main-judges-from-the-commit-it-had.test.sh
+        ./tests/ci/policy/workflows/repo/push-guard-trusts-the-commit-it-had.test.sh
         ./tests/mutation/run-mutations.test.sh
         ./tests/mutation/catalog-reaches-every-script.test.sh
         ./tests/ci/docs/documented-test-command.test.sh

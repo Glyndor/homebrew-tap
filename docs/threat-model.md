@@ -76,7 +76,7 @@ is published (`.github/workflows/update.yml#update`,
   credential that matters here.
 - **A human with Write.** Opens pull requests. The ruleset requires a pull
   request, the status checks listed in
-  `tests/ci/policy/workflows/required-checks-are-emitted.test.sh` (the audit's is `audit gate`) with the
+  `tests/ci/policy/workflows/repo/required-checks-are-emitted.test.sh` (the audit's is `audit gate`) with the
   branch up to date, signed commits and CodeQL, and gives humans no bypass.
 - **A user running `brew install`, on macOS or Linux.** Trusts this repository's `main`,
   Homebrew, and their own machine. The tap cannot reach past the second.

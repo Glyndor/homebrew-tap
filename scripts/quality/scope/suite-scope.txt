@@ -160,7 +160,7 @@ tests/release/verify-published.test.sh
 	scripts/release/release-signature.sh
 	tests/fixtures/release/**
 
-tests/ci/policy/workflows/published-bytes-order.test.sh
+tests/ci/policy/workflows/repo/published-bytes-order.test.sh
 	.github/workflows/published-bytes.yml
 	.github/workflows/update.yml
 
@@ -375,40 +375,40 @@ tests/ci/policy/workflows/workflow-shape.test.sh
 tests/ci/policy/workflows/persist-credentials.test.sh
 	.github/workflows/**
 
-tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh
+tests/ci/policy/workflows/repo/push-runs-only-what-main-owns.test.sh
 	.github/workflows/**
-	tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh
+	tests/ci/policy/workflows/repo/push-runs-only-what-main-owns.test.sh
 
-tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
+tests/ci/policy/workflows/repo/recent-pushes-are-judged.test.sh
 	.github/workflows/**
-	tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
+	tests/ci/policy/workflows/repo/recent-pushes-are-judged.test.sh
 
-tests/ci/policy/workflows/main-judges-from-the-commit-it-had.test.sh
+tests/ci/policy/workflows/repo/main-judges-from-the-commit-it-had.test.sh
 	.github/workflows/**
-	tests/ci/policy/workflows/main-judges-from-the-commit-it-had.test.sh
+	tests/ci/policy/workflows/repo/main-judges-from-the-commit-it-had.test.sh
 
-tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+tests/ci/policy/workflows/repo/push-guard-trusts-the-commit-it-had.test.sh
 	.github/workflows/**
-	tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+	tests/ci/policy/workflows/repo/push-guard-trusts-the-commit-it-had.test.sh
 
 tests/ci/policy/workflows/skip-only-on-an-explicit-false.test.sh
 	.github/workflows/**
 
-tests/ci/policy/workflows/required-checks-are-emitted.test.sh
+tests/ci/policy/workflows/repo/required-checks-are-emitted.test.sh
 	.github/workflows/**
 
 tests/ci/policy/workflows/workflow-publish-triggers.test.sh
 	.github/workflows/update.yml
 
-tests/ci/policy/workflows/freshness-pr-scope.test.sh
+tests/ci/policy/workflows/repo/freshness-pr-scope.test.sh
 	.github/workflows/freshness.yml
 
-tests/ci/policy/workflows/mutation-sweep-is-split-and-bounded.test.sh
+tests/ci/policy/workflows/repo/mutation-sweep-is-split-and-bounded.test.sh
 	.github/workflows/mutation.yml
 	tests/mutation/catalog.txt
 	tests/mutation/catalog.d/**
 	tests/mutation/sweep-durations.txt
-	tests/ci/policy/workflows/mutation-sweep-is-split-and-bounded.test.sh
+	tests/ci/policy/workflows/repo/mutation-sweep-is-split-and-bounded.test.sh
 
 # Every scheduled workflow, and the freshness jobs that watch them.
 
@@ -425,20 +425,20 @@ tests/ci/policy/workflows/runners-are-named.test.sh
 tests/ci/policy/workflows/required-check-names-are-unique.test.sh
 	.github/**
 
-tests/ci/policy/workflows/freshness-poll-concurrency.test.sh
+tests/ci/policy/workflows/repo/freshness-poll-concurrency.test.sh
 	.github/workflows/freshness.yml
 
 # The dependabot gate reads the dependabot file and looks through every
 # workflow for the token action it names.
 
-tests/ci/policy/workflows/dependabot-groups.test.sh
+tests/ci/policy/workflows/repo/dependabot-groups.test.sh
 	.github/dependabot.yml
 	.github/workflows/**
 
 # The script-pinning gate reads the five workflows it pins and the scripts
 # those workflows must run.
 
-tests/ci/policy/workflows/workflows-run-their-scripts.test.sh
+tests/ci/policy/workflows/repo/workflows-run-their-scripts.test.sh
 	.github/workflows/dco-on-main.yml
 	.github/workflows/drift.yml
 	.github/workflows/freshness.yml
@@ -447,15 +447,15 @@ tests/ci/policy/workflows/workflows-run-their-scripts.test.sh
 
 # The brew-style gate reads the workflow that decides whether brew style runs.
 
-tests/ci/policy/workflows/brew-style-scope.test.sh
+tests/ci/policy/workflows/repo/brew-style-scope.test.sh
 	.github/workflows/tests.yml
 
 # The audit gate reads the workflow that fires the audit.
 
-tests/ci/policy/workflows/audit-scope.test.sh
+tests/ci/policy/workflows/repo/audit-scope.test.sh
 	.github/workflows/audit.yml
 
-tests/ci/policy/workflows/audit-gate.test.sh
+tests/ci/policy/workflows/repo/audit-gate.test.sh
 	.github/workflows/audit.yml
 
 # --- the reusable gates -----------------------------------------------------
@@ -615,6 +615,12 @@ tests/quality/scope/ci-job-scope.test.sh
 
 tests/quality/scope/ci-job-scope-suites.test.sh
 	scripts/quality/scope/ci-job-scope.sh
+tests/quality/structure/folder-limit.test.sh
+	.github/workflows/folder-limit.yml
+	scripts/quality/structure/**
+	tests/fixtures/ci/**
+	tests/quality/structure/**
+
 	scripts/quality/scope/suite-scope.txt
 	.github/workflows/tests.yml
 	tests/quality/**
@@ -684,7 +690,7 @@ tests/monitoring/install-from-the-tap.test.sh
 	scripts/monitoring/install-from-the-tap.sh
 	scripts/monitoring/previous-formula.sh
 
-tests/ci/policy/workflows/install-covers-the-tap.test.sh
+tests/ci/policy/workflows/repo/install-covers-the-tap.test.sh
 	.github/workflows/install-from-the-tap.yml
 	Formula/**
 

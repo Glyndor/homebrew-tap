@@ -56,7 +56,7 @@ jobs:
       # the digest was ever signed: a file added to a release by someone who cannot forge its SHA256SUMS signature
       # has the digest of its own bytes. So each formula is also read against the signed SHA256SUMS of the release
       # its url names, with the verifier and the key the render uses. The install step is the render job's, word for
-      # word (tests/ci/policy/workflows/published-bytes-order.test.sh holds the two together), and this job holds no
+      # word (tests/ci/policy/workflows/repo/published-bytes-order.test.sh holds the two together), and this job holds no
       # secret.
       - name: Install the signature verifier
         run: |

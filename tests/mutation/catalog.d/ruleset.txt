@@ -20,12 +20,12 @@ main-ruleset-detail-read	scripts/monitoring/check-main-ruleset.sh	|| report "the
 main-ruleset-detail-parse	scripts/monitoring/check-main-ruleset.sh	jq -e 'type == "object"'	jq -e 'true'	tests/monitoring/check-main-ruleset.test.sh
 main-ruleset-detail-has	scripts/monitoring/check-main-ruleset.sh	jq -e 'has("bypass_actors")'	jq -e 'true'	tests/monitoring/check-main-ruleset.test.sh
 main-ruleset-detail-list	scripts/monitoring/check-main-ruleset.sh	[ -n "$list" ] || report "the bypass list	[ -n "${list}x" ] || report "the bypass list	tests/monitoring/check-main-ruleset.test.sh
-guard-ran-stop-not-reached-fails	.github/workflows/freshness.yml	[ "$found" = 1 ] || {	true || {	tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
-guard-ran-reads-every-page	.github/workflows/freshness.yml	for page in $(seq 1 "$MAX_PAGES"); do	for page in 1; do	tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
-guard-ran-a-hundred-goes-on	.github/workflows/freshness.yml	elif length == 100 then "more"	elif length == 0 then "more"	tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
-guard-ran-verified-from-is-a-hash	.github/workflows/freshness.yml	[[ "$VERIFIED_FROM" =~ ^[0-9a-f]{40}$ ]] ||	true ||	tests/ci/policy/workflows/recent-pushes-are-judged.test.sh
-push-guard-passed-is-all-success	.github/workflows/pushes-to-main.yml	elif all($r[]; .conclusion == "success") then "passed"	elif true then "passed"	tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
-push-guard-running-is-waited-for	.github/workflows/pushes-to-main.yml	elif any($r[]; .status != "completed") then "running"	elif false then "running"	tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
-push-guard-no-run-stops	.github/workflows/pushes-to-main.yml	if ($r | length) == 0 then "none"	if ($r | length) == -1 then "none"	tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
-push-guard-zero-before-stops	.github/workflows/pushes-to-main.yml	&& [[ ! "$BEFORE" =~ ^0+$ ]]	&& true	tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
-push-guard-pre-guard-root	.github/workflows/pushes-to-main.yml	*"HTTP 404"*) echo "The commit main had has no guard in it	*"HTTP 404"*) exit 1; echo "The commit main had has no guard in it	tests/ci/policy/workflows/push-guard-trusts-the-commit-it-had.test.sh
+guard-ran-stop-not-reached-fails	.github/workflows/freshness.yml	[ "$found" = 1 ] || {	true || {	tests/ci/policy/workflows/repo/recent-pushes-are-judged.test.sh
+guard-ran-reads-every-page	.github/workflows/freshness.yml	for page in $(seq 1 "$MAX_PAGES"); do	for page in 1; do	tests/ci/policy/workflows/repo/recent-pushes-are-judged.test.sh
+guard-ran-a-hundred-goes-on	.github/workflows/freshness.yml	elif length == 100 then "more"	elif length == 0 then "more"	tests/ci/policy/workflows/repo/recent-pushes-are-judged.test.sh
+guard-ran-verified-from-is-a-hash	.github/workflows/freshness.yml	[[ "$VERIFIED_FROM" =~ ^[0-9a-f]{40}$ ]] ||	true ||	tests/ci/policy/workflows/repo/recent-pushes-are-judged.test.sh
+push-guard-passed-is-all-success	.github/workflows/pushes-to-main.yml	elif all($r[]; .conclusion == "success") then "passed"	elif true then "passed"	tests/ci/policy/workflows/repo/push-guard-trusts-the-commit-it-had.test.sh
+push-guard-running-is-waited-for	.github/workflows/pushes-to-main.yml	elif any($r[]; .status != "completed") then "running"	elif false then "running"	tests/ci/policy/workflows/repo/push-guard-trusts-the-commit-it-had.test.sh
+push-guard-no-run-stops	.github/workflows/pushes-to-main.yml	if ($r | length) == 0 then "none"	if ($r | length) == -1 then "none"	tests/ci/policy/workflows/repo/push-guard-trusts-the-commit-it-had.test.sh
+push-guard-zero-before-stops	.github/workflows/pushes-to-main.yml	&& [[ ! "$BEFORE" =~ ^0+$ ]]	&& true	tests/ci/policy/workflows/repo/push-guard-trusts-the-commit-it-had.test.sh
+push-guard-pre-guard-root	.github/workflows/pushes-to-main.yml	*"HTTP 404"*) echo "The commit main had has no guard in it	*"HTTP 404"*) exit 1; echo "The commit main had has no guard in it	tests/ci/policy/workflows/repo/push-guard-trusts-the-commit-it-had.test.sh

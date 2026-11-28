@@ -35,6 +35,7 @@ REQUIRED = [
     "brew style",
     "products match the generator",
     "ML-DSA-65 verifier",
+    "folder limit",
 ]
 passed = failed = 0
 

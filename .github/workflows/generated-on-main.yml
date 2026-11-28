@@ -8,7 +8,7 @@ name: Generated on main
 # the jobs that judge that content: not the suites, which a pull request already ran.
 #
 # A failure here has nobody to block, so the last job opens an issue. The paths below are
-# held by tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh against what
+# held by tests/ci/policy/workflows/repo/push-runs-only-what-main-owns.test.sh against what
 # update.yml commits.
 on:
   push:

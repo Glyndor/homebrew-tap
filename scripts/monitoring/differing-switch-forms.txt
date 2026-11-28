@@ -10,3 +10,17 @@ conditional_jobs	.github/workflows/generated-on-main.yml	report
 conditional_jobs	.github/workflows/update.yml	commit
 conditional_jobs	.github/workflows/update.yml	validate-macos
 step_conditions	.github/workflows/update.yml	validate-macos
+# The audit of the tap waits for the job that decides whether the change can affect it, and the gate answers for that
+# audit; the bucket has no audit of that shape, so the entries of those two jobs are of the tap alone.
+conditional_jobs	.github/workflows/audit.yml	audit
+conditional_jobs	.github/workflows/audit.yml	gate
+# The update of the tap validates what it rendered; the bucket has no job of that shape, so the entry of that job is of
+# the tap alone.
+conditional_jobs	.github/workflows/update.yml	validate
+step_conditions	.github/workflows/update.yml	validate
+# The tap runs `brew style` as a job of tests.yml; the bucket has no such job, so the entry of that job is of the tap
+# alone.
+step_conditions	.github/workflows/tests.yml	formulae
+# The bucket runs the manifests in a job of tests.yml; the tap has no such job, so the entry of that job is of the
+# bucket alone.
+step_conditions	.github/workflows/tests.yml	manifests

@@ -13,7 +13,7 @@ on:
   # the formulae and pushes them with no pull request; that path is judged by update.yml
   # before it pushes and by generated-on-main.yml and audit.yml after. freshness.yml reads
   # the ruleset and compares it with the copy in the repository.
-  # tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh holds the list of the
+  # tests/ci/policy/workflows/repo/push-runs-only-what-main-owns.test.sh holds the list of the
   # workflows that do run on a push, with the reason of each.
 
 permissions:

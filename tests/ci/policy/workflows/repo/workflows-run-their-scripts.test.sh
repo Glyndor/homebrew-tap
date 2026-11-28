@@ -10,7 +10,7 @@
 # Requires: python3 (standard library only).
 set -euo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 python3 -I - "$HERE" <<'PY'
 import re
 import sys

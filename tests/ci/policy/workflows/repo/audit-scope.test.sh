@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# Execute the real scope step of the `formulae` job (brew style) in disposable
-# git repositories, not a copy of its decision logic. No Homebrew or network
-# is needed. PyYAML is installed by CI.
+# Execute the real scope block in disposable git repositories, not a copy of
+# its decision logic. No Homebrew or network is needed. PyYAML is installed by CI.
 set -euo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 python3 - "$HERE" <<'PY'
 import os
 from pathlib import Path
@@ -14,11 +13,10 @@ import tempfile
 import yaml
 
 root = Path(sys.argv[1])
-doc = yaml.safe_load((root / ".github/workflows/tests.yml").read_text())
-job = doc["jobs"]["formulae"]
-step = next(s for s in job["steps"] if s.get("id") == "scope")
-style = next(s for s in job["steps"] if s.get("name", "").startswith("Validate formulae"))
-checkout = next(s for s in job["steps"] if s.get("uses", "").startswith("actions/checkout@"))
+doc = yaml.safe_load((root / ".github/workflows/audit.yml").read_text())
+scope = doc["jobs"]["scope"]
+audit = doc["jobs"]["audit"]
+step = next(s for s in scope["steps"] if s.get("id") == "scope")
 passed = failed = 0
 
 
@@ -32,11 +30,16 @@ def check(name, expected, actual):
 		print(f"FAIL  {name}: expected {expected!r}, got {actual!r}")
 
 
-check("required check name survives", "brew style", job["name"])
-check("the job itself is never skipped", None, job.get("if"))
-check("checkout fetches the merge parent", 2, checkout["with"]["fetch-depth"])
-check("checkout does not persist credentials", False, checkout["with"]["persist-credentials"])
-check("brew style skips only on an explicit false", "steps.scope.outputs.run_style != 'false'", style["if"])
+check("scope uses Linux", "ubuntu-latest", scope["runs-on"])
+check("scope has a short bound", 2, scope["timeout-minutes"])
+checkout = next(s for s in scope["steps"] if s.get("uses", "").startswith("actions/checkout@"))
+check("scope fetches the merge parent", 2, checkout["with"]["fetch-depth"])
+check("scope does not persist credentials", False, checkout["with"]["persist-credentials"])
+check("scope exposes its decision", "${{ steps.scope.outputs.run_audit }}", scope["outputs"]["run_audit"])
+check("required check name survives", "brew audit", audit["name"])
+check("audit depends on scope", "scope", audit["needs"])
+check("audit skips only on an explicit false, and starts when scope failed", "${{ !cancelled() && needs.scope.outputs.run_audit != 'false' }}", audit["if"])
+check("audit stays on macOS", "macos-latest", audit["runs-on"])
 triggers = doc.get("on", doc.get(True))
 check("PR trigger has no paths filter", None, triggers["pull_request"])
 
@@ -74,32 +77,30 @@ with tempfile.TemporaryDirectory() as work:
 	p = repo("docs")
 	(p / "docs").mkdir()
 	(p / "docs/guide.md").write_text("docs\n")
-	(p / "scripts").mkdir()
-	(p / "scripts/x.sh").write_text("x\n")
 	commit(p)
-	check("docs and scripts only skip brew style", "run_style=false", run(p))
+	check("docs only skips macOS", "run_audit=false", run(p))
 	for event in ("push", "schedule", "workflow_dispatch"):
-		check(f"{event} always runs brew style", "run_style=true", run(p, event))
+		check(f"{event} always audits", "run_audit=true", run(p, event))
 
-	for name in ("Formula/podup.rb", "Formula/nested/new.rb", ".github/workflows/tests.yml"):
+	for name in ("Formula/podup.rb", "Formula/nested/new.rb", ".github/workflows/audit.yml"):
 		p = repo(name.replace("/", "-"))
 		f = p / name
 		f.parent.mkdir(parents=True, exist_ok=True)
 		f.write_text("changed\n")
 		commit(p)
-		check(f"{name} runs brew style", "run_style=true", run(p))
+		check(f"{name} audits", "run_audit=true", run(p))
 
 	p = repo("unreadable")
-	check("unreadable diff runs brew style", "run_style=true", run(p))
+	check("unreadable diff audits", "run_audit=true", run(p))
 	commit(p)
-	check("empty diff runs brew style", "run_style=true", run(p))
+	check("empty diff audits", "run_audit=true", run(p))
 
 	for destination in ("Formula/renamed.rb", "docs/moved.rb"):
 		p = repo(destination.replace("/", "-"))
 		(p / destination).parent.mkdir(parents=True, exist_ok=True)
 		git(p, "mv", "Formula/podup.rb", destination)
 		commit(p)
-		check(f"formula renamed to {destination} runs brew style", "run_style=true", run(p))
+		check(f"formula renamed to {destination} audits", "run_audit=true", run(p))
 
 	p = repo("merge")
 	git(p, "checkout", "-qb", "topic")
@@ -107,9 +108,9 @@ with tempfile.TemporaryDirectory() as work:
 	commit(p)
 	git(p, "checkout", "-q", "main")
 	git(p, "merge", "--no-ff", "-qm", "merge", "topic")
-	check("PR merge compares against its first parent", "run_style=true", run(p))
+	check("PR merge compares against its first parent", "run_audit=true", run(p))
 
 print(f"\n{passed} passed, {failed} failed")
-print(f"DONE brew-style-scope.test.sh {passed} {failed}")
+print(f"DONE audit-scope.test.sh {passed} {failed}")
 sys.exit(1 if failed else 0)
 PY

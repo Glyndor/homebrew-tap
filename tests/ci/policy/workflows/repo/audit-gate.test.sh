@@ -13,7 +13,7 @@
 # A cancelled needs fails it too. No Homebrew or network is needed. PyYAML is
 # installed by CI.
 set -euo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 python3 -I - "$HERE" <<'PY'
 import os
 from pathlib import Path

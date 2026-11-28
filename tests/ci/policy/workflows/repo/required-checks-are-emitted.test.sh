@@ -15,7 +15,7 @@
 # The checker is shown to refuse a renamed job and a renamed caller first.
 # Requires: bash, python3 with PyYAML.
 set -euo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 python3 -I -W error::DeprecationWarning - "$HERE" <<'PY'
 import sys
 import tempfile

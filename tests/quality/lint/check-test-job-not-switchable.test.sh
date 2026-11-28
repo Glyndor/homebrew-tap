@@ -28,6 +28,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 SCRIPT="$HERE/scripts/quality/lint/check-test-job-not-switchable.sh"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+# shellcheck source=tests/fixtures/ci/switch-forms.sh
+. "$HERE/tests/fixtures/ci/switch-forms.sh"
 
 pass=0
 fail=0
@@ -44,7 +46,7 @@ check() { # <description> <expected> <actual>
 	fi
 }
 
-new() { rm -rf "$WORK/t"; mkdir -p "$WORK/t/.github/workflows"; printf '%s' "$WORK/t"; }
+new() { rm -rf "$WORK/t"; mkdir -p "$WORK/t/.github/workflows"; with_forms "$WORK/t"; printf '%s' "$WORK/t"; }
 run_in() { # $1=dir $2=script -> stdout+stderr, status in $?
 	( cd "$1" && bash "$2" 2>&1 )
 }

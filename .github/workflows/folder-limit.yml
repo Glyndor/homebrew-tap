@@ -1,0 +1,71 @@
+name: Folder limit
+
+# The other half of the size rule: line-limit.yml counts the lines of every
+# file, and this one counts the files of every folder. A folder that grows
+# without bound is a folder nobody reads as a whole: the list of its members
+# stops being a list, and every change to it is a change to everything in it.
+# The ceiling is twenty direct files per tracked folder.
+#
+# The check itself is scripts/quality/structure/folder-limit.sh, the same text the
+# other channels carry, and its own suite is
+# tests/quality/structure/folder-limit.test.sh.
+#
+# It counts the TRACKED files, so a file that is not in the commit does not
+# count, and it reads the exceptions from .github/folder-limit-exceptions.txt:
+# one path, a ceiling and a reason per line. There is no exception today: no
+# folder of this repository holds more than twenty files.
+
+on:
+  pull_request:
+  # No `push` to main: what lands there came through a pull request that this workflow
+  # judged, on the tree that lands, because the ruleset requires the branch up to date and
+  # the checks that judge the pull request. One actor bypasses it, the app that regenerates
+  # the formulae and pushes them with no pull request; that path is judged by update.yml
+  # before it pushes and by generated-on-main.yml and audit.yml after. freshness.yml reads
+  # the ruleset and compares it with the copy in the repository.
+  # tests/ci/policy/workflows/repo/push-runs-only-what-main-owns.test.sh holds the list of the
+  # workflows that do run on a push, with the reason of each.
+
+permissions:
+  contents: read
+
+# A newer push to a pull request supersedes the run still going on the old commit.
+# Only a pull request cancels. tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
+# holds this shape.
+concurrency:
+  group: folder-limit-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  folder-limit:
+    name: folder limit
+    # The image is named, as everywhere else: a new one arrives as a commit.
+    runs-on: ubuntu-26.04
+    # The check reads the tracked files of the checkout and counts them: a
+    # second at most. Ten minutes is far above that and far below the six-hour
+    # default a hang would otherwise cost.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # The script is the base commit's copy, so a pull request cannot weaken the check that judges it,
+      # and it reads the base's list of exceptions as well as the tree's, so it cannot raise a ceiling for
+      # itself. The pull request that adds the script has no base copy and runs its own once.
+      - name: No folder holds more files than its ceiling
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          path=scripts/quality/structure/folder-limit.sh
+          gate="$(mktemp "$RUNNER_TEMP/folder-limit.XXXXXX")"
+          base_commit="$(git rev-parse --verify "${BASE}^{commit}")"
+          listed="$(git ls-tree --name-only "$base_commit" -- "$path")"
+          if [ -n "$listed" ]; then
+            git show "$base_commit:$path" > "$gate"
+          else
+            echo "The base commit has no $path; this pull request adds it and runs its own copy once."
+            cp "$path" "$gate"
+          fi
+          bash "$gate"

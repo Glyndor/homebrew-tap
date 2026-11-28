@@ -61,7 +61,7 @@ paths, and fails with an issue when a commit reached `main` that is neither a me
 nor only what the app writes (`scripts/monitoring/generated-paths.txt`); it takes its script and
 its list from the commit that `main` had, so a push cannot change how it is judged. Nothing else
 runs suites on a push; the list of what does, with its reasons, is held by
-`tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh`.
+`tests/ci/policy/workflows/repo/push-runs-only-what-main-owns.test.sh`.
 
 `freshness.yml` reads the ruleset of `main` and compares it with
 `scripts/monitoring/main-ruleset.expected.json`. The list of who may bypass is not shown to

@@ -46,7 +46,7 @@ jobs:
     # sweep-durations.txt, scaled to the entries it has and with a half on top; the policy suite
     # named below fails the pull request that makes a fragment outgrow it, and the one that adds a
     # file of the catalogue that is not listed here. A fragment that fails does not stop the rest.
-    # tests/ci/policy/workflows/mutation-sweep-is-split-and-bounded.test.sh holds all of it.
+    # tests/ci/policy/workflows/repo/mutation-sweep-is-split-and-bounded.test.sh holds all of it.
     timeout-minutes: ${{ matrix.minutes }}
     strategy:
       fail-fast: false

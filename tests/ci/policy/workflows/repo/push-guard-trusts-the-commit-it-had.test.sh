@@ -6,7 +6,7 @@
 # that is still running is waited for.
 # Requires: bash, jq, python3 with PyYAML.
 set -u
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 pass=0

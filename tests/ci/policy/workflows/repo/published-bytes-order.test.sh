@@ -17,7 +17,7 @@
 # Requires: python3 with PyYAML (tests.yml installs python3-yaml).
 set -euo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 pass=0
@@ -179,7 +179,7 @@ check "with the checks in different jobs it is reported" "the two checks are in 
 check "with continue-on-error on the product check it is reported" "the product check can be skipped or can fail without stopping the job" "$(verdict "$WORK/c/softened.yml")"
 
 # The push trigger is not filtered by the files the job runs, unlike the bucket's: a push of the updater app is judged
-# by this workflow for what it wrote (Formula/**), and tests/ci/policy/workflows/push-runs-only-what-main-owns.test.sh holds
+# by this workflow for what it wrote (Formula/**), and tests/ci/policy/workflows/repo/push-runs-only-what-main-owns.test.sh holds
 # that list to what update.yml commits. The daily schedule is what reads a change of the scripts.
 
 

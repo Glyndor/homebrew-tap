@@ -283,7 +283,7 @@ pr-superseded-no-concurrency	tests/ci/policy/workflows/pull-request-runs-are-sup
 pr-superseded-cancel	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh	if str(conc.get("cancel-in-progress", "")).strip() != WANT_CANCEL:	if False:	tests/ci/policy/workflows/pull-request-runs-are-superseded.test.sh
 pins-enumerated-as-keys	.github/workflows/reusable-dependabot-freshness.yml	grep -rhE '^[[:space:]]*(-[[:space:]]+)?uses:	grep -rhE 'uses:	tests/ci/reusable/reusable-dependabot-freshness.test.sh
 pins-counted-as-keys	.github/workflows/reusable-dependabot-freshness.yml	grep -rhoE '^[[:space:]]*(-[[:space:]]+)?uses:	grep -rhoE 'uses:	tests/ci/reusable/reusable-dependabot-freshness.test.sh
-map-reads-suite	tests/quality/lint/check-test-job-not-switchable-inputs.test.sh	SCRIPT="$HERE/scripts/quality/lint/check-test-job-not-switchable.sh"	SCRIPT="$HERE/scripts/quality/lint/check-test-job-not-switchable.sh"; : "$HERE/.github/workflows/tests.yml"	tests/quality/scope/suite-scope-map.test.sh
+map-reads-suite	tests/quality/lint/check-test-job-not-switchable-inputs.test.sh	SCRIPT="$HERE/scripts/quality/lint/check-test-job-not-switchable.sh"	SCRIPT="$HERE/scripts/quality/lint/check-test-job-not-switchable.sh"; : "$HERE/.github/workflows/dco.yml"	tests/quality/scope/suite-scope-map.test.sh
 map-reads-rule	tests/quality/scope/suite-scope-map.test.sh	if glob.glob(os.path.join(root, wanted)) and not any(covers(p, wanted) for p in patterns):	if False:	tests/quality/scope/suite-scope-map.test.sh
 map-reads-folder	tests/quality/scope/suite-scope-map.test.sh	wanted = ref + "/*" if ref == ".github/workflows" else ref	wanted = ref	tests/quality/scope/suite-scope-map.test.sh
 map-covers-folder-pattern	tests/quality/scope/suite-scope-map.test.sh	return path.startswith(pattern[:-2])	return True	tests/quality/scope/suite-scope-map.test.sh
@@ -305,13 +305,13 @@ wired-waiter-keys	scripts/quality/coverage/check-suites-wired.sh	for k in waiter
 wired-workflow-defaults	scripts/quality/coverage/check-suites-wired.sh	    if workflow_defaults:	    if False:	tests/quality/coverage/check-suites-wired.test.sh
 wired-workflow-defaults-read	scripts/quality/coverage/check-suites-wired.sh	workflow_defaults = bool(spec.get("defaults"))	workflow_defaults = False	tests/quality/coverage/check-suites-wired.test.sh
 wired-dependency-defaults	scripts/quality/coverage/check-suites-wired.sh	or other.get("continue-on-error") or "defaults" in other:	or other.get("continue-on-error"):	tests/quality/coverage/check-suites-wired.test.sh
-audit-gate-always	.github/workflows/audit.yml	if: always()	if: success()	tests/ci/policy/workflows/audit-gate.test.sh
-audit-gate-needs-audit	.github/workflows/audit.yml	needs: [scope, audit]	needs: [scope]	tests/ci/policy/workflows/audit-gate.test.sh
-audit-gate-scope-result	.github/workflows/audit.yml	if [ "$SCOPE" != success ]; then	if false; then	tests/ci/policy/workflows/audit-gate.test.sh
-audit-gate-skip-by-decision	.github/workflows/audit.yml	false:skipped)	true:skipped)	tests/ci/policy/workflows/audit-gate.test.sh
-audit-gate-ran-without-answer	.github/workflows/audit.yml	true:success | :success)	true:success)	tests/ci/policy/workflows/audit-gate.test.sh
-audit-gate-fallthrough	.github/workflows/audit.yml	echo "::error::the scope job said run_audit='$RUN_AUDIT' and the audit ended $AUDIT"	exit 0	tests/ci/policy/workflows/audit-gate.test.sh
-audit-runs-unless-false	.github/workflows/audit.yml	needs.scope.outputs.run_audit != 'false' }}	needs.scope.outputs.run_audit == 'true' }}	tests/ci/policy/workflows/audit-gate.test.sh,tests/ci/policy/workflows/audit-scope.test.sh
+audit-gate-always	.github/workflows/audit.yml	if: always()	if: success()	tests/ci/policy/workflows/repo/audit-gate.test.sh
+audit-gate-needs-audit	.github/workflows/audit.yml	needs: [scope, audit]	needs: [scope]	tests/ci/policy/workflows/repo/audit-gate.test.sh
+audit-gate-scope-result	.github/workflows/audit.yml	if [ "$SCOPE" != success ]; then	if false; then	tests/ci/policy/workflows/repo/audit-gate.test.sh
+audit-gate-skip-by-decision	.github/workflows/audit.yml	false:skipped)	true:skipped)	tests/ci/policy/workflows/repo/audit-gate.test.sh
+audit-gate-ran-without-answer	.github/workflows/audit.yml	true:success | :success)	true:success)	tests/ci/policy/workflows/repo/audit-gate.test.sh
+audit-gate-fallthrough	.github/workflows/audit.yml	echo "::error::the scope job said run_audit='$RUN_AUDIT' and the audit ended $AUDIT"	exit 0	tests/ci/policy/workflows/repo/audit-gate.test.sh
+audit-runs-unless-false	.github/workflows/audit.yml	needs.scope.outputs.run_audit != 'false' }}	needs.scope.outputs.run_audit == 'true' }}	tests/ci/policy/workflows/repo/audit-gate.test.sh,tests/ci/policy/workflows/repo/audit-scope.test.sh
 update-commits-only-from-main	.github/workflows/update.yml	[ "$REF" = refs/heads/main ] ||	true ||	tests/publication/update/update-key-isolation.test.sh
 channel-forms-in-part	scripts/monitoring/check-channel-drift.sh	if [ "$path" = "$FORMS_PATH" ]; then	if false; then	tests/monitoring/check-channel-drift.test.sh
 forms-common-usage	scripts/monitoring/common-switch-forms.sh	[ "$#" -eq 5 ] || {	true || {	tests/monitoring/common-switch-forms.test.sh
@@ -323,3 +323,18 @@ forms-common-line-twice	scripts/monitoring/common-switch-forms.sh	    if tuple(f
 forms-common-stale	scripts/monitoring/common-switch-forms.sh	    if entries(mine, section, workflow, job) == entries(sibling, section, workflow, job):	    if False:	tests/monitoring/common-switch-forms.test.sh
 forms-common-leaves-out	scripts/monitoring/common-switch-forms.sh	        data[section] = [e for e in data[section] if (section, e["file"], e["job"]) not in differing]	        pass	tests/monitoring/common-switch-forms.test.sh
 forms-common-leaves-only-the-listed	scripts/monitoring/common-switch-forms.sh	(section, e["file"], e["job"]) not in differing]	e["file"] not in [w for _, w, _ in differing]]	tests/monitoring/common-switch-forms.test.sh
+
+# The files of a folder are counted against the ceiling of the base.
+folder-limit-only-the-flat-workflows-and-testdata-are-left-out	scripts/quality/structure/folder-limit.sh	/.github/workflows/ | */testdata/*) return 0 ;;	*) return 0 ;;	tests/quality/structure/folder-limit.test.sh
+folder-limit-exception-without-tabs-is-refused	scripts/quality/structure/folder-limit.sh	if [[ "$line" != *$'\t'* ]]; then	if false; then	tests/quality/structure/folder-limit.test.sh
+folder-limit-exception-needs-a-reason	scripts/quality/structure/folder-limit.sh	if [[ "$rest" != *$'\t'* || "$reason" == *$'\t'* || ! "$reason" =~ [^[:space:]] ]]; then	if false; then	tests/quality/structure/folder-limit.test.sh
+folder-limit-exception-path-is-canonical	scripts/quality/structure/folder-limit.sh	if [ -z "$dir" ] || { [ "$dir" != . ] && [[ "/$dir/" == *//* || "/$dir/" == */./* || "/$dir/" == */../* ]]; }; then	if false; then	tests/quality/structure/folder-limit.test.sh
+folder-limit-ceiling-is-a-decimal-over-twenty	scripts/quality/structure/folder-limit.sh	if [[ ! "$cap" =~ ^[1-9][0-9]{0,8}$ ]] || [ "$cap" -le 20 ]; then	if false; then	tests/quality/structure/folder-limit.test.sh
+folder-limit-duplicate-exception-is-refused	scripts/quality/structure/folder-limit.sh	if [ -n "${parsed["$dir"]:-}" ]; then	if false; then	tests/quality/structure/folder-limit.test.sh
+folder-limit-ceiling	scripts/quality/structure/folder-limit.sh	elif [ "$count" -gt "$cap" ]; then	elif false; then	tests/quality/structure/folder-limit.test.sh
+folder-limit-a-folder-over-the-base-is-refused	scripts/quality/structure/folder-limit.sh	if [ -n "${BASE:-}" ] && [ "$count" -gt "${parsed["$dir"]:-20}" ]; then	if false; then	tests/quality/structure/folder-limit.test.sh
+folder-limit-the-verdict-reaches-the-caller	scripts/quality/structure/folder-limit.sh	if [ "$failed" -ne 0 ]; then exit 1; fi	:	tests/quality/structure/folder-limit.test.sh
+folder-limit-the-rule-comes-from-the-base	.github/workflows/folder-limit.yml	git show "$base_commit:$path" > "$gate"	cp "$path" "$gate"	tests/quality/structure/folder-limit.test.sh
+
+# An entry of the switch forms names a job of this repository.
+switch-forms-missing-job	tests/quality/lint/switch-rule-forms.test.sh	if str(entry.get("job", "")) not in jobs:	if False:	tests/quality/lint/switch-rule-forms.test.sh
